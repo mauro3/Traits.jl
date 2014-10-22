@@ -36,10 +36,15 @@ catch e
     println(e)
 end
 
-# # This would give an error because supertypes have not been defined yet:
-# @traitimpl Tr3{Int, Int} begin
-#     fun3(x::Int, y::Int, t::Int) = x+y+t
-# end
+# This gives an error because supertypes have not been defined yet:
+try
+    eval(:(
+    @traitimpl Tr3{Int, Int} begin
+        fun3(x::Int, y::Int, t::Int) = x+y+t
+    end))
+catch e
+    println(e)
+end
 
 # this works:
 @traitimpl Tr2{Int, Int} begin

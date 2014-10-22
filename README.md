@@ -16,8 +16,7 @@ It's based on what I think traits should be:
     Assertions could be that certain fields are present or that it has
     some storage structure, etc.
    
-2.  they needn't be declared explicitly, but can be (explicit
-    trait-implementation is not implemented yet).
+2.  they needn't be declared explicitly, but can be.
    
 3.  they allow *dispatch* to work with them
 
@@ -31,7 +30,9 @@ function should be identical to a duck-typed function, i.e. there is
 no loss in performance.
 
 `Traits.jl` adds those kind of traits to Julia, using Tim's trick
-combined with stagedfunctions.
+combined with stagedfunctions.  See also the Julia-issue
+[#6975](https://github.com/JuliaLang/julia/issues/6975) concerning
+interfaces/traits.
 
 Example:
 ```julia
@@ -102,10 +103,15 @@ catch e
     println(e)
 end
 
-# # This would give an error because supertypes have not been defined yet:
-# @traitimpl Tr3{Int, Int} begin
-#     fun3(x::Int, y::Int, t::Int) = x+y+t
-# end
+# This gives an error because supertypes have not been defined yet:
+try
+    eval(:(
+    @traitimpl Tr3{Int, Int} begin
+        fun3(x::Int, y::Int, t::Int) = x+y+t
+    end))
+catch e
+    println(e)
+end
 
 # this works:
 @traitimpl Tr2{Int, Int} begin
@@ -277,10 +283,17 @@ possible to have unsolvable ambiguities with trait-dispatch as traits
 do not have a strict hierarchy like types.
 
 # Previous trait implementations
+
+See the Julia-issue
+[#6975](https://github.com/JuliaLang/julia/issues/6975) for a
+discussion about interfaces/traits.
+
+
 @pao's https://gist.github.com/pao/2432554
 
 - simple
 - no dispatch on trait
+
 
 https://github.com/JuliaLang/julia/pull/7025
 (and https://gist.github.com/tknopp/ed53dc22b61062a2b283)
@@ -289,14 +302,22 @@ https://github.com/JuliaLang/julia/pull/7025
 - interfaces are just added to types
 - no dispatch on interfaces
 
+
 https://gist.github.com/abe-egnor/503661eb4cc0d66b4489
 
 - @abe-egnor
 - no dispatch
 
+
 https://github.com/abeschneider/TypeTraits.jl
 
 - only does fields of types, as far as I can tell
+
+
+Graphs.jl: http://graphsjl-docs.readthedocs.org/en/latest/interface.html
+
+- interface verification
+
 
 @timholy's trick
 https://github.com/JuliaLang/julia/issues/2345#issuecomment-54537633
@@ -304,3 +325,4 @@ https://github.com/JuliaLang/julia/issues/2345#issuecomment-54537633
 - does limited dispatch: a function returns a true/false type
   depending on the input types
 - Jeff suggested some additions to it.
+
