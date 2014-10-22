@@ -5,7 +5,9 @@ module Traits
 #   belonging to a group (i.e. the trait).
 # - they are structural types: i.e. they needn't be declared explicitly
 
-export istrait, issubtrait, traitcheck, traitgetsuper, traitgetpara, traitmethods, @traitdef, @traitfn, TraitException
+export istrait, issubtrait, traitcheck, traitassert, 
+       traitgetsuper, traitgetpara, traitmethods, 
+       @traitdef, @traitimpl, @traitfn, TraitException
 
 if !(VERSION>v"0.4-")
     error("Traits.jl needs Julia version 0.4.-")
@@ -47,16 +49,25 @@ function traitcheck{T<:Trait}(Tr::Type{T}; verbose=false)
     # check supertraits
     traitcheck(traitgetsuper(Tr); verbose=verbose) || return false
     # check definitions
+    try 
+        Tr()
+    catch
+        if verbose
+            println("Not all generic functions of trait $T are defined")
+        end
+        return false
+    end
+    out = true
     for (fn,sig) in Tr().fns
         checks = length(methods(fn, sig[1]))>0
         if !checks
             if verbose
                 println("Function $fn with signature $sig not defined for $T")
             end
-            return false
+            out = false
         end
     end
-    return true
+    return out
 end
 # check a tuple of traits against a signature
 function traitcheck(Trs::Tuple; verbose=false)
@@ -66,7 +77,7 @@ function traitcheck(Trs::Tuple; verbose=false)
     return true
 end
 
-traitassert(Tr::Trait) = @assert traitcheck(Tr)
+traitassert(Tr) = @assert traitcheck(Tr)
 
 traitgetsuper{T<:Trait}(t::Type{T}) =  t.super.parameters[1]::Tuple
 traitgetpara{T<:Trait}(t::Type{T}) =  t.parameters

@@ -4,7 +4,7 @@
 
 - define traits/interfaces with `@traitdef`
 
-- implement interfaces with `@traitimpl` (not done yet...)
+- implement interfaces with `@traitimpl`
 
 - make functions which dispatch on traits with `@traitfn`
 
@@ -21,18 +21,22 @@ It's based on what I think traits should be:
    
 3.  they allow *dispatch* to work with them
 
-Julia's generic functions are very good to set up contracts
-as mentioned in (1).  But Julia does not support (2) or (3) yet.  (2)
-is fairly easy to implement.  However, dispatch on a "contract" is not
+Julia's generic functions are very good to set up contracts as
+mentioned in (1).  But Julia does not support (2) or (3) yet.  (2) is
+fairly easy to implement.  However, dispatch on a "contract" is not
 easily possible, but Tim Holy recently came up with
 [a trick](https://github.com/JuliaLang/julia/issues/2345#issuecomment-54537633).
+The cool thing about that trick is that the code for a trait-dispatch
+function should be identical to a duck-typed function, i.e. there is
+no loss in performance.
 
-`Traits.jl` adds these features to Julia (well, (2) is still missing),
-using Tim's trick combined with stagedfunctions.
+`Traits.jl` adds those kind of traits to Julia, using Tim's trick
+combined with stagedfunctions.
 
 Example:
 ```julia
-# check some traits implemented in src/commontraits.jl
+using Traits
+# Check Cmp-trait (comparison) which is implemented in src/commontraits.jl
 @assert traitcheck(Cmp{Int,Float64}) 
 @assert traitcheck(Cmp{Int,String})==false
 
@@ -59,8 +63,107 @@ ft1("asdf", 6)
 ```
 
 # Syntax
+(source in `examples/ex2.jl`)
 
-See `src/commontraits.jl`, and `tests/`.
+Trait definition:
+```julia
+using Traits
+# simple
+@traitdef Tr1{X} begin
+    fun1(X) -> Int  # return types don't do anything at the moment
+end
+@traitdef Tr2{X,Y} begin
+    fun2(X,Y) -> Int
+end
+# subtrait
+@traitdef Tr3{X,Y} <: Tr1{X}, Tr2{X,Y} begin
+    fun3(X,Y,Int)
+end
+```
+
+Trait implementation:
+```julia
+# manual, i.e. just define the functions
+fun1(x::Int) = 5x
+@assert traitcheck(Tr1{Int})
+
+# using @traitimpl
+@traitimpl Tr1{Float64} begin
+    fun1(x::Float64) = 7x # the explicit "::Float64" is needed at the moment
+end
+@assert traitcheck(Tr1{Float64})
+
+# wrong usage of @traitimpl
+try
+    @traitimpl Tr1{Float32} begin
+        fun1(x::Float64) = 7x # if the explicit type is wrong, it may error
+    end
+catch e
+    println(e)
+end
+
+# # This would give an error because supertypes have not been defined yet:
+# @traitimpl Tr3{Int, Int} begin
+#     fun3(x::Int, y::Int, t::Int) = x+y+t
+# end
+
+# this works:
+@traitimpl Tr2{Int, Int} begin
+    fun2(x::Int, y::Int) = x+y
+end
+@traitimpl Tr3{Int, Int} begin
+    fun3(x::Int, y::Int, t::Int) = x+y+t
+end
+```
+
+Trait functions & dispatch:
+```julia
+@traitfn tf1{X, Y; Tr1{X}, Tr1{Y}}(a::X, b::Y) = fun1(a) + fun1(b)
+@traitfn tf1{X, Y; Tr2{X,Y}}(a::X, b::Y) = fun2(a,b)
+
+# tf1 now dispatches on traits
+tf1(5.,6.) # -> 77
+
+# Errors because of dispatch ambiguity:
+try
+    tf1(5,6)
+catch e
+    println(e)
+end
+
+# adding a type to Tr1 will make it work with tf1:
+type MyType
+    a::Int
+end
+@traitimpl Tr1{MyType} begin
+    fun1(x::MyType) = x.a+9
+end
+
+tf1(MyType(8), 9) # -> 62
+```
+
+# Generated code
+
+Continuing the example from last section, let's have a look at the
+llvm code:
+```julia
+f(x,y) = 7x + 7y
+@code_llvm f(5.,6.)
+@code_llvm tf1(5.,6.)
+```
+both produces
+```
+define double @"julia_f;41342"(double, double) {
+top:
+  %2 = fmul double %0, 7.000000e+00, !dbg !1388
+  %3 = fmul double %1, 7.000000e+00, !dbg !1388
+  %4 = fadd double %2, %3, !dbg !1388
+  ret double %4, !dbg !1388
+}
+```
+
+However, for more complicated functions code is not quite the same,
+see `test/traitdispatch.jl`.
 
 # Inner workings
 
@@ -87,18 +190,29 @@ In Julia dispatch works on types, to extend this to traits I use
 His trick uses a function to check whether its input types satisfy
 certain conditions (only dependent on their type) and returns one type
 or another depending on the outcome.  That check-function is then used
-for dispatch in another function.  Example:
+for dispatch in another function.  Example of Tim's trick:
 ```julia
+type Trait1 end
+type Trait2 end
+type Trait3 end
+# now define function
 f(x,y) = _f(x,y, checkfn(x,y))
 _f(x,y,::Type{Trait1}) = x+y
 _f(x,y,::Type{Trait2}) = x-y
 _f(x,y,::Type{Trait3}) = x*y
 # default
 checkfn{T,S}(x::T,y::S) = error("Function f not implemented for type ($T,$S)")
-# add types-tuples to checkfn-trait:
+# add types-tuples to Trait1, Trait2 or Trait3:
 checkfn(::Int, ::Int) = Trait1
 checkfn(::Int, ::FloatingPoint) = Trait2
 checkfn(::FloatingPoint, ::FloatingPoint) = Trait3
+# use
+f(3,4)  # 7
+f(3,4.) # -1.0
+f(3.,4.) # 12.0
+# add another type-tuple to Trait3
+checkfn(::String, ::String) = Trait3
+f("Lorem ", "Ipsum") # "Lorem Ipsum"
 ```
 
 What does this add compared to what we had before with usual dispatch?

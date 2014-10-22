@@ -6,7 +6,7 @@
 #
 # It may look like
 # @traitdef Cmp{X,Y} <: Eq{X,Y} begin
-#     isless(x.y) -> bool
+#     isless(x,y) -> bool
 # end
 
 # 1) parse the header

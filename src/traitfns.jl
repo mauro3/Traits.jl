@@ -246,7 +246,7 @@ function traitdispatch(traittypes, fname)
     if length(poss)==0
         throw(TraitException("No matching trait found for function $(string(fname))"))
     elseif length(poss)>1
-        throw(TraitException("Several matching traits found for function $(string(fname))"))
+        throw(TraitException("For function $(string(fname)) there are several matching traits: $traittypes"))
     end
     return poss[1]
 end
