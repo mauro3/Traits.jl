@@ -3,8 +3,8 @@ using Traits
 using Base.Test
 
 # check some traits implemented in src/commontraits.jl
-@assert traitcheck(Cmp{Int,Float64}) 
-@assert traitcheck(Cmp{Int,String})==false
+@assert istrait(Cmp{Int,Float64}) 
+@assert istrait(Cmp{Int,String})==false
 
 # make a new trait and add a type to it:
 @traitdef MyTr{X,Y} begin
@@ -14,8 +14,8 @@ type A
     a
 end
 foobar(a::A, b::A) = a.a==b.a
-@assert traitcheck(MyTr{A,A})  # true
-@assert traitcheck(MyTr{Int,Int})==false
+@assert istrait(MyTr{A,A})  # true
+@assert istrait(MyTr{Int,Int})==false
 
 # make a function which dispatches on traits:
 @traitfn ft1{X,Y; Cmp{X,Y}}(x::X,y::Y)  = x>y ? 5 : 6
@@ -51,9 +51,9 @@ type B2
 end
 foobar(a::B2, b::B2) = a.a==b.a
 bar(a::B2, b::B2) = a.a==b.a
-@assert traitcheck(MyTr{B1,B1})  # true
-@assert traitcheck(MyTr2{B1,B1})==false
-@assert traitcheck(MyTr2{B2,B2})
+@assert istrait(MyTr{B1,B1})  # true
+@assert istrait(MyTr2{B1,B1})==false
+@assert istrait(MyTr2{B2,B2})
 
 @test gt1(B1(1), B1(1))=="MyTr"
 @test gt1(B2(1), B2(1))=="MyTr2" 

@@ -15,11 +15,6 @@
 # ToDo:
 # - more checks?
 
-body = quote
-isless(x::T1, y::T2) = x.t1 + y.t2
-size(x::T1, y::T2) = x.t1 - y.t2
-end
-
 function get_fname(ex::Expr)
     # :(sin(x::T1) = sin(x.t1))
     # -> :sin
@@ -38,22 +33,20 @@ end
 
 function check_macro_body(bodyargs, implfs, trait)
     # check that there are no double defs
-    length(trait().fns)==length(implfs) || error("Duplicate method definition(s)")
+    length(trait().methods)==length(implfs) || error("Duplicate method definition(s)")
     # check right number of defs
-    length(trait().fns)==length(implfs) || error("Not right number of method definitions")
-    # check that the signature of implfs agrees with trait().fns
-    for (f,sig) in trait().fns
-        # for now just check length.  Todo: better checks
+    length(trait().methods)==length(implfs) || error("Not right number of method definitions")
+    # check that the signature of implfs agrees with trait().methods
+    for (f,sig) in trait().methods
+        # for now just check length.
         if length(sig[1])!=length(get_fsig(implfs[f])) 
-            @show sig
-            @show implfs[f]
             error("""Method definition:
                      $f  $sig
                      does not match implementation:
                      $(implfs[f])""")
         end
     end
-    true
+    nothing
 end
 
 function parse_body(body::Expr)
@@ -61,17 +54,17 @@ function parse_body(body::Expr)
     for ln in body.args
         if isa(ln, Expr) && !(ln.head==:line)
             if !isdefined(get_fname(ln))
-                # define a standart
-                eval(current_module(), :($(get_fname(ln))() = error("Not defined")))
+                # define a standard generic function:
+                eval_curmod(:($(get_fname(ln))() = error("Not defined")))
             end
-            implfs[eval(current_module(), get_fname(ln))] = ln
+            implfs[eval_curmod(get_fname(ln))] = ln
         end
     end
     return implfs
 end
 
 function prefix_module!(ex::Expr, modname::Symbol)
-    # prefix the module of the function:
+    # Prefix the module of the function, so import is not necessary:
     # :(+(x::T1, y::T2) = x.t1 + y.t2) -> :(Base.+(x::T1, y::T2) = x.t1 + y.t2)
     ex.head== :(=) || error("Not a function definition: $ex")
     ex.args[1].head==:call || error("Not a function definition: $ex")
@@ -89,12 +82,12 @@ end
 macro traitimpl(head, body)
     ## Parse macro header
     name, paras, trait_expr = parsecurly(head)
-    trait = eval(current_module(), trait_expr)
+    trait = eval_curmod(trait_expr)
 
-    ## Check supertraits are implemented, if not warn
-    if !(traitcheck(traitgetsuper(trait); verbose=true))
-        error("""Not all supertraits of $trait are implemented.
-             Implement them first.""")
+    ## Check supertraits are implemented:
+    if !(istrait(traitgetsuper(trait); verbose=true))
+        throw(TraitException("""Not all supertraits of $trait are implemented.
+             Implement them first."""))
     end
     ## Parse macro body 
     implfs = parse_body(body)
@@ -104,12 +97,11 @@ macro traitimpl(head, body)
     out = quote end
     for (fn, fndef) in implfs
         modname = module_name(Base.function_module(fn))
-        # I think meta-programming is needed to make the new function def
         prefix_module!(fndef, modname)
         push!(out.args,fndef)
     end
     
-    ## Check that the implementation went smoothly
-    push!(out.args, :(traitassert($trait_expr)))
+    ## Assert that the implementation went smoothly
+    push!(out.args, :(@assert istrait($trait_expr)))
     return esc(out)
 end

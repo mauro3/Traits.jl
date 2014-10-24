@@ -5,7 +5,7 @@ module Traits
 #   belonging to a group (i.e. the trait).
 # - they are structural types: i.e. they needn't be declared explicitly
 
-export istrait, issubtrait, traitcheck, traitassert, 
+export istrait, istraittype, issubtrait,
        traitgetsuper, traitgetpara, traitmethods, 
        @traitdef, @traitimpl, @traitfn, TraitException
 
@@ -18,51 +18,55 @@ end
 abstract Trait{SUPER}
 # SUPER - is a tuple of required super traits
 
-# Use as return when types are not part of a trait:
-immutable NoTrait <: Trait end
+# A concrete trait type has the form 
+## Tr{X,Y,Z} <: Trait{(ST1{X,Y},ST2{Z})}
+# 
+# immutable Tr{X,Y,Z} <: Trait{(ST1{X,Y},ST2{Z})}
+#   methods
+#   Tr() = new(methods_made_in_macro)
+# end
+#
+# where methods holds the function signatures, like so:
+# Dict{Function,Any} with 3 entries:
+#   next  => ((Int64,Any),(Any...,))
+#   done  => ((Int64,Any),(Bool,))
+#   start => ((Int64,),(Any...,))
 
-# General exception
+# used to dispatch to helper methods
+immutable _TraitDispatch  end
+immutable _TraitStorage end
+
+# General trait exception
 type TraitException <: Exception 
     msg::String
 end
 
-# tests whether a DataType is a trait.  (But only traitcheck checks
+# tests whether a DataType is a trait.  (But only istrait checks
 # whether it's actually full-filled)
-istrait(x) = false
-istrait(x::Type{NoTrait}) = false
-istrait{T<:Trait}(x::Type{T}) = true
-istrait(x::Tuple) = mapreduce(istrait, &, x)
+istraittype(x) = false
+istraittype{T<:Trait}(x::Type{T}) = true
+istraittype(x::Tuple) = mapreduce(istraittype, &, x)
 
-# a concrete trait type has the form 
-## Tr{X,Y,Z} <: Trait{(ST1{X,Y},ST2{Z})}
-# 
-# immutable Tr{X,Y,Z} <: Trait{(ST1{X,Y},ST2{Z})}
-#   fns
-#   Tr() = new(fns_made_in_macro)
-# end
-#
-# where fns holds the function signatures.
-
-# A Trait Tr is defined for some parameters if 
-traitcheck{T<:NoTrait}(Tr::Type{T}; tmp...) = false
-function traitcheck{T<:Trait}(Tr::Type{T}; verbose=false)
+# A Trait Tr is defined for some parameters if
+function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
     # check supertraits
-    traitcheck(traitgetsuper(Tr); verbose=verbose) || return false
-    # check definitions
+    istrait(traitgetsuper(Tr); verbose=verbose) || return false
+    # check methods definitions
     try 
         Tr()
     catch
         if verbose
-            println("Not all generic functions of trait $T are defined")
+            println("""Not all generic functions of trait $Tr are defined.  
+                       Define them before using $Tr""")
         end
         return false
     end
     out = true
-    for (fn,sig) in Tr().fns
-        checks = length(methods(fn, sig[1]))>0
+    for (meth,sig) in Tr().methods
+        checks = length(methods(meth, sig[1]))>0
         if !checks
             if verbose
-                println("Function $fn with signature $sig not defined for $T")
+                println("Method $meth with signature $sig not defined for $T")
             end
             out = false
         end
@@ -70,14 +74,12 @@ function traitcheck{T<:Trait}(Tr::Type{T}; verbose=false)
     return out
 end
 # check a tuple of traits against a signature
-function traitcheck(Trs::Tuple; verbose=false)
+function istrait(Trs::Tuple; verbose=false)
     for Tr in Trs
-        traitcheck(Tr; verbose=verbose) || return false
+        istrait(Tr; verbose=verbose) || return false
     end
     return true
 end
-
-traitassert(Tr) = @assert traitcheck(Tr)
 
 traitgetsuper{T<:Trait}(t::Type{T}) =  t.super.parameters[1]::Tuple
 traitgetpara{T<:Trait}(t::Type{T}) =  t.parameters
@@ -92,11 +94,14 @@ function issubtrait{T1<:Trait,T2<:Trait}(t1::Type{T1}, t2::Type{T2})
     return false
 end
 
+## common helper functions
+include("helpers.jl")
+
 ## Trait definition
 include("traitdef.jl")
 
 # Trait implementation
-include("traitimpl.jl") # TODO: not implemented yet
+include("traitimpl.jl")
 
 # Trait functions
 include("traitfns.jl")

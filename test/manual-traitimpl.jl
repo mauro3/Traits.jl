@@ -51,7 +51,7 @@ Base.sin(x::T1) = sin(x.t1)
 Base.sin(x::T2) = sin(x.t2)
 Base.cos(x::T1) = cos(x.t1)
 Base.cos(x::T2) = cos(x.t2)
-@assert traitcheck(traitgetsuper(D2{T1, T2}))
+@assert istrait(traitgetsuper(D2{T1, T2}))
 
 # make dict of implfns
 tmp = implfns
@@ -63,9 +63,9 @@ end
 length(tmp)==length(implfns) || error("Duplicate method definition(s)")
 
 # check right number of defs
-length(D2{T1,T2}().fns)==length(implfns) || error("Not right number of method definitions")
-# check that the signature of fns agrees with D2{T1,T2}().fns
-for (fn,sig) in D2{T1,T2}().fns
+length(D2{T1,T2}().methods)==length(implfns) || error("Not right number of method definitions")
+# check that the signature of fns agrees with D2{T1,T2}().methods
+for (fn,sig) in D2{T1,T2}().methods
     # for now just check length
     if length(sig)!=length(get_fnsig(implfns[fn])) 
         error("""Method definition:
@@ -84,5 +84,5 @@ for (fn, fndef) in implfns
 end
 
 # checks
-@assert traitcheck(D2{T1, T2})
+@assert istrait(D2{T1, T2})
 @assert T1(5) + T2(4)==5+4

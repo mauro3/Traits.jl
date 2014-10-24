@@ -10,6 +10,8 @@ end
 
 @traitdef Cmp{X,Y} <: Eq{X,Y} begin
     isless(X,Y) -> Bool
+    # automatically provides:
+    # >, <, >=, <=
 end
 
 @traitdef Iter{X}  begin
@@ -35,11 +37,13 @@ end
     getindex(X, Any)
     setindex!(X, Any, Any)
     length(X) -> Integer
+    # automatically provided:
     # size(X) -> Tuple
     # size(X,Integer) -> Integer
 end
 
 @traitdef Assoc{X} <: Indexable{X} begin
+    # note, ObjectId dict is not part of this interface
     haskey(X, Any)
     get(X, Any, Any)
     get(Function, X, Any)
@@ -56,10 +60,10 @@ end
 end
 
 @traitdef Arith{X,Y} begin
-    # ToDo: need to work on the parser to avoid extra ()
-    (+(X,Y))
-    (-(X,Y))
-    (*(X,Y))
-    (/(X,Y))
+    (+(X,Y)) -> Any # ToDo: need to work on the parser to avoid the
+                    # enclosing () paired with -> Any
+    -(X,Y)
+    *(X,Y)
+    /(X,Y)
 end
 

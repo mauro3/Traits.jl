@@ -4,7 +4,7 @@
 #
 # i.e. implement the @traitdef macro
 #
-# It may look like
+# It looks like
 # @traitdef Cmp{X,Y} <: Eq{X,Y} begin
 #     isless(x,y) -> bool
 # end
@@ -63,7 +63,7 @@ function parsetraithead(def::Expr)
     # check supertraits<:Traits
     for i =1:length(supertraits.args)
         st = supertraits.args[i].args[1]
-        eval(current_module(), :(@assert istrait($st)))
+        eval_curmod(:(@assert istraittype($st)))
     end
     # make :(immutable Cmp{X,Y} <: Trait{(Eq{X,Y}, Tr1{X})} end)
     out = :(immutable $trait <: Traits.Trait{$supertraits} end)
@@ -80,13 +80,11 @@ function parsefns(rawfns::Expr)
     # rawfns = quote
     #     f1(X,Y) -> X,Int
     #     f2(Y) -> X
-    #     f3(Y) -> Any
-    #     f4(X)
     # end
     #
     # into
     # :([f1 => ((X,Y), (Int,Int)),
-    #      f2 => ((Y), (X)) ] )
+    #    f2 => ((Y,),  (X,)) ] )
     out = Expr(:dict)
     for ln in rawfns.args
         if isa(ln, Expr)
@@ -132,11 +130,11 @@ macro traitdef(head, body)
     ## make Trait type
     traithead, name = parsetraithead(head)
     # make the body
-    fns = parsefns(body)
+    meths = parsefns(body)
     body = quote
-        fns
+        methods
         function $((name))()
-            new( $fns )
+            new( $meths )
         end
     end
     # add body to the type definition

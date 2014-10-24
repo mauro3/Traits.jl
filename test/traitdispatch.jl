@@ -1,7 +1,10 @@
 function compare_code_native(f1, f2, types)
-    # A vary crude way to compare whether two functions produce the
-    # same machine code.  Returns the relative difference of the
-    # length of code_native of two functions.
+    # A very crude way to compare whether two functions produce the
+    # same machine code: compare their lengths.  Returns the relative
+    # difference of the length of code_native of two functions.
+    #
+    # Note, when running with --code-coverage the traits-functions
+    # will be much longer than the duck-typed ones.
     df1 = Base._dump_function(f1, types, true, false)
     df2 = Base._dump_function(f2, types, true, false)
     # the first two lines have some file names, etc
@@ -10,14 +13,29 @@ function compare_code_native(f1, f2, types)
     abs(length(df1)-length(df2))/length(df2)
 end
 
+###############
+# recreate manual-traitdispatch.jl: f2
+
+@traitfn ttf2{X,Y<:Integer; D1{Y}, D4{X,Y}}(x::X,y::Y) = x + sin(y)
+@traitfn ttf2{S,T<:Integer; D1{S}, D1{T}  }(s::S,t::T) = sin(s) - sin(t)
+@traitfn ttf2{X,Y<:FloatingPoint; D1{X}, D1{Y}  }(x::X,y::Y) = cos(x) - cos(y)
+
+@test_throws Traits.TraitException ttf2(4,5) # ambiguous trait-type
+@test ttf2(4,5.) == cos(4)-cos(5.)
+
+@test ttf2(MTT1(5),4) == sin(5)-sin(4)
+@test ttf2(MTT2(5),3) == sin(3)+5
+
+@test length(methods(f2))==length(methods(ttf2))
+
 ################
 @traitfn ft1{X,Y; Eq{X,Y}}(x::X,y::Y) = x==y
 ff1(x,y) = x==y
 @test ff1(4,5)==ft1(4,5)
 # @code_llvm ft1(4,5)
 # @code_llvm ff1(4,5)
-@test compare_code_native(ff1, ft1, (Int,Int))<0.05
-@test compare_code_native(ff1, ft1, (BigFloat,BigInt))<0.05
+@test 0.02<compare_code_native(ff1, ft1, (Int,Int))<0.03
+@test 0.015compare_code_native(ff1, ft1, (BigFloat,BigInt))<0.025
 
 #################
 @traitfn function ft2{X,Y; Arith{X,Y}}(x::X,y::Y) 
@@ -37,40 +55,11 @@ end
         
 @test ff2(7.3,5.)==ft2(7.3,5.)
 # check the generated code is within some % of each other
-@test compare_code_native(ff2, ft2, (Int,Int))<0.1
-@test compare_code_native(ff2, ft2, (BigFloat,BigInt))<0.15
-
+@test 0.06<compare_code_native(ff2, ft2, (Int,Int))<0.07
+@test 0.09<compare_code_native(ff2, ft2, (BigFloat,BigInt))<0.1
 # @code_llvm ft2(7.3,5.)
 # @code_llvm ff2(7.3,5.)
 
-# n = 100000
-# x = rand(n)
-# y = rand(n)
-
-# function gg()
-#     out = 0.0
-#     for i=1:n
-#         ff2(x[i],y[i])
-#     end
-#     out
-# end
-
-# function gt()
-#     out = 0.0
-#     for i=1:n
-#         ft2(x[i],y[i])
-#     end
-#     out
-# end
-
-# gg()
-# gt()
-
-# gc()
-# @time gg();
-# gc()
-# @time gt();
-# -> very similar timings
 
 
 ##################
@@ -95,8 +84,8 @@ type A
     a
 end
 foobar(a::A, b::A) = a.a==b.a
-@test traitcheck(MyTr{A,A})  # true
-@test traitcheck(MyTr{Int,Int})==false
+@test istrait(MyTr{A,A})  # true
+@test istrait(MyTr{Int,Int})==false
 
 # make a function which dispatches on traits:
 @traitfn ft111{X,Y; Cmp{X,Y}}(x::X,y::Y)  = x>y ? 5 : 6
@@ -126,9 +115,37 @@ type B2
 end
 foobar(a::B2, b::B2) = a.a==b.a
 bar(a::B2, b::B2) = a.a==b.a
-@test traitcheck(MyTr{B1,B1})  # true
-@test traitcheck(MyTr2{B1,B1})==false
-@test traitcheck(MyTr2{B2,B2})
+@test istrait(MyTr{B1,B1})  # true
+@test istrait(MyTr2{B1,B1})==false
+@test istrait(MyTr2{B2,B2})
 
 @test gt1(B1(1), B1(1))=="MyTr"
 @test gt1(B2(1), B2(1))=="MyTr2" 
+
+
+##########
+## adding trait methods to existing functions:
+@traitdef MyTr7{X} begin
+    bobo(X) -> Bool
+end
+
+abstract AMTyp7
+type MTyp71 <: AMTyp7
+end
+type MTyp72 <: AMTyp7
+end
+# add to above trait
+@traitimpl MyTr7{MTyp71} begin
+    bobo(X::MTyp71) = "Yeah"
+end
+
+import Base.sin
+@traitfn sin{X; MyTr7{X}}(x::X) = bobo(x)
+@test sin(MTyp71())=="Yeah"
+@test_throws TraitException sin(MTyp72())
+@test length(traitmethods(sin))==1
+
+@traitfn Base.cos{X; MyTr7{X}}(x::X) = bobo(x)
+@test cos(MTyp71())=="Yeah"
+@test_throws TraitException cos(MTyp72())
+

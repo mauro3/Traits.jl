@@ -8,6 +8,8 @@
 # @traitfn f1{S,T<:Integer; D1{S}, D1{T}  }(s::S,t::T) = sin(s) - sin(t)
 # @traitfn f1{X,Y<:FloatingPoint; D1{X}, D1{Y}  }(x::X,y::Y) = cos(x) - cos(y)
 
+typealias FName Union(Symbol,Expr)
+
 # generates: X1, X2,... or x1, x2....
 type GenerateTypeVars{CASE}
 end
@@ -18,31 +20,30 @@ Base.done(::GenerateTypeVars, state) = false
 
 # Type to hold parsed function defs:
 type ParsedFn  # (probably should adapt MetaTools.jl...)
-    name
-    fun
-    typs
-    sig
-    traits
-    body
+    name::FName  # f1
+    fun # f1{X<:Int,Y}
+    typs # [:(X<:Int),:Y]
+    sig # [:(x::X), :(y::Y)] 
+    traits # (D1{X}, D2{X,Y})
+    body # quote ... end
 end
 function ==(p::ParsedFn, q::ParsedFn) 
     out = true
     for n in names(p)
         out = out && getfield(p,n)==getfield(q,n)
         if !out
-            @show n
+            @show n, getfield(p,n), getfield(q,n)
         end
     end
     out
 end
 
+# Parsing:
 function parsetraitfn_head(head::Expr)
     # Transforms
     # f1{X<:Int,Y; D1{X}, D2{X,Y}}(x::X,y::Y)
     # 
-    # into
-    # name, fun         , typs          , sig               , traits
-    # f1,   f1{X<:Int,Y}, [:(X<:Int),:Y], [:(x::X), :(y::Y)], (D1{X}, D2{X,Y})
+    # into a ParsedFn
 
     nametyp = head.args[1]
     sig = head.args[2:end]
@@ -60,9 +61,7 @@ function translate_head(fn::ParsedFn)
     # ->
     # f1{X1,X2; D1{X1}, D2{X1,X2}}(x::X1,y::X2)
     #
-    # Returns:
-    # fun_trans,    , typs          , sig_trans       , traits_trans
-    # f1{X1<:Int,Y1}, {X1<:Int,Y1}  , (x1::X1, x2::X2), (D1{X1}, D2{X1,X2})
+    # Returns translated ParsedFn
     
     function make_trans(sig)
         # makes two dictionaries with keys the old typevars, and 
@@ -116,7 +115,6 @@ function parsetraitfn(fndef::Expr)
 
     # checks
     length(fndef.args)==2 || throw(TraitException("Something is wrong with $fndef"))
-
     # parse
     head = fndef.args[1]
     body = fndef.args[2]
@@ -127,25 +125,7 @@ function parsetraitfn(fndef::Expr)
     return fn, fnt
 end
 
-function isdefined_fn(fname, _trait_fname, sig)
-    # Warns if overwriting an existing method
-    if !isdefined(fname)
-        return false
-    end
-    if !isdefined(_trait_fname)
-        return false
-    end
-
-    sig_fn = tuple([Any for i=1:length(sig)]...)
-    for meth in methods(eval(fname), sig_fn)
-        if meth.sig==sig_fn
-            warn("""Function $fname already defined with signature: $sig_fn.
-                     Creating the @traitfn overwrites this function!""")
-        end
-    end
-    return true
-end
-
+# Macro building blocks:
 function makefnhead(fname, typs, sig)
     # Makes a Expr for a function head:
     # f1, {X,Y}, (x::X, r::Y) -> f1{X,Y}(x::X, r::Y)
@@ -161,7 +141,7 @@ function strip_typeasserts(sig)
     # [:(x::X), :(r::R)] -> [:x,:r]
     sig = deepcopy(sig)
     for i = 1:length(sig)
-        if isa(sig[i], Expr)
+        if isa(sig[i], Expr) && sig[i].head==:(::)
             # :(x::X)
             sig[i] = sig[i].args[1]
         end
@@ -178,32 +158,37 @@ function makefncall(fname, sig)
     append!(outfn.args, sig)
     return outfn
 end
-function get_concrete_type(typs; asTypetuple=false)
-    # Returns the most general type satisfying typs:
+function get_concrete_type_symb(typs)
+    # Returns the most general type satisfying typs as a list of symbols:
     # [:(X<:Int), :Y] -> [:Int, :Any]
-    #              or -> (Int, Any) 
     out = Any[]
     for t in typs
-        if isa(t, Symbol)
+        if isa(t, Symbol) 
             push!(out, :Any)
+        elseif  t.head==:.
+            push!(out, t)
         else
             push!(out, t.args[2])
         end
     end
-    if asTypetuple
-        for i in 1:length(out)
-            out[i] = Type{eval(current_module(), out[i])}
-        end
-        return tuple(out...)
-    else
-        return out
-    end
+    return out
 end
+function get_concrete_type_Typetuple(typs)
+    # Returns the most general type satisfying typs as a tuple of
+    # actual types:
+    # [:(X<:Int), :Y] -> (Int, Any)
+    out = get_concrete_type_symb(typs)
+    for i in 1:length(out)
+        out[i] = Type{eval_curmod(out[i])}
+    end
+    return tuple(out...)
+end
+
 function make_Type_sig(typs)
     # [:(X<:Int), :Y] -> [:(::Type{X}), :(::Type{Y})]
     out = Any[]
     for t in typs
-        if isa(t, Symbol)
+        if isa(t, Symbol) || t.head==:.
             push!(out, :(::Type{$t}))
         else
             push!(out, :(::Type{$(t.args[1])}))
@@ -211,19 +196,37 @@ function make_Type_sig(typs)
     end
     return out
 end
-
-function hidden_fn_names(fname)
-    symbol("_trait_$(string(fname))"), symbol("_trait_type_$(string(fname))")
+function has_only_one_method(fname::Symbol, typs)
+    # Checks whether fname has one and only one method for types in
+    # typs.
+    if isdefined(current_module(), fname)
+        1 == length( methods(eval_curmod(fname),
+                             get_concrete_type_Typetuple(typs)) )
+    else
+        false
+    end
+end
+function has_only_one_method(fname::Expr, typs)
+    # Checks whether fname has one and only one method for types in
+    # typs.
+    if isdefined(eval_curmod(fname.args[1]), fname.args[2].args[1])
+        1 == length( methods(eval_curmod(fname),
+                             get_concrete_type_Typetuple(typs)) )
+    else
+        false
+    end
 end
 
+
+# The heart, the trait-dispatch function:
 function traitdispatch(traittypes, fname)
     poss = Any[]
     for Tr in traittypes
-        if traitcheck(Tr)
+        if istrait(Tr)
             push!(poss, Tr)
         end
     end
-    # try to discriminate using subtraits
+    # discriminate using subtraits
     if length(poss)>1
         topurge = []
         for (i,p1) in enumerate(poss)
@@ -246,71 +249,83 @@ function traitdispatch(traittypes, fname)
     if length(poss)==0
         throw(TraitException("No matching trait found for function $(string(fname))"))
     elseif length(poss)>1
-        throw(TraitException("For function $(string(fname)) there are several matching traits: $traittypes"))
+        throw(TraitException("For function $(string(fname)) there are several matching traits:\n $poss"))
     end
     return poss[1]
 end
 
 # Finally:
-macro traitfn(fndef)
+function traitfn_fn(fndef)
     fn, fnt = parsetraitfn(fndef)
-    # the names of the helper functions:
-    _trait_fname, _trait_type_fname = hidden_fn_names(fn.name)
 
     ## make primary function: f
     ####
-    # (just overwrite defs if they exists already)
+    # (Just overwrite definitions of f if they exists already,
+    # generates warnings though...)
     
     # definition head: fn{X,Y}(x::X,y::Y)
     f = makefnhead(fn.name, fn.typs, fn.sig)
     # definition body: _trait_fn(x, y, _trait_type_f1(x,y) )
-    body = makefncall(_trait_fname, fn.sig)
-    push!(body.args, makefncall(_trait_type_fname, fn.sig))
+    args1 = Any[:(Traits._TraitDispatch), fn.sig...]
+    args2 = Any[makefncall(fn.name, args1), fn.sig...]
+    body = makefncall(fn.name, args2)
     f = :($f = $body)
     
-    ## make function containing the logic: _trait_f
+    ## make function containing the logic: trait_f
     ####
-    _trait_f = makefnhead(_trait_fname, fn.typs, fn.sig)
-    # make the traits-type 
+    # 1) make the traits-type 
     trait_typ = Expr(:tuple)
     append!(trait_typ.args, fn.traits)
-    push!(_trait_f.args, :(::Type{$trait_typ}))
-    _trait_f = :($_trait_f = $(fn.body))
+    trait_typ = :(::Type{$trait_typ})
+    args = Any[trait_typ, fn.sig...]
+    trait_f = makefnhead(fn.name, fn.typs, args)
+    trait_f = :($trait_f = $(fn.body))
     # add @inline
-    _trait_fn = Expr(:macrocall, symbol("@inline"), _trait_f)
+    trait_fn = Expr(:macrocall, symbol("@inline"), trait_f)
 
-    ## make function storing the trait-types
+    ## Make function storing the trait-types
     ####
-    ## 1) Get the existing traits out of the _trait_type_f:
+    # This function will return all defined Trait-tuples for a certain
+    # signature.
+    
+    ## 1) Get the existing traits out of the trait_type_f:
     #    These can be retrieved with the call:
-    #    _trait_type_f(::Type{X}, ::Type{Y}...) for suitable X and Y
-    if isdefined(_trait_type_fname) && 1==length(methods(eval(current_module(),_trait_type_fname), get_concrete_type(fn.typs; asTypetuple=true)))
-        _trait_type_f_store_call = makefncall(_trait_type_fname, get_concrete_type(fn.typs))
-        traittypes = eval(current_module(), _trait_type_f_store_call)[2] 
+    #    trait_type_f(Traits._TraitStorage, ::Type{X}, ::Type{Y}...) for suitable X, Y...
+    args1 = Any[:(Traits._TraitStorage), get_concrete_type_symb(fn.typs)...]
+    trait_type_f_store_call = makefncall(fn.name, args1)
+    
+    args2 = Any[:(Traits._TraitStorage), fn.typs...]
+    if has_only_one_method(fn.name, args2)
+        traittypes = eval_curmod(trait_type_f_store_call)[2] 
     else
         traittypes = Any[]
     end
     
-    ## 2) update old_traittypes with the new ones TODO
+    ## 2) update old_traittypes with the new ones
     newtrait = Expr(:tuple, fnt.traits...)
     if !(newtrait in traittypes)
         push!(traittypes, newtrait)
     end
     
     ## 3) make new trait-type storage function _trait_type_f(::Type{X}, ::Type{Y}...)
-    _trait_type_f_store_head = makefnhead(_trait_type_fname, 
-                                          fnt.typs, make_Type_sig(fnt.typs))
-    _trait_type_f_store = :(
-                            $_trait_type_f_store_head = (Any[$(traittypes...)], )
+    sig = make_Type_sig([:(Traits._TraitStorage), fnt.typs...])
+    trait_type_f_store_head = makefnhead(fn.name,
+                                          fnt.typs, sig)
+    trait_type_f_store = :(
+                            $trait_type_f_store_head = (Any[$(traittypes...)], )
                             )
-    push!(_trait_type_f_store.args[2].args, traittypes)
+    push!(trait_type_f_store.args[2].args, traittypes)
 
-    ## make trait-dispatch stagedfunction: _trait_type_f
+    ## make trait-dispatch stagedfunction: trait_type_f
     ####
 
-    _trait_type_f = Expr(:stagedfunction, makefnhead(_trait_type_fname, fnt.typs, fnt.sig))
+    sig = make_Type_sig([:(Traits._TraitDispatch)])
+    append!(sig,fnt.sig)
+    trait_type_f = Expr(:stagedfunction, makefnhead(fn.name, fnt.typs, sig))
+    args = Any[:(Traits._TraitStorage), fnt.sig...]
     body = quote
-        traittypes = $(makefncall(_trait_type_fname, fnt.sig))[1]
+        # get the stored trait-types:
+        traittypes = $(makefncall(fn.name, args))[1]
 
         traittyp = Traits.traitdispatch(traittypes, $(fn.name))
         # construct function from traittyp
@@ -320,38 +335,64 @@ macro traitfn(fndef)
         end
         return out
     end
-    push!(_trait_type_f.args, body)
+    push!(trait_type_f.args, body)
     
     ## now put all together
     ####
-    out = quote end
-    push!(out.args, _trait_fn)
-    push!(out.args, _trait_type_f_store)
-    push!(out.args, _trait_type_f)
-    push!(out.args, f)
-    # @show f
-    # @show _trait_fn
-    # @show _trait_type_f
-    # @show _trait_type_f_store
-    return esc(out)
+    out = quote
+        $trait_fn
+        $trait_type_f_store
+        $trait_type_f
+        $f
+    end
+    return out
 end
+
+macro traitfn(fndef)
+    esc(traitfn_fn(fndef))
+end    
 
 ##########
 # Helper functions
 ##########
 
-function traitmethods(f::Function)
-    # needs some work...
-    _trait_type_fname = hidden_fn_names(f.env.name)[2]
-    _trait_type_f = eval(current_module(), _trait_type_fname)
+issub_Typetuple{T,S}(a::Type{Type{T}}, b::Type{Type{S}}) = T<:(S...)
+issub_Typetuple(x,y) = false
+
+function traitmethods(f::Function, nsig=(Any...); print=false)
     out = Any[]
-    if !isdefined(_trait_type_fname)
-        return out
-    end
-    for m in methods(_trait_type_f) # loop through methods
-        if isa(m.sig[1],DataType)
-            append!(out, _trait_type_f([t.ub for t in m.tvars]...)[2])
+    for m in methods(f, tuple(Any, nsig...))
+        if issub_Typetuple(m.sig[1], Type{Traits.Trait})
+            push!(out, m)
         end
     end
-    return out
+    if print # pretty print it
+        if length(out)>0
+            println("Function $f has the following trait methods:")
+        else
+            println("Function $f has no trait methods.")
+            return nothing
+        end
+        for m in out
+            showtraitmethod(m)
+        end
+        return nothing
+    else
+        return out
+    end
+end
+
+# adapted from methodshow.jl:
+showtraitmethod(m::Method) = showtraitmethod(STDOUT, m)
+function showtraitmethod(io::IO, m::Method)
+    print(io, m.func.code.name)
+    tv, decls, file, line = Base.arg_decl_parts(m)
+    if isempty(tv)
+        error("Not a trait-method")
+    end
+    tv = string(tv)[2:end-1]
+    traits = strip(decls[1][2][7:end-2], ',')
+    sig = [isempty(d[2]) ? d[1] : d[1]*"::"*d[2] for d in decls[2:end]]
+    out = "{$tv; $traits}($(sig...))\n"
+    print(io, out)
 end

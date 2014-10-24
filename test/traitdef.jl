@@ -5,9 +5,9 @@ end
 
 
 ## Testing trait definitions
-@test traitcheck(Cmp{Int,Int})
-@test traitcheck(Cmp{Int,Float64})
-@test !traitcheck(Cmp{Int,String})
+@test istrait(Cmp{Int,Int})
+@test istrait(Cmp{Int,Float64})
+@test !istrait(Cmp{Int,String})
 
 
 coll = [Array, Dict, Set]
@@ -16,33 +16,33 @@ assoc = [Dict] # , ObjectIdDict]
 index = [Array, Dict, Range]
 
 for c in coll
-    @test traitcheck(Collection{c})
-    @test traitcheck(Iter{c})
-    @test traitcheck(IterColl{c})
+    @test istrait(Collection{c})
+    @test istrait(Iter{c})
+    @test istrait(IterColl{c})
 end
-@test !traitcheck(Indexable{Set})
+@test !istrait(Indexable{Set})
 
 for c in iter
-    @test traitcheck(Iter{c})
+    @test istrait(Iter{c})
 end
 
 for c in assoc
-    @test traitcheck(Assoc{c})
+    @test istrait(Assoc{c})
 end
 
 for c in index
-    @test traitcheck(Indexable{c})
+    @test istrait(Indexable{c})
 end
 
-@test traitcheck(Iter{Array})
-@test traitcheck(Iter{String})
-@test traitcheck(Iter{Int})
-@test !traitcheck(Iter{Nothing})
+@test istrait(Iter{Array})
+@test istrait(Iter{String})
+@test istrait(Iter{Int})
+@test !istrait(Iter{Nothing})
 
 arith = [Int, Float64, Rational]
 for a1 in arith
     for a2 in arith
-        @test traitcheck(Arith{a1,a2})
+        @test istrait(Arith{a1,a2})
     end
 end
 

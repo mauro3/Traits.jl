@@ -1,7 +1,4 @@
 # Testing @traitimpl
-fun1(x,y) = error("not implemented")
-fun2(x) = error("not implemented")
-fun3(y) = error("not implemented")
 @traitdef Tr100{X,Y} begin
     fun1(X,Y)
     fun2(X)

@@ -2,21 +2,21 @@
 #######################################
 
 immutable Tr1{X1} <: Traits.Trait{()}
-    fns
+    methods
     Tr1() = new(Dict())
 end
 immutable Tr2{X1,X2} <: Traits.Trait{()}
-    fns
+    methods
     Tr2() = new(Dict())
 end
 immutable Tr3{X1,X2} <: Traits.Trait{(Tr1{X1}, Tr2{X1,X2})}
-    fns
+    methods
     Tr3() = new(Dict())
 end
 
-@test istrait(Tr1)
-@test istrait(Tr1{A1})
-@test istrait( (Tr1{A1},Tr2{A1,A2}) )
+@test istraittype(Tr1)
+@test istraittype(Tr1{A1})
+@test istraittype( (Tr1{A1},Tr2{A1,A2}) )
 
 @test traitgetpara(Tr1{A1})==(A1,)
 @test traitgetsuper(Tr1{A1})==()
@@ -24,13 +24,13 @@ end
 @test traitgetsuper(Tr3{A1,A2})==(Tr1{A1},Tr2{A1,A2})
 
 # any type is part of a unconstrained trait:
-@test traitcheck(Tr1{Int}) 
-@test traitcheck(Tr2{DataType,Int})
-@test traitcheck(Tr3{String,DataType})
-@test traitcheck(Tr3{:a,7})  # maybe this should error?
+@test istrait(Tr1{Int}) 
+@test istrait(Tr2{DataType,Int})
+@test istrait(Tr3{String,DataType})
+@test istrait(Tr3{:a,7})  # maybe this should error?
 
 immutable D1{X1} <: Traits.Trait{()}
-    fns
+    methods
     function D1() 
         new([
              sin => ((X1,), (Float64,)), 
@@ -39,11 +39,11 @@ immutable D1{X1} <: Traits.Trait{()}
     end
 end
 
-@test traitcheck(D1{Int})
-@test !traitcheck(D1{String})
+@test istrait(D1{Int})
+@test !istrait(D1{String})
 
 immutable D2{X1,X2} <: Traits.Trait{(D1{X1}, D1{X2})}
-    fns
+    methods
     function D2() 
         new([
              (+) => ((X1, X2), (Any,)),
@@ -52,11 +52,11 @@ immutable D2{X1,X2} <: Traits.Trait{(D1{X1}, D1{X2})}
     end
 end
 
-@test traitcheck(D2{Int, Int})
-@test !traitcheck(D2{Int, String})
+@test istrait(D2{Int, Int})
+@test !istrait(D2{Int, String})
 
 immutable D3{X1} <: Traits.Trait{()}
-    fns
+    methods
     function D3() 
         new([
              getkey => ((X1,Any,Any), (Any,)),
@@ -66,7 +66,7 @@ immutable D3{X1} <: Traits.Trait{()}
 end
 
 immutable D4{X1,X2} <: Traits.Trait{()} # like D2 but without supertraits
-    fns
+    methods
     function D4() 
         new([
              (+) => ((X1, X2), (Any,)),
@@ -76,12 +76,11 @@ immutable D4{X1,X2} <: Traits.Trait{()} # like D2 but without supertraits
 end
 
 
-@test traitcheck(D3{Dict})
-@test !traitcheck(D3{Int})
+@test istrait(D3{Dict})
+@test !istrait(D3{Int})
 
-@test traitcheck((D1{Int}, D2{Int, Int}) )
-@test !traitcheck((D1{Int}, D2{Int, Int}, Traits.NoTrait) )
+@test istrait((D1{Int}, D2{Int, Int}) )
 
 # All type belong to the empty trait, as it makes no restriction on
 # the types.
-@test traitcheck( () )  
+@test istrait( () )  

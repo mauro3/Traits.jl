@@ -38,8 +38,8 @@ Example:
 ```julia
 using Traits
 # Check Cmp-trait (comparison) which is implemented in src/commontraits.jl
-@assert traitcheck(Cmp{Int,Float64}) 
-@assert traitcheck(Cmp{Int,String})==false
+@assert istrait(Cmp{Int,Float64}) 
+@assert istrait(Cmp{Int,String})==false
 
 # make a new trait and add a type to it:
 @traitdef MyTr{X,Y} begin
@@ -49,8 +49,8 @@ type A
     a
 end
 foobar(a::A, b::A) = a.a==b.a
-@assert traitcheck(MyTr{A,A})  # true
-@assert traitcheck(MyTr{Int,Int})==false
+@assert istrait(MyTr{A,A})  # true
+@assert istrait(MyTr{Int,Int})==false
 
 # make a function which dispatches on traits:
 @traitfn ft1{X,Y; Cmp{X,Y}}(x::X,y::Y)  = x>y ? 5 : 6
@@ -86,13 +86,13 @@ Trait implementation:
 ```julia
 # manual, i.e. just define the functions
 fun1(x::Int) = 5x
-@assert traitcheck(Tr1{Int})
+@assert istrait(Tr1{Int})
 
 # using @traitimpl
 @traitimpl Tr1{Float64} begin
     fun1(x::Float64) = 7x # the explicit "::Float64" is needed at the moment
 end
-@assert traitcheck(Tr1{Float64})
+@assert istrait(Tr1{Float64})
 
 # wrong usage of @traitimpl
 try
@@ -126,13 +126,14 @@ Trait functions & dispatch:
 ```julia
 @traitfn tf1{X, Y; Tr1{X}, Tr1{Y}}(a::X, b::Y) = fun1(a) + fun1(b)
 @traitfn tf1{X, Y; Tr2{X,Y}}(a::X, b::Y) = fun2(a,b)
-
+# (note that all the type-parameters are in the {})
+ 
 # tf1 now dispatches on traits
-tf1(5.,6.) # -> 77
+tf1(5.,6.) # -> 77  (Float64 is part of Tr1 but not Tr2)
 
 # Errors because of dispatch ambiguity:
 try
-    tf1(5,6)
+    tf1(5,6)  # Int is part of Tr1{Int} and Tr2{Int, Int}
 catch e
     println(e)
 end
@@ -250,18 +251,18 @@ So for methods definition like so
 ```
 the underlying definitions are:
 ```julia
-f1{X,Y<:Integer}(x::X, y::Y)       = _trait_f1(x, y, _trait_type_f1(x,y) )
-f1{S,T<:Integer}(s::S, t::T)       = _trait_f1(s, t, _trait_type_f1(s,t) )
-f1{X,Y<:FloatingPoint}(x::X, y::Y) = _trait_f1(x, y, _trait_type_f1(x,y) )
+f1{X,Y<:Integer}(x::X, y::Y)       = f1(f1(_TraitDispatch,x, y), x, y)
+f1{S,T<:Integer}(s::S, t::T)       = f1(f1(_TraitDispatch,s, t), s, t)
+f1{X,Y<:FloatingPoint}(x::X, y::Y) = f1(f1(_TraitDispatch,x, y), x, y)
 
 # the logic is:
-@inline _trait_f1{X,Y<:Integer}(x::X, y::Y, ::Type{(D1{Y}, D4{X,Y})}) = x + sin(y)
-@inline _trait_f1{S,T<:Integer}(s::S, t::T, ::Type{(D1{S}, D1{T})}) = sin(s) - sin(t)
-@inline _trait_f1{X,Y<:FloatingPoint}(x::X, y::Y, ::Type{(D1{X}, D1{Y})}) = cos(x) - cos(y)
+@inline f1{X,Y<:Integer}(::Type{(D1{Y}, D4{X,Y})}, x::X, y::Y) = x + sin(y)
+@inline f1{S,T<:Integer}(::Type{(D1{S}, D1{T})}, s::S, t::T) = sin(s) - sin(t)
+@inline f1{X,Y<:FloatingPoint}(::Type{(D1{X}, D1{Y})}, x::X, y::Y) = cos(x) - cos(y)
 
-stagedfunction _trait_type_f1{X1,X2<:Integer}{X1,X2}(x1::X1,x2::X2)
+stagedfunction f1{X1,X2<:Integer}(::Type{_TraitDispatch}, x1::X1, x2::X2)
     # figure out which traits match:
-    traittypes = [(D1{X2}, D4{X1,X2}), (D1{X1}, D1{X2})
+    traittypes = [(D1{X2}, D4{X1,X2}), (D1{X1}, D1{X2})]
 
     traittyp = Traits.traitdispatch(traittypes, $(fn.name))
 
@@ -271,16 +272,29 @@ stagedfunction _trait_type_f1{X1,X2<:Integer}{X1,X2}(x1::X1,x2::X2)
     end
     return out
 end
-stagedfunction _trait_type_f1{X1,X2<:FloatingPoint}{X1,X2}(x1::X1,x2::X2)
+stagedfunction f1{X1,X2<:FloatingPoint}(::Type{_TraitDispatch}, x1::X1, x2::X2)
 ...
 end
 
 ```
 
-Dispatch, happening in `Traits.traitdispatch` is quite simple but does
-take trait-hierarchies into account.  Although, note that it is easily
+Dispatch, happening in `Traits.traitdispatch` is quite simple taking
+trait-hierarchies into account.  Although, note that it is easily
 possible to have unsolvable ambiguities with trait-dispatch as traits
 do not have a strict hierarchy like types.
+
+# To ponder
+
+-   For many "traits" in Julia, only a few functions need to be
+    implemented to provide many more.  For example for comparison only
+    `isless` and `==` need to be implemented to automatically get `>`,
+    `<`, `>=`, `<=`.  It would be nice to somehow specify or query those
+    automatic functions.
+
+-   Are there better ways for trait-dispatch?
+
+# Issues
+
 
 # Previous trait implementations
 

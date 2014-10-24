@@ -12,9 +12,7 @@ type T2
 t2
 end
 
-@test !istrait(A1)
-@test !istrait(Traits.NoTrait)
-@test !traitcheck(Traits.NoTrait)
+@test !istraittype(A1)
 
 # manual implementations
 include("manual-traitdef.jl")

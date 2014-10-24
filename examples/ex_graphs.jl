@@ -54,12 +54,12 @@ GD = typeof(gd)
 GU = typeof(gu)
 E = Edge{Int}
 
-traitassert(Graphs_Basic{GD})
-traitassert(Graphs_Basic{GU})
-traitassert(Vertex_List{GD})
-traitassert(Vertex_List{GU})
-traitassert(Edge_List{GD, E})
-traitassert(Edge_List{GU, E})
+@assert istrait(Graphs_Basic{GD})
+@assert istrait(Graphs_Basic{GU})
+@assert istrait(Vertex_List{GD})
+@assert istrait(Vertex_List{GU})
+@assert istrait(Edge_List{GD, E})
+@assert istrait(Edge_List{GU, E})
 
 # use for dispatch:
 @traitfn function f{G, E; Edge_List{G, E}, Vertex_List{G}}(g::G, e::E) 

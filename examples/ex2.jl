@@ -19,13 +19,13 @@ end
 
 # manual, i.e. just define the functions
 fun1(x::Int) = 5x
-@assert traitcheck(Tr1{Int})
+@assert istrait(Tr1{Int})
 
 # using @traitimpl
 @traitimpl Tr1{Float64} begin
     fun1(x::Float64) = 7x # the explicit "::Float64" is needed at the moment
 end
-@assert traitcheck(Tr1{Float64})
+@assert istrait(Tr1{Float64})
 
 # wrong usage of @traitimpl
 try
