@@ -3,6 +3,8 @@
 f1e= :(f1{X<:Int,TT; D1{X}, D2{X,TT}}(x::X,y::TT))
 f1e_b= :(f1{X<:Int,TT; D1{X}, D2{X,TT}}(x::X,y::TT) = ())
 
+f1e2= :(f1{X<:Int; D1{X}, D2{X,X}}(x::X,y::X) = ())
+
 f1e_p = Traits.ParsedFn(
                   :f1, 
                   :(f1{X<:Int,TT}), 
@@ -18,9 +20,19 @@ f1e_pt = Traits.ParsedFn(
                  Any[:(D1{X1}), :(D2{X1,X2})],
                  :(()))
 
+f1e2_pt = Traits.ParsedFn(
+                 :f1, 
+                 :(f1{X1<:Int}), 
+                 Any[Expr(:<:, :X1, :Int)],
+                 Any[:(x1::X1), :(x2::X1)], 
+                 Any[:(D1{X1}), :(D2{X1,X1})],
+                 :(()))
+
 @test Traits.parsetraitfn_head(f1e)==f1e_p
 @test Traits.translate_head(Traits.parsetraitfn_head(f1e))==f1e_pt
 @test Traits.parsetraitfn(f1e_b)==(f1e_p, f1e_pt)
+
+@test Traits.parsetraitfn(f1e2)[2]==f1e2_pt
 
 @test Traits.makefnhead(f1e_p.name, f1e_p.typs, f1e_p.sig).args[1]==f1e_p.fun
 @test Traits.makefnhead(f1e_p.name, f1e_p.typs, f1e_p.sig).args[2:end]==f1e_p.sig
@@ -127,3 +139,8 @@ import Mod1.tf1
 # case 2: adding a @traitfn to a generic function defined in another module
 @traitfn tf1_2{X;  M1Tr100{X}}(a::X) = foofoo(a)^99
 
+############
+# error
+@traitfn ffgg{T; Eq{T,T}}(x::T,y::T) = 2x==y
+@test ffgg(5,6)==false
+@test ffgg(6,12)==true

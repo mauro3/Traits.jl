@@ -75,7 +75,9 @@ function translate_head(fn::ParsedFn)
         trans_Tvar = Dict{Symbol,Symbol}()
         for (i,tv) in enumerate(GenerateTypeVars{:upcase}())
             if length(sig)<i;  break end
-            trans_Tvar[sig[i].args[2]] = tv
+            if !haskey(trans_Tvar, sig[i].args[2])
+                trans_Tvar[sig[i].args[2]] = tv
+            end
         end
         return trans_var, trans_Tvar
     end
@@ -308,7 +310,8 @@ function traitfn_fn(fndef)
     end
     
     ## 3) make new trait-type storage function _trait_type_f(::Type{X}, ::Type{Y}...)
-    sig = make_Type_sig([:(Traits._TraitStorage), fnt.typs...])
+    sigtyps = [s.args[2] for s in fnt.sig]
+    sig = make_Type_sig([:(Traits._TraitStorage), sigtyps...])
     trait_type_f_store_head = makefnhead(fn.name,
                                           fnt.typs, sig)
     trait_type_f_store = :(

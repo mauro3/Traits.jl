@@ -126,7 +126,21 @@ Trait functions & dispatch:
 ```julia
 @traitfn tf1{X, Y; Tr1{X}, Tr1{Y}}(a::X, b::Y) = fun1(a) + fun1(b)
 @traitfn tf1{X, Y; Tr2{X,Y}}(a::X, b::Y) = fun2(a,b)
-# (note that all the type-parameters are in the {})
+# Note that all the type-parameters are in the {} and that all
+# arguments need a type parameter (a limitation of the
+# macro-parser). Bad examples are:
+#
+# julia> @traitfn ttt1{X, Y; Tr1{X}, Tr1{Y}}(a::X, b::Y, c) = fun1(a) + fun1(b) + c
+# ERROR: type Symbol has no field args
+#
+# julia> @traitfn ttt1{X, Y; Tr1{X}, Tr1{Y}}(a::X, b::Y, c::Int) = fun1(a) + fun1(b) + c
+# ERROR: X3 not defined
+#
+# But this works:
+#
+# julia> @traitfn ttt1{X, Y, Z; Tr1{X}, Tr1{Y}}(a::X, b::Y, c::Z) = fun1(a) + fun1(b) + c
+# ttt1 (generic function with 6 methods)
+
  
 # tf1 now dispatches on traits
 tf1(5.,6.) # -> 77  (Float64 is part of Tr1 but not Tr2)
