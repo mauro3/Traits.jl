@@ -135,11 +135,12 @@ end
     fun4(x::Int, y::Int) = x+y
 end
 
-# This gives an error because constraints are not satisfied
+# This gives an error because constraints are not satisfied:
+# Int starts with an "I" whereas Float64 with an "F":
 try
     eval(:(
     @traitimpl Tr4{Int, Float64} begin
-        fun4(x::Int, y::Int) = x+y
+        fun4(x::Int, y::Float64) = x+y
     end))
 catch e
     println(e)  # ErrorException("assertion failed: istrait(Tr4{Int,Float64})")
@@ -331,7 +332,8 @@ do not have a strict hierarchy like types.
 
 -   Are there better ways for trait-dispatch?
 
--   Sometimes it would be good to get at type parameters, for instance:
+-   Sometimes it would be good to get at type parameters, for instance
+    for Arrays and the like:
     ```julia
     @traitdef Indexable{X{Y}} begin
         getindex(X, Any) -> Y
