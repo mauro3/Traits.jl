@@ -17,7 +17,7 @@ end
 @traitdef Iter{X}  begin
     start(X)
     next(X, Any)
-    done(X, Any) -> Bool
+    done(X, Any) # -> Bool
     # automatically provides:
     # zip, enumerated, in, map, reduce, ...
 end
@@ -53,7 +53,7 @@ end
     delete!(X, Any) -> X
     pop!(X, Any)
     pop!(X, Any, Any)
-    keys(X) -> Iter{X} # would be nice here!
+    keys(X) # -> Iter{X} # would be nice here!
     values(X)
     merge(X, Any...) -> X
     merge!(X, Any...)

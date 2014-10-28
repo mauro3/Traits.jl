@@ -13,6 +13,15 @@ if !(VERSION>v"0.4-")
     error("Traits.jl needs Julia version 0.4.-")
 end
 
+# Flags: by setting them in Main before using, they can be turned on
+# or off.
+if isdefined(Main, :Traits_check_return_types)
+    println("Traits.jl: not using return types of @traitdef functions")
+    flag_check_return_types = Main.Traits_check_return_types
+else
+    flag_check_return_types = true
+end
+    
 # Let all traits be direct decedents of Trait.  The type parameter
 # SUPER of Trait is needed to specify super-traits.
 abstract Trait{SUPER}
@@ -62,6 +71,7 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
         return false
     end
     out = true
+    # check call signature of methods:
     for (meth,sig) in Tr().methods
         checks = length(methods(meth, sig[1]))>0
         if !checks
@@ -70,6 +80,29 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
             end
             out = false
         end
+    end
+    # check return-type
+    if flag_check_return_types && out # only check if all methods were defined
+        for (meth,sig) in Tr().methods
+            rettype = Base.return_types(meth, sig[1])[1]
+            if !isa(rettype, Tuple)
+                rettype = (rettype,)
+            end
+            checks = rettype<:sig[2]
+            if !checks
+                if verbose
+                    println("Method `$meth` with signature $sig has wrong return type: $rettype")
+                end
+                out = false
+            end
+        end
+    end
+    # check constraints
+    if !all(Tr().constraints)
+        if verbose
+            println("Not all constraints are satisfied for $T")
+        end
+        return false
     end
     return out
 end

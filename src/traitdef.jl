@@ -6,7 +6,10 @@
 #
 # It looks like
 # @traitdef Cmp{X,Y} <: Eq{X,Y} begin
-#     isless(x,y) -> bool
+#     isless(x,y) -> Bool
+#     @constraints begin
+#         X==Y
+#     end
 # end
 
 # 1) parse the header
@@ -72,27 +75,30 @@ end
 
 # 2) parse the function definitions
 ###
-# Todo: what if the generic function is not defined yet?
-#       - error for now
 
-function parsefns(rawfns::Expr)
+function parsebody(body::Expr)
     # Transforms:
-    # rawfns = quote
+    # body = quote
     #     f1(X,Y) -> X,Int
     #     f2(Y) -> X
+    #     @constraints begin
+    #          X==Y
+    #     end
     # end
     #
     # into
     # :([f1 => ((X,Y), (Int,Int)),
     #    f2 => ((Y,),  (X,)) ] )
-    out = Expr(:dict)
-    for ln in rawfns.args
-        if isa(ln, Expr)
-            if ln.head==:line
-                continue
-            end
+    # :(Bool[X==Y])
+    outfns = Expr(:dict)
+    constr = Expr(:ref, :Bool)
+    for ln in Lines(body.args)
+        if ln.head==:macrocall
+            parseconstraints!(ln, constr)
+        else
             argtype = :()
             rettype = :()
+
             if ln.head==:tuple
                 # several ret-types:
                 # f1(X,Y) -> x,y
@@ -114,13 +120,28 @@ function parsefns(rawfns::Expr)
                 append!(argtype.args, ln.args[2:end])
                 rettype =  :((Any...))
             else
-                ln
-                error("Functions need to be defined like: fn(x,t) -> RetType or fn(x,t)")
+                throw(TraitException(
+                                     "Something went wrong parsing the trait definition body:\n $body"))
             end
-            push!(out.args, :($fn => ($argtype, $rettype)))
+            push!(outfns.args, :($fn => ($argtype, $rettype)))
         end
+        
     end
-    return out
+    return outfns, constr
+end
+
+# 2.5) parse constraints
+####
+# Note, @constraints is not really a macro-call.
+function parseconstraints!(block, constr)
+    # updates constr=Expr(:ref,...)
+    if !(block.args[1]==symbol("@constraints"))
+        throw(TraitException(
+        "Only @constraints blocks allowed inside trait definition"))
+    end
+    for ln in Lines(block.args[2].args)
+        push!(constr.args, ln)
+    end
 end
 
 # 3) piece it together
@@ -130,14 +151,15 @@ macro traitdef(head, body)
     ## make Trait type
     traithead, name = parsetraithead(head)
     # make the body
-    meths = parsefns(body)
-    body = quote
-        methods
+    meths, constr = parsebody(body)
+    traitbody = quote
+        methods::Dict{Function, Tuple}
+        constraints::Vector{Bool}
         function $((name))()
-            new( $meths )
+            new( $meths, $constr )
         end
     end
     # add body to the type definition
-    traithead.args[3] = body
+    traithead.args[3] = traitbody
     return esc(traithead)
 end

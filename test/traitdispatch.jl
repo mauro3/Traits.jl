@@ -81,7 +81,7 @@ ff3{Y}(x,y::Y) = Y[i+y for i in x]
     foobar(X,Y) -> Bool
 end
 type A
-    a
+    a::Int
 end
 foobar(a::A, b::A) = a.a==b.a
 @test istrait(MyTr{A,A})  # true
@@ -107,11 +107,11 @@ end
 @traitfn gt1{X,Y; MyTr{X,Y}}(x::X,y::Y)   = "MyTr"
 
 type B1
-    a
+    a::Int
 end
 foobar(a::B1, b::B1) = a.a==b.a
 type B2
-    a
+    a::Int
 end
 foobar(a::B2, b::B2) = a.a==b.a
 bar(a::B2, b::B2) = a.a==b.a
@@ -126,7 +126,7 @@ bar(a::B2, b::B2) = a.a==b.a
 ##########
 ## adding trait methods to existing functions:
 @traitdef MyTr7{X} begin
-    bobo(X) -> Bool
+    bobo(X) -> String
 end
 
 abstract AMTyp7

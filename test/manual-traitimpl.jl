@@ -41,6 +41,13 @@ function prefix_module!(ex::Expr, modname::Symbol)
     end
 end
 
+type T1
+t1::Float64
+end
+type T2
+t2::Float64
+end
+
 # functions in trait definition
 implfns = [:(+(x::T1, y::T2) = x.t1 + y.t2),
            :(-(x::T1, y::T2) = x.t1 - y.t2)]

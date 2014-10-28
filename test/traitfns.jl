@@ -74,11 +74,11 @@ xt1(x::Int, y::Int) = 77
     export MTyp1, M1Tr1, tf1, barbar
     
     type MTyp1
-        mt
+        mt::Int
     end
     
     @traitdef M1Tr1{X} begin
-        barbar(X, Int) -> Int
+        barbar(X, Int) -> String
     end
     @traitimpl M1Tr1{MTyp1} begin
         barbar(a::MTyp1, b::Int) = "MTyp1, barbar"^b
@@ -98,7 +98,7 @@ using Mod1
 
 # 1) add a new type to M1Tr1
 type MTyp99
-    uu
+    uu::Int
 end
 @traitimpl M1Tr1{MTyp99} begin
     barbar(a::MTyp99, b::Int) = "MTyp99, barbar"^b
@@ -108,10 +108,10 @@ end
 
 # 2) add a new method to tf1
 @traitdef M1Tr100{X} begin
-    foofoo(X) -> Int
+    foofoo(X) -> String
 end
 type MTyp00
-    gg
+    gg::Int
 end
 @traitimpl M1Tr100{MTyp00} begin
     foofoo(a::MTyp00) = "MTyp00 foofoo"

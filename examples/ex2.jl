@@ -4,14 +4,22 @@ using Traits
 
 # simple
 @traitdef Tr1{X} begin
-    fun1(X) -> Int  # return types don't do anything at the moment
+    fun1(X) -> Number
 end
 @traitdef Tr2{X,Y} begin
-    fun2(X,Y) -> Int
+    fun2(X,Y) -> Number
 end
 # subtrait
 @traitdef Tr3{X,Y} <: Tr1{X}, Tr2{X,Y} begin
     fun3(X,Y,Int)
+end
+# with additional constraint on the types
+@traitdef Tr4{X,Y} begin
+    fun4(X,Y)
+    @constraints begin
+        # both Types need to start with the same letter:
+        string(X.name)[1]==string(Y.name)[1]
+    end
 end
 
 ### Trait implementation
@@ -43,7 +51,7 @@ try
         fun3(x::Int, y::Int, t::Int) = x+y+t
     end))
 catch e
-    println(e)
+    println(e) # TraitException("Not all supertraits of Tr3{Int64,Int64} are implemented.\nImplement them first.")
 end
 
 # this works:
@@ -52,6 +60,19 @@ end
 end
 @traitimpl Tr3{Int, Int} begin
     fun3(x::Int, y::Int, t::Int) = x+y+t
+end
+@traitimpl Tr4{Int, Int} begin
+    fun4(x::Int, y::Int) = x+y
+end
+
+# This gives an error because constraints are not satisfied
+try
+    eval(:(
+    @traitimpl Tr4{Int, Float64} begin
+        fun4(x::Int, y::Int) = x+y
+    end))
+catch e
+    println(e)  # ErrorException("assertion failed: istrait(Tr4{Int,Float64})")
 end
 
 ### Trait functions

@@ -80,13 +80,13 @@ end
 # @traitfn f2{X,Y<:FloatingPoint; D1{X}, D1{Y}  }(x::X,y::Y) = cos(x) - cos(y)
 
 type MTT1  # is in D1 but not D4
-    f
+    f::Float64
 end
 Base.sin(x::MTT1) = sin(x.f)
 Base.cos(x::MTT1) = cos(x.f)
 
 type MTT2  # is in D4 but not D1
-    f
+    f::Float64
 end
 +(y::MTT2, x::Number) = x+y.f
 -(y::MTT2, x::Number) = x-y.f
@@ -185,13 +185,13 @@ end
 # @traitfn f1{X,Y<:FloatingPoint; D1{X}, D1{Y}  }(x::X,y::Y) = cos(x) - cos(y)
 
 type MT1  # is in D1 but not D4
-    f
+    f::Float64
 end
 Base.sin(x::MT1) = sin(x.f)
 Base.cos(x::MT1) = cos(x.f)
 
 type MT2  # is in D4 but not D1
-    f
+    f::Float64
 end
 +(y::MT2, x::Number) = x+y.f
 -(y::MT2, x::Number) = x-y.f

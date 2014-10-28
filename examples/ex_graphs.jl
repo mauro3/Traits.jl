@@ -69,7 +69,7 @@ end
 try
     f(2, 3, 5) # doesn't work as Int are not graphs
 catch e
-    println(e)
+    println(e) # MethodError(f,(2,3,5)
 end
 
 f(gd, eds[5]) # -> 17
