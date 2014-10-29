@@ -4,16 +4,15 @@ function eval_curmod(expr::Union(Symbol,Expr,QuoteNode))
     return eval(current_module(),expr)
 end
 
-# to iterate over code blocks without the line-number bits:
+# To iterate over code blocks dropping the line-number bits:
 immutable Lines
-    block::Vector{Any}
+    block::Expr
 end
-
 Base.start(lns::Lines) = 1
 function Base.next(lns::Lines, nr)
-    for i=nr:length(lns.block)
-        if isa(lns.block[i], Expr) && !(lns.block[i].head==:line)
-            return lns.block[i], i+1
+    for i=nr:length(lns.block.args)
+        if isa(lns.block.args[i], Expr) && !(lns.block.args[i].head==:line)
+            return lns.block.args[i], i+1
         end
     end
     return -1

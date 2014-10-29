@@ -51,14 +51,12 @@ end
 
 function parse_body(body::Expr)
     implfs = Dict()
-    for ln in body.args
-        if isa(ln, Expr) && !(ln.head==:line)
-            if !isdefined(get_fname(ln))
-                # define a standard generic function:
-                eval_curmod(:($(get_fname(ln))() = error("Not defined")))
-            end
-            implfs[eval_curmod(get_fname(ln))] = ln
+    for ln in Lines(body)
+        if !isdefined(get_fname(ln))
+            # define a standard generic function:
+            eval_curmod(:($(get_fname(ln))() = error("Not defined")))
         end
+        implfs[eval_curmod(get_fname(ln))] = ln
     end
     return implfs
 end

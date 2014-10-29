@@ -92,7 +92,7 @@ function parsebody(body::Expr)
     # :(Bool[X==Y])
     outfns = Expr(:dict)
     constr = Expr(:ref, :Bool)
-    for ln in Lines(body.args)
+    for ln in Lines(body)
         if ln.head==:macrocall
             parseconstraints!(ln, constr)
         else
@@ -139,7 +139,7 @@ function parseconstraints!(block, constr)
         throw(TraitException(
         "Only @constraints blocks allowed inside trait definition"))
     end
-    for ln in Lines(block.args[2].args)
+    for ln in Lines(block.args[2])
         push!(constr.args, ln)
     end
 end
