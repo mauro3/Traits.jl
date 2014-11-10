@@ -7,7 +7,7 @@ module Traits
 
 export istrait, istraittype, issubtrait,
        traitgetsuper, traitgetpara, traitmethods, 
-       @traitdef, @traitimpl, @traitfn, TraitException
+       @traitdef, @traitimpl, @traitfn, TraitException, All
 
 if !(VERSION>v"0.4-")
     error("Traits.jl needs Julia version 0.4.-")
@@ -45,6 +45,13 @@ abstract Trait{SUPER}
 immutable _TraitDispatch  end
 immutable _TraitStorage end
 
+# Type All is to denote that any type goes in type signatures.  This
+# is a bit awkward:
+# - method_exists(f, s) returns true if there is a method of f with
+#   signature sig such that s<:sig.  Thus All<->Union()
+# - Base.return_types works the other way around, there All<->Any
+abstract All
+
 # General trait exception
 type TraitException <: Exception 
     msg::String
@@ -57,6 +64,7 @@ istraittype{T<:Trait}(x::Type{T}) = true
 istraittype(x::Tuple) = mapreduce(istraittype, &, x)
 
 # A Trait Tr is defined for some parameters if
+# istrait(UU{TT})==true => for all T such that T<:TT => istrait(UU{T})==true
 function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
     # check supertraits
     istrait(traitgetsuper(Tr); verbose=verbose) || return false
@@ -73,8 +81,13 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
     out = true
     # check call signature of methods:
     for (meth,sig) in Tr().methods
-        checks = length(methods(meth, sig[1]))>0
-        if !checks
+        # instead of:
+        ## checks = length(methods(meth, sig[1]))>0
+        # Now using method_exists.  But see bug
+        # https://github.com/JuliaLang/julia/issues/8959
+
+        sigg = map(x->x===All ? Union() : x, sig[1])
+        if !method_exists(meth, sigg) # I think this does the right thing.
             if verbose
                 println("Method $meth with signature $sig not defined for $T")
             end
@@ -84,16 +97,26 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
     # check return-type
     if flag_check_return_types && out # only check if all methods were defined
         for (meth,sig) in Tr().methods
-            rettype = Base.return_types(meth, sig[1])[1]
-            if !isa(rettype, Tuple)
-                rettype = (rettype,)
-            end
-            checks = rettype<:sig[2]
-            if !checks
-                if verbose
-                    println("Method `$meth` with signature $sig has wrong return type: $rettype")
-                end
+            # replace Union() in sig[1] with Any
+            sigg = map(x->x===All ? Any : x, sig[1])
+            tmp = Base.return_types(meth, sigg)
+            if length(tmp)==0
+                rettype = []
                 out = false
+                if verbose
+                    println("Method `$meth` with signature $sigg has an empty return signature!")
+                end
+            else
+                rettype = tmp[1]
+                if !isa(rettype, Tuple)
+                    rettype = (rettype,)
+                end
+                if !(rettype<:sig[2])
+                    out = false
+                    if verbose
+                        println("Method `$meth` with signature $sigg has wrong return type: $rettype")
+                    end
+                end
             end
         end
     end
@@ -125,6 +148,26 @@ function issubtrait{T1<:Trait,T2<:Trait}(t1::Type{T1}, t2::Type{T2})
         issubtrait(t, t2) && return true
     end
     return false
+end
+
+function issubtrait{T1<:Trait}(t1::Type{T1}, t2::Tuple)
+    if t2==()
+        # the empty trait is the super-trait of all traits
+        true
+    else
+        error("")
+    end
+end
+
+function issubtrait(t1::Tuple, t2::Tuple)
+    if length(t1)!=length(t2)
+        return false
+    end
+    checks = true
+    for (p1,p2) in zip(t1, t2)
+        checks = checks && issubtrait(p1,p2)
+    end
+    return checks
 end
 
 ## common helper functions

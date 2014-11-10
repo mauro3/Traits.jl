@@ -329,7 +329,6 @@ function traitfn_fn(fndef)
     body = quote
         # get the stored trait-types:
         traittypes = $(makefncall(fn.name, args))[1]
-
         traittyp = Traits.traitdispatch(traittypes, $(fn.name))
         # construct function from traittyp
         out = :(())

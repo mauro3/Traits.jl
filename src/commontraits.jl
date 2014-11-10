@@ -16,8 +16,8 @@ end
 
 @traitdef Iter{X}  begin
     start(X)
-    next(X, Any)
-    done(X, Any) # -> Bool
+    next(X, All)
+    done(X, All) # -> Bool
     # automatically provides:
     # zip, enumerated, in, map, reduce, ...
 end
@@ -34,8 +34,8 @@ end
 end
 
 @traitdef Indexable{X} <:Collection{X} begin
-    getindex(X, Any)
-    setindex!(X, Any, Any)
+    getindex(X, All)
+    setindex!(X, All, All)
     length(X) -> Integer
     # automatically provided:
     # size(X) -> Tuple
@@ -44,19 +44,19 @@ end
 
 @traitdef Assoc{X} <: Indexable{X} begin
     # note, ObjectId dict is not part of this interface
-    haskey(X, Any)
-    get(X, Any, Any)
-    get(Function, X, Any)
-    get!(X, Any, Any)
-    get!(Function, X, Any)
-    getkey(X, Any, Any)
-    delete!(X, Any) -> X
-    pop!(X, Any)
-    pop!(X, Any, Any)
+    haskey(X, All)
+    get(X, All, All)
+    get(Function, X, All)
+    get!(X, All, All)
+    get!(Function, X, All)
+    getkey(X, All, All)
+    delete!(X, All) -> X
+    pop!(X, All)
+    pop!(X, All, All)
     keys(X) # -> Iter{X} # would be nice here!
     values(X)
-    merge(X, Any...) -> X
-    merge!(X, Any...)
+    merge(X, All...) -> X
+    merge!(X, All...)
 end
 
 @traitdef Arith{X,Y} begin

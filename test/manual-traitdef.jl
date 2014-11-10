@@ -41,10 +41,10 @@ immutable D1{X1} <: Traits.Trait{()}
     methods
     constraints
     function D1() 
-        new([
+        new(Dict(
              sin => ((X1,), (Float64,)), 
              cos => ((X1,), (Float64,)), 
-             ],
+             ),
             []
             )
     end
@@ -57,10 +57,10 @@ immutable D2{X1,X2} <: Traits.Trait{(D1{X1}, D1{X2})}
     methods
     constraints
     function D2() 
-        new([
+        new(Dict(
              (+) => ((X1, X2), (Any,)),
              (-) => ((X1, X2), (Any,))
-             ],
+             ),
             []
             )
     end
@@ -73,10 +73,10 @@ immutable D3{X1} <: Traits.Trait{()}
     methods
     constraints
     function D3() 
-        new([
+        new(Dict(
              getkey => ((X1,Any,Any), (Any,)),
              get!   => ((X1, Any, Any), (Any,))
-             ],
+             ),
             []
             )
     end
@@ -86,17 +86,17 @@ immutable D4{X1,X2} <: Traits.Trait{()} # like D2 but without supertraits
     methods
     constraints
     function D4() 
-        new([
+        new(Dict(
              (+) => ((X1, X2), (Any,)),
              (-) => ((X1, X2), (Any,))
-             ],
+             ),
             []
             )
     end
 end
 
 
-@test istrait(D3{Dict})
+@test istrait(D3{Dict{Int,Int}})
 @test !istrait(D3{Int})
 
 @test istrait((D1{Int}, D2{Int, Int}) )
@@ -112,9 +112,9 @@ immutable CTr1{X1,X2} <: Traits.Trait{()}
                             # signature is f(X,Y) = ...
         
     function CTr1()
-        new([
+        new(Dict(
              (+) => ((X1, X2), (Any,)),
-             ],
+             ),
             Bool[
                  X1==X2
                  ]
