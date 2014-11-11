@@ -173,6 +173,39 @@ end
 # 3) piece it together
 ###
 
+@doc """The `@traitdef` macro is used to construct a trait.  Example:
+      
+     ```
+     @traitdef MyArith{X,Y} begin
+         # associated types
+         Z = promote_type(X,Y)
+         D = (X,Y)<:(Integer, Integer) ? Float64 : Z
+
+         # method signatures
+         +(X,Y) -> Z
+         -(X,Y) -> Z
+         *(X,Y) -> Z
+         /(X,Y) -> D
+
+         # constraints
+         @constraints begin
+            # both Types need to start with the same letter:
+            string(X.name)[1]==string(Y.name)[1]
+         end
+     end
+     istrait(MyArith{Int, Int8}) # -> true
+     ```
+     
+     - Assignments are for associated types, here `Z,D`.  These are
+       types which can be calculated from the input types `X,Y`
+
+     - Function signature definitions which are of the form `fn(X,Y,
+       Other-Types) -> Return-Types`.  The return types can be left away
+
+     - Constraints are marked in a block `@constaints`.  The are
+       constraints in terms of the input types `X,Y` and are evaluated
+       at trait checking.
+     """ ->
 macro traitdef(head, body)
     ## make Trait type
     traithead, name = parsetraithead(head)

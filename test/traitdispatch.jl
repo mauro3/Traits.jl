@@ -56,7 +56,7 @@ end
 @test ff2(7.3,5.)==ft2(7.3,5.)
 # check the generated code is within some % of each other
 @test 0.06<compare_code_native(ff2, ft2, (Int,Int))<0.07
-@test 0.08<compare_code_native(ff2, ft2, (BigFloat,BigInt))<0.1
+@test 0.07<compare_code_native(ff2, ft2, (BigFloat,BigInt))<0.9
 # @code_llvm ft2(7.3,5.)
 # @code_llvm ff2(7.3,5.)
 

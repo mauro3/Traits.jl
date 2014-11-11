@@ -256,8 +256,26 @@ function traitdispatch(traittypes, fname)
     return poss[1]
 end
 
-# Finally:
-function traitfn_fn(fndef)
+
+@doc """Functions which also dispatch using traits can be defined with
+     `@traitfn`.  Once defined they can be used like ordinary
+     functions.  For instance a library user would not need to treat
+     them specifically.
+
+     Example continuing from the documentation of `@traitdef` and `@traitimpl`:
+
+     ```
+     @traitfn tf{X,Y; MyArith{X,Y}}(x::X, y::Y) = x/y+y
+     tf(5, Int8(4)) # -> 5.25
+     tf(A(2), AB(4)) # -> A(4.5)
+     tf(5, Uint8(4)) # -> ERROR: TraitException("No matching trait found for function tf")
+     ```
+
+     - all the arguments of `tf` which participate in trait-dispatch
+       need to be parameterized.
+     - trait-methods and non-trait methods can be mixed.
+     """ ->
+macro traitfn(fndef)
     fn, fnt = parsetraitfn(fndef)
 
     ## make primary function: f
@@ -347,12 +365,8 @@ function traitfn_fn(fndef)
         $trait_type_f
         $f
     end
-    return out
+    return esc(out)
 end
-
-macro traitfn(fndef)
-    esc(traitfn_fn(fndef))
-end    
 
 ##########
 # Helper functions

@@ -77,6 +77,30 @@ function prefix_module!(ex::Expr, modname::Symbol)
     end
 end
 
+@doc """The `@traitimpl` macro can be used to implement a trait for a
+     set of types.  Note however, that traits are also be implemented
+     implicitly, i.e. any set of types is part of a trait if it
+     fulfills it.
+
+     Example continuing from the documentation of `@traitdef`, implementing the
+     `MyArith` trait:
+
+     ``` 
+     type A; a end; type AB; b end
+     @traitimpl MyArith{A,AB} begin
+         +(x::A,y::AB) = A(x.a+y.b)
+         -(x::A,y::AB) = A(x.a-y.b)
+         *(x::A,y::AB) = A(x.a*y.b)
+         /(x::A,y::AB) = A(x.a/y.b)
+     end
+     istrait(MyArith{A, AB}) # -> true
+     ```
+
+     Notes
+
+     - the type annotations are mandatory.  No parameterized methods
+       are allowed (for now).
+     """ ->
 macro traitimpl(head, body)
     ## Parse macro header
     name, paras, trait_expr = parsecurly(head)
@@ -100,6 +124,6 @@ macro traitimpl(head, body)
     end
     
     ## Assert that the implementation went smoothly
-    push!(out.args, :(@assert istrait($trait_expr)))
+    push!(out.args, :(@assert istrait($trait_expr, verbose=true)))
     return esc(out)
 end

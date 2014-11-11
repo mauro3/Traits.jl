@@ -1,9 +1,12 @@
 module Traits
-# Traits are
-# - contracts on one type or between several types.  The contract can
-#   contain required methods but also other assertions and just
-#   belonging to a group (i.e. the trait).
-# - they are structural types: i.e. they needn't be declared explicitly
+@doc """This package provides an implementation of traits, aka interfaces or type-classes.  
+     It is based on the premises that traits are:
+     
+     - contracts on one type or between several types.  The contract can
+        contain required methods but also other assertions and just
+        belonging to a group (i.e. the trait).
+     - they are structural types: i.e. they needn't be declared explicitly
+        """ -> current_module()
 
 export istrait, istraittype, issubtrait,
        traitgetsuper, traitgetpara, traitmethods, 
@@ -21,11 +24,13 @@ if isdefined(Main, :Traits_check_return_types)
 else
     flag_check_return_types = true
 end
-    
-# Let all traits be direct decedents of Trait.  The type parameter
-# SUPER of Trait is needed to specify super-traits.
+@doc "Flag to select whether return types in @traitdef's are checked" flag_check_return_types
+
+@doc """`abstract Trait{SUPER}`
+
+    All traits are direct decedents of abstract type Trait.  The type parameter
+    SUPER of Trait is needed to specify super-traits (a tuple).""" ->
 abstract Trait{SUPER}
-# SUPER - is a tuple of required super traits
 
 # A concrete trait type has the form 
 ## Tr{X,Y,Z} <: Trait{(ST1{X,Y},ST2{Z})}
@@ -45,11 +50,12 @@ abstract Trait{SUPER}
 immutable _TraitDispatch  end
 immutable _TraitStorage end
 
-# Type All is to denote that any type goes in type signatures.  This
-# is a bit awkward:
-# - method_exists(f, s) returns true if there is a method of f with
-#   signature sig such that s<:sig.  Thus All<->Union()
-# - Base.return_types works the other way around, there All<->Any
+@doc """Type All is to denote that any type goes in type signatures in
+    @traitdef.  This is a bit awkward:
+    
+    - method_exists(f, s) returns true if there is a method of f with
+      signature sig such that s<:sig.  Thus All<->Union()
+    - Base.return_types works the other way around, there All<->Any"""->
 abstract All
 
 # General trait exception
@@ -57,14 +63,26 @@ type TraitException <: Exception
     msg::String
 end
 
-# tests whether a DataType is a trait.  (But only istrait checks
-# whether it's actually full-filled)
+@doc """Tests whether a DataType is a trait.  (But only istrait checks
+        whether it's actually full-filled)""" ->
 istraittype(x) = false
 istraittype{T<:Trait}(x::Type{T}) = true
 istraittype(x::Tuple) = mapreduce(istraittype, &, x)
 
-# A Trait Tr is defined for some parameters if
-# istrait(UU{TT})==true => for all T such that T<:TT => istrait(UU{T})==true
+@doc """Tests whether a set of types fulfill a trait.
+        A Trait Tr is defined for some parameters if:
+
+        - all the functions of a trait are defined for them
+        - all the trait constraints are fulfilled
+
+        Example:
+
+        `istrait(Tr{Int, Float64})`
+
+        or with a tuple of traits:
+
+        `istrait( (Tr1{Int, Float64}, Tr2{Int}) )`
+            """ ->
 function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
     # check supertraits
     istrait(traitgetsuper(Tr); verbose=verbose) || return false
@@ -137,9 +155,12 @@ function istrait(Trs::Tuple; verbose=false)
     return true
 end
 
+@doc """Returns the super traits""" ->
 traitgetsuper{T<:Trait}(t::Type{T}) =  t.super.parameters[1]::Tuple
 traitgetpara{T<:Trait}(t::Type{T}) =  t.parameters
 
+@doc """Checks whether a trait, or a tuple of them, is a subtrait of
+        the second argument.""" ->
 function issubtrait{T1<:Trait,T2<:Trait}(t1::Type{T1}, t2::Type{T2})
     if t2 in traitgetsuper(t1)
         return true
