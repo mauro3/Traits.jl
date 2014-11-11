@@ -97,14 +97,14 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
     # check return-type
     if flag_check_return_types && out # only check if all methods were defined
         for (meth,sig) in Tr().methods
-            # replace Union() in sig[1] with Any
+            # replace All in sig[1] with Any
             sigg = map(x->x===All ? Any : x, sig[1])
             tmp = Base.return_types(meth, sigg)
             if length(tmp)==0
                 rettype = []
                 out = false
                 if verbose
-                    println("Method `$meth` with signature $sigg has an empty return signature!")
+                    println("Method `$meth` with signature $sigg->$(sig[2]) has an empty return signature!")
                 end
             else
                 rettype = tmp[1]
@@ -114,7 +114,7 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
                 if !(rettype<:sig[2])
                     out = false
                     if verbose
-                        println("Method `$meth` with signature $sigg has wrong return type: $rettype")
+                        println("Method `$meth` with signature $sigg->$(sig[2]) has wrong return type: $rettype")
                     end
                 end
             end

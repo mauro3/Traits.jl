@@ -28,17 +28,17 @@ a,b = Traits.parsebody(td1.args[end])
 @test a==Expr(:dict, :(length=>((X,),(Int,))))
 @test b==:(Bool[(string(X.name))[1] == 'I'])
 
-td2 = :(@traitdef Cr20{X} begin
-    length(X) -> Int,Float64
+td2 = :(@traitdef Cr20{X,Y} begin
+    X + Y -> Int,Float64
     
     @constraints begin
         string(X.name)[1]=='I'
     end
 end)
-a,b = Traits.parsebody(td2.args[end])
-@test a==Expr(:dict, :(length=>((X,),(Int,Float64))))
+a,b,c = Traits.parsebody(td2.args[end])
+@test a==Expr(:dict, :((+) => ((X,Y),(Int,Float64))))
 @test b==:(Bool[(string(X.name))[1] == 'I'])
-
+@test c.head==:block
 
 ## test making traits
 
@@ -54,14 +54,13 @@ end
 
 
 coll = [Vector{Int}, Dict{Int,Int}, Set{Int}]
-coll = [Vector, Dict{Int,Int}, Set{Int}]
 iter = [Traits.GenerateTypeVars{:upcase},  Int] #todo: add String,
 if method_exists_bug
     assoc = [] #todo add again: Dict{Int,Int}] # , ObjectIdDict]
 else
     index = [Array{Int,2}, Dict{Int,Int}, StepRange{Int,Int}]
 end
-index = [Array{Int,2}, Array, StepRange{Int,Int}]
+index = [Array{Int,2}, StepRange{Int,Int}]
 
 for c in coll
     @test istrait(Collection{c}, verbose=true)
@@ -87,10 +86,10 @@ end
 @test istrait(Iter{Int}, verbose=true)
 @test !istrait(Iter{Nothing})
 
-arith = [Int, Float64, Rational]
+arith = [Int, Float64, Rational{Int}]
 for a1 in arith
     for a2 in arith
-        @test istrait(Arith{a1,a2})
+        @test istrait(Arith{a1,a2}, verbose=true)
     end
 end
 
@@ -183,3 +182,21 @@ end
 @test !istrait(UU13{Any})
 @test istrait(UU13{Integer})
 @test istrait(UU13{Int8})
+
+#####
+# Associated types
+####
+@traitdef Iter2{X} begin
+    # type-functions based on return_type:
+    State = Base.return_types(start, (X,))[1]  # this is circular but that is ok, as trait needs to be implemented.
+    Item =  Base.return_types(next, (X,State))[1][1]
+    
+    # interface functions
+    start(X) -> State
+    next(X, State) -> Item, State
+    done(X, State) -> Bool
+    # automatically provides:
+    # zip, enumerated, in, map, reduce, ...
+end
+@test istrait(Iter2{Int})
+@test istrait(Iter2{Array})

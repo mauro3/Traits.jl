@@ -125,3 +125,30 @@ end
 @test !istrait(CTr1{Int32, Int})
 @test istrait(CTr1{Int, Int})
 
+### adding other associated types
+
+immutable CTrAs{X1,X2} <: Traits.Trait{()}
+    methods::Dict
+    constraints::Array{Bool,1} # constraints are an array of functions
+                            # which need to evaluate to true.  Their
+                            # signature is f(X,Y) = ...
+    assoctyps::Array{TypeVar,1}
+    function CTrAs()
+        R = promote_type(X1, X2)
+        D = (X1,X2)<:(Integer,Integer) ? Float64 : promote_type(X1, X2)
+        assoctyps = [TypeVar(:R, R), TypeVar(:D, D)]
+        new(Dict(
+                 (+) => ((X1, X2), (R,)),
+                 (/) => ((X1, X2), (D,)),
+             ),
+            Bool[],
+            assoctyps
+            )
+    end
+end
+
+@test istrait(CTrAs{Int32, Int})
+# @test istrait(CTrAs{Integer, Integer}) # doesn't work because return type of /(Integer, Integer)==Any
+@test istrait(CTrAs{Int, Int})
+@test !istrait(CTrAs{Int, String})
+

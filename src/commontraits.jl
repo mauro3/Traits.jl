@@ -15,18 +15,26 @@ end
 end
 
 @traitdef Iter{X}  begin
-    start(X)
-    next(X, All)
-    done(X, All) # -> Bool
+    # type-functions based on return_type:
+    State = Base.return_types(start, (X,))[1]  # this is circular but that is ok, as trait needs to be implemented.
+    Item =  Base.return_types(next, (X,State))[1][1]
+    
+    # interface functions
+    start(X) -> State
+    next(X, State) -> Item, State
+    done(X, State) -> Bool
     # automatically provides:
     # zip, enumerated, in, map, reduce, ...
 end
 
 # general collections
 @traitdef Collection{X} <: Iter{X} begin
+    El = eltype(X)
+    
     isempty(X) -> Bool
     length(X) -> Integer
-    eltype(X)
+    eltype(X) -> Type{El}
+    eltype(Type{X}) -> Type{El}
 end
 
 @traitdef IterColl{X} <: Collection{X} begin # iterable collection
@@ -34,8 +42,10 @@ end
 end
 
 @traitdef Indexable{X} <:Collection{X} begin
+    El = eltype(X)
+    
     getindex(X, All)
-    setindex!(X, All, All)
+    setindex!(X, El, All)
     length(X) -> Integer
     # automatically provided:
     # size(X) -> Tuple
@@ -43,6 +53,8 @@ end
 end
 
 @traitdef Assoc{X} <: Indexable{X} begin
+    K,V = eltype(X) 
+    
     # note, ObjectId dict is not part of this interface
     haskey(X, All)
     get(X, All, All)
@@ -53,17 +65,22 @@ end
     delete!(X, All) -> X
     pop!(X, All)
     pop!(X, All, All)
-    keys(X) # -> Iter{X} # would be nice here!
-    values(X)
     merge(X, All...) -> X
     merge!(X, All...)
+    # provieds
+    # keys(X) -> Base.KeyIterator
+    # values(X) -> Base.ValueIterator
 end
 
 @traitdef Arith{X,Y} begin
-    (+(X,Y)) -> Any # ToDo: need to work on the parser to avoid the
-                    # enclosing () paired with -> Any
-    -(X,Y)
-    *(X,Y)
-    /(X,Y)
+    Z = promote_type(X,Y)
+    D = (X,Y)<:(Integer, Integer) ? Float64 : Z
+
+     # note, promote_type is defined for (Type{Any},Type{Any}), so no
+     # need to include it here:
+    +(X,Y) -> Z
+    -(X,Y) -> Z
+    *(X,Y) -> Z
+    /(X,Y) -> D
 end
 

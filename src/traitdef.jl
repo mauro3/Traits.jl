@@ -79,6 +79,7 @@ end
 function parsebody(body::Expr)
     # Transforms:
     # body = quote
+    #     R = g(X)
     #     f1(X,Y) -> X,Int
     #     f2(Y) -> X
     #     @constraints begin
@@ -91,10 +92,13 @@ function parsebody(body::Expr)
     #    f2 => ((Y,),  (X,)) ] )
     # :(Bool[X==Y])
     outfns = Expr(:dict)
-    constr = Expr(:ref, :Bool)
+    constr = :(Bool[])
+    assoc = quote end
     for ln in Lines(body)
-        if ln.head==:macrocall
-            parseconstraints!(ln, constr)
+        if ln.head==:macrocall # constraints
+            parseconstraints!(constr, ln)
+        elseif ln.head==:(=) # associated types
+            push!(assoc.args, ln)
         else
             argtype = :()
             rettype = :()
@@ -115,25 +119,47 @@ function parsebody(body::Expr)
                 push!(rettype.args, ln.args[2].args[2])
                 append!(rettype.args, tmp.args)
             elseif ln.head==:call
-                # f1(X,Y)
-                fn =  ln.args[1]
-                append!(argtype.args, ln.args[2:end])
-                rettype =  :((Any...))
+                # f1(X,Y) or X + Y -> Z
+                if isa(ln.args[end], Expr) && ln.args[end].head==:(->) # X + Y -> Z
+                    fn =  ln.args[1]
+                    append!(argtype.args, ln.args[2:end-1])
+                    if isa(ln.args[end].args[1], Expr)
+                        append!(argtype.args, ln.args[end].args[1].args)
+                    else
+                        push!(argtype.args, ln.args[end].args[1])
+                    end
+                    tmp = rettype
+                    rettype = :()
+                    push!(rettype.args, ln.args[end].args[2].args[2])
+                    append!(rettype.args, tmp.args)
+                else # f1(X,Y)
+                    fn =  ln.args[1]
+                    append!(argtype.args, ln.args[2:end])
+                    rettype =  :((Any...))
+                end
             else
                 throw(TraitException(
-                                     "Something went wrong parsing the trait definition body:\n $body"))
+                                     "Something went wrong parsing the trait definition body with line:\n$ln"))
             end
             push!(outfns.args, :($fn => ($argtype, $rettype)))
         end
         
     end
-    return outfns, constr
+    # store associated types:
+    tmp = :(TypeVar[])
+    for ln in Lines(assoc)
+        tvar = ln.args[1]
+        stvar = string(tvar)
+        push!(tmp.args, :(TypeVar(symbol($stvar) ,$tvar)))
+    end
+    push!(assoc.args, :(assoctyps = $tmp))
+    return outfns, constr, assoc
 end
 
 # 2.5) parse constraints
 ####
 # Note, @constraints is not really a macro-call.
-function parseconstraints!(block, constr)
+function parseconstraints!(constr, block)
     # updates constr=Expr(:ref,...)
     if !(block.args[1]==symbol("@constraints"))
         throw(TraitException(
@@ -151,12 +177,14 @@ macro traitdef(head, body)
     ## make Trait type
     traithead, name = parsetraithead(head)
     # make the body
-    meths, constr = parsebody(body)
+    meths, constr, assoc = parsebody(body)
     traitbody = quote
         methods::Dict{Function, Tuple}
         constraints::Vector{Bool}
+        assoctyps::Vector{TypeVar}
         function $((name))()
-            new( $meths, $constr )
+            $assoc
+            new( $meths, $constr, assoctyps)
         end
     end
     # add body to the type definition
