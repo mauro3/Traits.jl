@@ -6,7 +6,7 @@ Feature updates for Traits.jl
 
 - added associated type, see
   [Haskell](https://www.haskell.org/haskellwiki/GHC/Type_families#An_associated_data_type_example)
-  or [Rust](https://github.com/rust-lang/rfcs/pull/195).
+  or [Rust](https://github.com/aturon/rfcs/blob/associated-items/active/0000-associated-items.md).
   Examples are in [src/commontraits.jl](src/commontraits.jl).
 - using `@doc` system for documentation
 - improved trait dispatch when ambiguous with the following algorithm:
@@ -67,10 +67,9 @@ Feature updates for Traits.jl
   
   julia> Base.return_types(getindex, (Array{Int,1}, Any))
   11-element Array{Any,1}:
-  Any           
+  Any
   ...
-  Any           
-
+  Any
   ```
   So now, in the interface specification, we need to write
   `getindex(X, Any)`.  Thus I introduced `All` which gets replaced by

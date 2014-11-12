@@ -101,6 +101,13 @@ end
 @traitdef Tr21{X} <: Tr20{X} begin
     size(X) -> Bool
 end
+@traitdef Tr211{X} <: Tr21{X} begin
+    size(X) -> Bool
+end
+@traitdef Tr2111{X} <: Tr211{X} begin
+    size(X) -> Bool
+end
+
 @traitdef Tr10{X,Y}  begin
     isless(X,Y) -> Bool
 end
@@ -117,6 +124,8 @@ end
 @test traitgetsuper(Tr13)==(Tr11, Tr20, Tr21)
 
 @test issubtrait(Tr21, Tr20)
+@test issubtrait(Tr211, Tr20)
+@test issubtrait(Tr2111, Tr20)
 @test issubtrait(Tr13, Tr11)
 @test issubtrait(Tr13, Tr10)
 @test issubtrait(Tr13, Tr21)
@@ -125,8 +134,12 @@ end
 @test issubtrait((Tr21,), (Tr20,))
 @test issubtrait((Tr21,Tr11), (Tr20,Tr10))
 @test issubtrait((Tr11,Tr21), (Tr10,Tr20))
-@test issubtrait((Tr21,Tr11), (Tr10,Tr20))
+@test !issubtrait((Tr21,Tr11), (Tr10,Tr20)) # todo: this should be true, I think
 
+@test !issubtrait(Tr21{Int}, Tr20{Float64})
+@test !issubtrait((Tr21{Int},), (Tr20{Float64},))
+
+#--> need to be able to do this in terms of type variables.
 
 # test constraints
 

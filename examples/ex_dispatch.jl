@@ -103,7 +103,7 @@ catch e
 end
 
 # this can be resolved by making a method which dispatches on both types:
-@traitfn tttf{X; TrTr1{X}}, TrTr2{X}(x::X) = len2(x) # pick len2 over len1
+@traitfn tttf{X; TrTr1{X}, TrTr2{X}}(x::X) = len2(x) # pick len2 over len1
 
 @show tttf(5.) # now works
 
