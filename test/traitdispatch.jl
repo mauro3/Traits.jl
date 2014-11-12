@@ -20,7 +20,7 @@ end
 @traitfn ttf2{S,T<:Integer; D1{S}, D1{T}  }(s::S,t::T) = sin(s) - sin(t)
 @traitfn ttf2{X,Y<:FloatingPoint; D1{X}, D1{Y}  }(x::X,y::Y) = cos(x) - cos(y)
 
-@test_throws Traits.TraitException ttf2(4,5) # ambiguous trait-type
+@test ttf2(4,5)==(4 + sin(5))
 @test ttf2(4,5.) == cos(4)-cos(5.)
 
 @test ttf2(MTT1(5),4) == sin(5)-sin(4)
@@ -149,3 +149,60 @@ import Base.sin
 @test cos(MTyp71())=="Yeah"
 @test_throws TraitException cos(MTyp72())
 
+######
+# Ambiguities
+######
+@traitdef TrTr1{X} begin
+    len1(X) 
+end
+
+@traitfn tf7465{X<:Integer,Y; TrTr1{X}}(x::X,y::Y) = x-y
+@traitfn tf7465{X<:Integer,Y; TrTr1{Y}}(x::X,y::Y) = x+y
+
+@traitimpl TrTr1{Int} begin
+    len1(x::Int) = 5
+end
+
+# now ambiguous:
+@test_throws Traits.TraitException tf7465(5,6)
+# resolve
+@traitfn tf7465{X<:Integer,Y; TrTr1{X}, TrTr1{Y}}(x::X,y::Y) = x*y
+@test tf7465(5,6)==5*6
+
+@traitdef TrTr22{X,Y} <: TrTr1{X}, TrTr1{Y} begin
+    # empty
+end
+
+@traitfn tf7465{X<:Integer,Y; TrTr22{X,Y}}(x::X,y::Y) = x*y*1000
+  # errors again because ambigours again
+@test_throws Traits.TraitException tf7465(5,6)
+
+## single argument ambiguities
+####
+@traitdef TrTr2{X} begin
+    len2(X) 
+end
+
+@traitfn tttf{X; TrTr1{X}}(x::X) = len1(x)
+@traitfn tttf{X; TrTr2{X}}(x::X) = len2(x)
+
+@test tttf(5)==len1(5)  # works as TrTr2{Int} is not a trait
+
+@traitimpl TrTr1{Float64} begin
+    len1(x::Float64) = 5
+end
+@traitimpl TrTr2{Float64} begin
+    len2(x::Float64) = 55
+end
+
+@test_throws Traits.TraitException tttf(5.)  # errors
+
+@traitfn tttf{X; TrTr1{X}, TrTr2{X}}(x::X) = len2(x) # pick len2 over len1
+@test tttf(5.)==len2(5.)
+
+# # this can also be resolved by using a sub-trait, essentially equivalent:
+# @traitdef STrTr{X} <: TrTr1{X}, TrTr2{X} begin
+#     # empty
+# end
+# # no need to implement it for Float64: it's already a member:
+# @test istrait(STrTr{Float64})

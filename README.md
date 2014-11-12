@@ -62,6 +62,10 @@ ft1("asdf", 6)
 # -> ERROR: TraitException("No matching trait found for function ft1")
 ```
 
+This is an experimental package and I will not try to keep backwards
+compatibility as I move on.  But please give it a try in your code and
+give feedback.  I will try to document the new features in [NEWS](NEWS.md).
+
 # Syntax
 (source in `examples/ex2.jl`)
 
@@ -86,6 +90,12 @@ end
         # both Types need to start with the same letter:
         string(X.name)[1]==string(Y.name)[1]
     end
+end
+
+# using associated types
+@traitdef Tr5{X,Y} begin
+    Z = promote_type(X,Y) # calculates Z from X and Y
+    fun5(X,Y) -> Z
 end
 ```
 Note that return-type checking is quite experimental.  It can be

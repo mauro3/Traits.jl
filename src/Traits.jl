@@ -28,8 +28,8 @@ end
 
 @doc """`abstract Trait{SUPER}`
 
-    All traits are direct decedents of abstract type Trait.  The type parameter
-    SUPER of Trait is needed to specify super-traits (a tuple).""" ->
+         All traits are direct decedents of abstract type Trait.  The type parameter
+         SUPER of Trait is needed to specify super-traits (a tuple).""" ->
 abstract Trait{SUPER}
 
 # A concrete trait type has the form 
@@ -55,7 +55,9 @@ immutable _TraitStorage end
     
     - method_exists(f, s) returns true if there is a method of f with
       signature sig such that s<:sig.  Thus All<->Union()
-    - Base.return_types works the other way around, there All<->Any"""->
+    - Base.return_types works the other way around, there All<->Any
+   
+    See also https://github.com/JuliaLang/julia/issues/8974"""->
 abstract All
 
 # General trait exception
@@ -162,6 +164,9 @@ traitgetpara{T<:Trait}(t::Type{T}) =  t.parameters
 @doc """Checks whether a trait, or a tuple of them, is a subtrait of
         the second argument.""" ->
 function issubtrait{T1<:Trait,T2<:Trait}(t1::Type{T1}, t2::Type{T2})
+    if t1==t2
+        return true
+    end
     if t2 in traitgetsuper(t1)
         return true
     end
@@ -171,6 +176,7 @@ function issubtrait{T1<:Trait,T2<:Trait}(t1::Type{T1}, t2::Type{T2})
     return false
 end
 
+# TODO: think about how to handle tuple traits and empty traits
 function issubtrait{T1<:Trait}(t1::Type{T1}, t2::Tuple)
     if t2==()
         # the empty trait is the super-trait of all traits
@@ -180,6 +186,8 @@ function issubtrait{T1<:Trait}(t1::Type{T1}, t2::Tuple)
     end
 end
 
+# traits in a tuple have no order, really, this should reflected.
+# Maybe use a set instead?  Subtrait if it is a subset?
 function issubtrait(t1::Tuple, t2::Tuple)
     if length(t1)!=length(t2)
         return false

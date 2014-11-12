@@ -122,6 +122,12 @@ end
 @test issubtrait(Tr13, Tr21)
 @test issubtrait(Tr13, Tr20)
 
+@test issubtrait((Tr21,), (Tr20,))
+@test issubtrait((Tr21,Tr11), (Tr20,Tr10))
+@test issubtrait((Tr11,Tr21), (Tr10,Tr20))
+@test issubtrait((Tr21,Tr11), (Tr10,Tr20))
+
+
 # test constraints
 
 @traitdef Cr20{X} begin
@@ -200,3 +206,4 @@ end
 end
 @test istrait(Iter2{Int})
 @test istrait(Iter2{Array})
+

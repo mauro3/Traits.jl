@@ -220,7 +220,24 @@ function has_only_one_method(fname::Expr, typs)
 end
 
 
-# The heart, the trait-dispatch function:
+@doc """The heart, the trait-dispatch function.
+     
+     Trait-function (TF) dispatch works like:
+
+     - first dispatch on the normal types
+     
+     Then dispatch on traits using the following rules, terminating
+     when only one or zero possibilities are left
+
+     - find all matching traits
+     - discriminate using subtraits, i.e. a subtrait will win over its supertrait
+     - score all traits according to:
+       1 point for all single parameter traits,  
+       2 points for all two parameter traits,
+       etc.  
+       Now pick the highest scoring method.
+     - if still ambiguous throw an error
+     """->
 function traitdispatch(traittypes, fname)
     poss = Any[]
     for Tr in traittypes
@@ -236,7 +253,7 @@ function traitdispatch(traittypes, fname)
                 if length(p1)==length(p2)
                     checks = true
                     for j=1:length(p1)
-                        checks = checks && issubtrait(p2[j], p1[j])
+                        checks = checks && issubtrait(p2[j], p1[j]) && p2[j]!=p1[j]
                     end
                     if checks
                         push!(topurge, i)
@@ -246,6 +263,21 @@ function traitdispatch(traittypes, fname)
         end
         topurge = sort(unique(topurge))
         deleteat!(poss, topurge)
+    end
+    # check whether we can discriminate on more specific definitions:
+    if length(poss)>1
+        # strategy:
+        # - each single parameter trait gives 1 point, 2-parameter 2 points, etc
+        # - pick method with most points
+        #
+        # This is not the end of the story but better...
+        score = zeros(Int, length(poss))
+        for (i,p1) in enumerate(poss)
+            for t in p1
+                score[i] += length(t.parameters)
+            end
+        end
+        poss = poss[find(maximum(score).==score)]
     end
     # check we got a unique trait for dispatch
     if length(poss)==0
@@ -274,25 +306,30 @@ end
      - all the arguments of `tf` which participate in trait-dispatch
        need to be parameterized.
      - trait-methods and non-trait methods can be mixed.
+     - for details on trait dispatch see doc of Traits.traitdispatch
      """ ->
 macro traitfn(fndef)
     fn, fnt = parsetraitfn(fndef)
-
+    if length(unique(fnt.traits))!=length(fnt.traits)
+        throw(TraitException(
+          "There are repeated traits in the trait signature of $(fndef.args[1])"))
+    end
+              
     ## make primary function: f
-    ####
+    #### tf(x, y)
     # (Just overwrite definitions of f if they exists already,
     # generates warnings though...)
     
     # definition head: fn{X,Y}(x::X,y::Y)
     f = makefnhead(fn.name, fn.typs, fn.sig)
-    # definition body: _trait_fn(x, y, _trait_type_f1(x,y) )
+    # definition body: _trait_fn(_trait_type_f1(x,y) ), x, y)
     args1 = Any[:(Traits._TraitDispatch), fn.sig...]
     args2 = Any[makefncall(fn.name, args1), fn.sig...]
     body = makefncall(fn.name, args2)
     f = :($f = $body)
     
     ## make function containing the logic: trait_f
-    ####
+    #### tf(::Type{(Traits...,)}, x, y)
     # 1) make the traits-type 
     trait_typ = Expr(:tuple)
     append!(trait_typ.args, fn.traits)
@@ -304,7 +341,7 @@ macro traitfn(fndef)
     trait_fn = Expr(:macrocall, symbol("@inline"), trait_f)
 
     ## Make function storing the trait-types
-    ####
+    #### tf(Traits._TraitStorage, sig...)
     # This function will return all defined Trait-tuples for a certain
     # signature.
     
@@ -327,7 +364,8 @@ macro traitfn(fndef)
         push!(traittypes, newtrait)
     end
     
-    ## 3) make new trait-type storage function _trait_type_f(::Type{X}, ::Type{Y}...)
+    ## 3) make new trait-type storage function
+    #     tf(::Type{Traits._TraitStorage}, ::Type{X}, ::Type{Y}...)
     sigtyps = [s.args[2] for s in fnt.sig]
     sig = make_Type_sig([:(Traits._TraitStorage), sigtyps...])
     trait_type_f_store_head = makefnhead(fn.name,
@@ -336,9 +374,10 @@ macro traitfn(fndef)
                             $trait_type_f_store_head = (Any[$(traittypes...)], )
                             )
     push!(trait_type_f_store.args[2].args, traittypes)
+    push!(trait_type_f_store.args[2].args, fnt.typs)
 
     ## make trait-dispatch stagedfunction: trait_type_f
-    ####
+    #### tf(Traits._TraitDispatch, sig...)
 
     sig = make_Type_sig([:(Traits._TraitDispatch)])
     append!(sig,fnt.sig)

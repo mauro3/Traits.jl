@@ -187,10 +187,10 @@ end
          *(X,Y) -> Z
          /(X,Y) -> D
 
-         # constraints
+         # constraints on X,Y
          @constraints begin
-            # both Types need to start with the same letter:
-            string(X.name)[1]==string(Y.name)[1]
+             X<:Number
+             Y<:Number
          end
      end
      istrait(MyArith{Int, Int8}) # -> true
@@ -205,6 +205,16 @@ end
      - Constraints are marked in a block `@constaints`.  The are
        constraints in terms of the input types `X,Y` and are evaluated
        at trait checking.
+
+     Traits can subtrait others:
+
+     ```
+     @traitdef MyInv{X}<:MyArith{X,X} begin
+         inv(X) -> X
+     end
+     istrait(MyInv{Int}) # -> false
+     istrait(MyInv{Float64}) # -> true
+     ```
      """ ->
 macro traitdef(head, body)
     ## make Trait type
