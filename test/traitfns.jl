@@ -1,9 +1,11 @@
 # tests parsing in src/traitfns.jl
 
-f1e= :(f1{X<:Int,TT; D1{X}, D2{X,TT}}(x::X,y::TT))
+f1e  = :(f1{X<:Int,TT; D1{X}, D2{X,TT}}(x::X,y::TT))
 f1e_b= :(f1{X<:Int,TT; D1{X}, D2{X,TT}}(x::X,y::TT) = ())
 
-f1e2= :(f1{X<:Int; D1{X}, D2{X,X}}(x::X,y::X) = ())
+f1e_function = :(function f1{X<:Int,TT; D1{X}, D2{X,TT}}(x::X,y::TT)
+                ()
+                end)
 
 f1e_p = Traits.ParsedFn(
                   :f1, 
@@ -19,20 +21,15 @@ f1e_pt = Traits.ParsedFn(
                  Any[:(x1::X1), :(x2::X2)], 
                  Any[:(D1{X1}), :(D2{X1,X2})],
                  :(()))
-
-f1e2_pt = Traits.ParsedFn(
-                 :f1, 
-                 :(f1{X1<:Int}), 
-                 Any[Expr(:<:, :X1, :Int)],
-                 Any[:(x1::X1), :(x2::X1)], 
-                 Any[:(D1{X1}), :(D2{X1,X1})],
-                 :(()))
-
 @test Traits.parsetraitfn_head(f1e)==f1e_p
 @test Traits.translate_head(Traits.parsetraitfn_head(f1e))==f1e_pt
 @test Traits.parsetraitfn(f1e_b)==(f1e_p, f1e_pt)
 
-@test Traits.parsetraitfn(f1e2)[2]==f1e2_pt
+(a,b) = Traits.parsetraitfn(f1e_function)
+a.body =:()
+b.body =:()
+@test a==f1e_p
+@test b==f1e_pt
 
 @test Traits.makefnhead(f1e_p.name, f1e_p.typs, f1e_p.sig).args[1]==f1e_p.fun
 @test Traits.makefnhead(f1e_p.name, f1e_p.typs, f1e_p.sig).args[2:end]==f1e_p.sig
@@ -41,10 +38,84 @@ f1e2_pt = Traits.ParsedFn(
 
 @test Traits.get_concrete_type_symb(f1e_p.typs)==Any[:Int, :Any]
 
-@test Traits.make_Type_sig(f1e_p.typs)==Any[:(::Type{X}), :(::Type{TT})]
-@test Traits.make_Type_sig(Any[:(Base.Array), Expr(:<:, :X, :Int),:TT], ) == Any[:(::Type{Base.Array}), :(::Type{X}), :(::Type{TT})]
+@test Traits.make_Type_sig([s.args[2] for s in f1e_p.sig])==Any[:(::Type{X}), :(::Type{TT})]
+
+# next case
+f1e2= :(f1{X<:Int; D1{X}, D2{X,X}}(x::X,y::X) = ())
+f1e2_pt = Traits.ParsedFn(
+                 :f1, 
+                 :(f1{X1<:Int}), 
+                 Any[Expr(:<:, :X1, :Int)],
+                 Any[:(x1::X1), :(x2::X1)], 
+                 Any[:(D1{X1}), :(D2{X1,X1})],
+                 :(()))
+@test Traits.parsetraitfn(f1e2)[2]==f1e2_pt
+
+# next case
+f1ee = :(tfd{K, V; D2{K,V}}(x::Vector{K}, y::V) = ())
+f1ee_p = Traits.ParsedFn(
+                  :tfd, 
+                  :(tfd{K,V}), 
+                  Any[:K,:V], 
+                  Any[:(x::Vector{K}), :(y::V)], 
+                  Any[:(D2{K,V})],
+                  :(()))
+f1ee_pt = Traits.ParsedFn(
+                  :tfd, 
+                  :(tfd{X1,X2}), 
+                  Any[:X1,:X2], 
+                  Any[:(x1::Vector{X1}), :(x2::X2)], 
+                  Any[:(D2{X1,X2})],
+                  :(()))
+@test Traits.parsetraitfn(f1ee)==(f1ee_p, f1ee_pt)
+
+# next case
+f1ee2 = :(tfd{K, V; D2{K,V}}(x::Dict{K,Int}, y::V) = ())
+f1ee2_p = Traits.ParsedFn(
+                  :tfd, 
+                  :(tfd{K,V}), 
+                  Any[:K,:V], 
+                  Any[:(x::Dict{K,Int}), :(y::V)], 
+                  Any[:(D2{K,V})],
+                  :(()))
+f1ee2_pt = Traits.ParsedFn(
+                  :tfd, 
+                  :(tfd{X1,X2}), 
+                  Any[:X1,:X2], 
+                  Any[:(x1::Dict{X1,Int}), :(x2::X2)], 
+                  Any[:(D2{X1,X2})],
+                  :(()))
+@test Traits.parsetraitfn(f1ee2)==(f1ee2_p, f1ee2_pt)
+
+# next case
+f1d2 = :(tfd{K, V; D2{K,V}}(x::Dict{K,Int}, y::V, z::Int) = ())
+f1d2_p = Traits.ParsedFn(
+                  :tfd, 
+                  :(tfd{K,V}), 
+                  Any[:K,:V], 
+                  Any[:(x::Dict{K,Int}), :(y::V), :(z::Int)], 
+                  Any[:(D2{K,V})],
+                  :(()))
+f1d2_pt = Traits.ParsedFn(
+                  :tfd, 
+                  :(tfd{X1,X2}), 
+                  Any[:X1,:X2], 
+                  Any[:(x1::Dict{X1,Int}), :(x2::X2), :(x3::Int)], 
+                  Any[:(D2{X1,X2})],
+                  :(()))
+@test Traits.parsetraitfn(f1d2)==(f1d2_p, f1d2_pt)
+
 
 # trait function creation
+eval(:(@traitfn $f1e_b))
+eval(:(@traitfn $f1e_function))
+eval(:(@traitfn $f1e2))
+# these give warnings for now
+eval(:(@traitfn $f1ee))
+eval(:(@traitfn $f1ee2))
+eval(:(@traitfn $f1d2))
+
+
 @traitfn yt1{X,Y; Arith{X,Y}}(x::X,y::Y) = x+y
 @test yt1(5,6)==5+6
 @traitfn xt1{X<:Int,Y<:FloatingPoint; Arith{X,Y}}(x::X,y::Y) = x-y

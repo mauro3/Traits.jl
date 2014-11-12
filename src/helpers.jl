@@ -25,18 +25,32 @@ function Base.done(lns::Lines, nr)
     end
 end
 
-# # check whether a type is parameterized
-# function isparameterized(t::DataType)
-#     p = t.parameters
-#     if length(p)>0
-#         return false
+# function return_types_v2(f::Function, typs::ANY)
+#     # for some reason this function take forever to JIT. (about 4 secs!)
+#     a = code_typed(f, typs)
+#     if length(a)>1
+#         error("several return types")
+#     elseif length(a)==0
+#         error("no return types")
 #     end
-#     if all(map(typeof,p).==DataType)
-#         return true  # i.e. return true for Dict{Int,Int}
-#     else
-#         return false # but not for Dict{Int}
-#     end
+#     a[1].args[end].typ
 # end
+
+# check whether a type is parameterized
+isparameterized(t::DataType) = length(t.parameters)==0 ? false : true
+
+function hasparameters(t::DataType)
+    if isparameterized(t)
+        if all([map(typeof,t.parameters)...].==DataType)
+            return true  # i.e. return true for Dict{Int,Int}
+        else
+            return false # but not for Dict{Int}
+        end
+    else
+        return false
+    end
+end
+
 # # check whether a function is parameterized
 # function isparameterized(m::Method)
 #     if isa(m.tvars, Tuple)

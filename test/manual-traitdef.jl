@@ -35,7 +35,7 @@ end
 @test istrait(Tr1{Int}) 
 @test istrait(Tr2{DataType,Int})
 @test istrait(Tr3{String,DataType})
-@test istrait(Tr3{:a,7})  # maybe this should error?
+@test_throws TraitException istrait(Tr3{:a,7})  # maybe this should error?
 
 immutable D1{X1} <: Traits.Trait{()}
     methods

@@ -86,8 +86,11 @@ istraittype(x::Tuple) = mapreduce(istraittype, &, x)
         `istrait( (Tr1{Int, Float64}, Tr2{Int}) )`
             """ ->
 function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
+    if !hasparameters(Tr)
+        throw(TraitException("Trait $Tr has no type parameters."))
+    end
     # check supertraits
-    istrait(traitgetsuper(Tr); verbose=verbose) || return false
+    !istrait(traitgetsuper(Tr); verbose=verbose) && return false
     # check methods definitions
     try 
         Tr()

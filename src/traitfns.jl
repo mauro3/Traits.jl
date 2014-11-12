@@ -54,6 +54,8 @@ function parsetraitfn_head(head::Expr)
     return ParsedFn(name, fun, typs, sig, traits, :())
 end
 
+gettypesymbol(x::Expr) = x.args[1] # :(X1<:Int)
+gettypesymbol(x::Symbol) = x
 function translate_head(fn::ParsedFn)
     # Takes output from parsetraitfn_head and 
     # renames sig and TypeVar:
@@ -63,9 +65,11 @@ function translate_head(fn::ParsedFn)
     #
     # Returns translated ParsedFn
     
-    function make_trans(sig)
+    function make_trans(sig, typs)
         # makes two dictionaries with keys the old typevars, and 
         # values the lowercase and uppercase variables
+
+        # make variable-symbol translation map:
         trans_var = Dict{Symbol,Symbol}()
         for (i,si) in enumerate(GenerateTypeVars{:lcase}())
             if length(sig)<i;  break end
@@ -73,15 +77,14 @@ function translate_head(fn::ParsedFn)
         end
 
         trans_Tvar = Dict{Symbol,Symbol}()
+        # make type-symbol translation map:
         for (i,tv) in enumerate(GenerateTypeVars{:upcase}())
-            if length(sig)<i;  break end
-            if !haskey(trans_Tvar, sig[i].args[2])
-                trans_Tvar[sig[i].args[2]] = tv
-            end
+            if length(typs)<i;  break end
+            trans_Tvar[gettypesymbol(typs[i])] = tv
         end
         return trans_var, trans_Tvar
     end
-    trans_var, trans_Tvar = make_trans(fn.sig)
+    trans_var, trans_Tvar = make_trans(fn.sig, fn.typs)
     
     # do the translations:
     fnt = deepcopy(fn)
@@ -99,7 +102,20 @@ function translate_head(fn::ParsedFn)
     for s in fnt.sig
         s.args[1] = trans_var[s.args[1]]
         if isa(s, Expr)
-            s.args[2] = trans_Tvar[s.args[2]]
+            t = s.args[2]
+            if isa(t, Symbol)
+                if haskey(trans_Tvar, s.args[2])
+                    s.args[2] = trans_Tvar[s.args[2]]
+                end
+            elseif t.head==:curly
+                for i=2:length(t.args)
+                    if haskey(trans_Tvar, t.args[i])
+                        t.args[i] = trans_Tvar[t.args[i]]
+                    end
+                end
+            else
+                error("Cannot parse $t in $(fnt.sig)")
+            end
         end
     end
     for t in fnt.traits
@@ -190,11 +206,12 @@ function make_Type_sig(typs)
     # [:(X<:Int), :Y] -> [:(::Type{X}), :(::Type{Y})]
     out = Any[]
     for t in typs
-        if isa(t, Symbol) || t.head==:.
-            push!(out, :(::Type{$t}))
-        else
-            push!(out, :(::Type{$(t.args[1])}))
-        end
+        push!(out, :(::Type{$t}))
+        # if isa(t, Symbol) || t.head==:.
+
+        # else
+        #     push!(out, :(::Type{$(t.args[1])}))
+        # end
     end
     return out
 end
@@ -366,8 +383,8 @@ macro traitfn(fndef)
     
     ## 3) make new trait-type storage function
     #     tf(::Type{Traits._TraitStorage}, ::Type{X}, ::Type{Y}...)
-    sigtyps = [s.args[2] for s in fnt.sig]
-    sig = make_Type_sig([:(Traits._TraitStorage), sigtyps...])
+    sig2typs(sig) = [s.args[2] for s in fnt.sig]
+    sig = make_Type_sig([:(Traits._TraitStorage), sig2typs(fnt.sig)...])
     trait_type_f_store_head = makefnhead(fn.name,
                                           fnt.typs, sig)
     trait_type_f_store = :(

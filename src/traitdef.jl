@@ -221,6 +221,8 @@ macro traitdef(head, body)
     traithead, name = parsetraithead(head)
     # make the body
     meths, constr, assoc = parsebody(body)
+    # make sure a generic function of all associated types exisits
+    
     traitbody = quote
         methods::Dict{Function, Tuple}
         constraints::Vector{Bool}

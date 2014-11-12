@@ -1,37 +1,57 @@
-# This implements the interface of the Graphs.jl package:
+# This implements some of the interface of the Graphs.jl package:
 # http://graphsjl-docs.readthedocs.org/en/latest/interface.html
 
 using Traits
 using Graphs
 
 @traitdef Graphs_Basic{G} begin
-    vertex_type(G)
-    edge_type(G)
-    is_directed(G)
+    vertex_type(G) -> DataType
+    edge_type(G) -> DataType
+    # newly defined below:
+    vertex_type(Type{G}) -> DataType
+    edge_type(Type{G}) -> DataType
+    is_directed(G) -> Bool
 end
 
 @traitdef Vertex_List{G} <: Graphs_Basic{G} begin
-    num_vertices(G)
-    vertices(G)
+    # associated type
+    I = Base.return_types(vertices, (G,))[1]
+    
+    num_vertices(G) -> Integer
+    vertices(G) -> I
+    
+    @constraints begin
+        # make sure that I is indeed iterable:
+        istrait(Iter{I})
+    end
 end
 
-@traitdef Edge_List{G,E} <: Graphs_Basic{G} begin
+@traitdef Edge_List{G} <: Graphs_Basic{G} begin
+    # associated type
+    V = vertex_type(G)
+    E = edge_type(G)
+    I = Base.return_types(edges, (G,))[1]
+
     # returns the number of edges contained in g.
-    num_edges(G) -> Int
-
+    num_edges(G) -> Integer
     # returns an iterable view/container of all edges.
-    edges(G)
-
+    edges(G) -> I
     # returns the source vertex of an edge e in graph g.
-    source(E, G)
-
+    source(E, G) -> V
     # returns the target vertex of an edge e in graph g.
-    target(E, G)
+    target(E, G) -> V
+
+    @constraints begin
+        # make sure that I is indeed iterable:
+        istrait(Iter{I})
+    end
 end
 
-@traitdef Edge_Map{G,E} <: Graphs_Basic{G} begin
+@traitdef Edge_Map{G} <: Graphs_Basic{G} begin
+    E = edge_type(G)
+    
     # returns the index of a vertex e in graph g.
-    edge_index(E, G) -> Int
+    edge_index(E, G) -> Integer
 end
 
 # # and more:
@@ -41,6 +61,10 @@ end
 # incidence_list
 # bidirectional_adjacency_list
 # bidirectional_incidence_list
+
+#update vertex_type and edge_type to work on Type{}
+Graphs.vertex_type{T<:AbstractGraph}(g::Type{T}) = g.parameters[1]
+Graphs.edge_type{T<:AbstractGraph}(g::Type{T}) = g.parameters[2]
 
 # Definitions from Graphs.jl/test/edgelist.jl
 pairs = [(1,2), (1,3), (2,3), (2,4), (3,5), (4,5), (2,5)]
@@ -58,11 +82,11 @@ E = Edge{Int}
 @assert istrait(Graphs_Basic{GU})
 @assert istrait(Vertex_List{GD})
 @assert istrait(Vertex_List{GU})
-@assert istrait(Edge_List{GD, E})
-@assert istrait(Edge_List{GU, E})
+@assert istrait(Edge_List{GD})
+@assert istrait(Edge_List{GU})
 
 # use for dispatch:
-@traitfn function f{G, E; Edge_List{G, E}, Vertex_List{G}}(g::G, e::E) 
+@traitfn function f{G, E; Edge_List{G}, Vertex_List{G}}(g::G, e::E) 
     num_edges(g) + num_vertices(g) + edge_index(e)
 end
 

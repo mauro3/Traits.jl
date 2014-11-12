@@ -64,8 +64,13 @@ end
 function prefix_module!(ex::Expr, modname::Symbol)
     # Prefix the module of the function, so import is not necessary:
     # :(+(x::T1, y::T2) = x.t1 + y.t2) -> :(Base.+(x::T1, y::T2) = x.t1 + y.t2)
-    ex.head== :(=) || error("Not a function definition: $ex")
-    ex.args[1].head==:call || error("Not a function definition: $ex")
+    if ex.head== :(=)
+        if ex.args[1].head!=:call
+            error("Not a function definition :\n$ex")
+        end
+    elseif ex.head!= :function
+        error("Not a function definition:\n$ex")
+    end
     
     fnname = get_fname(ex)
     if typeof(fnname)==Symbol
@@ -113,8 +118,7 @@ macro traitimpl(head, body)
     end
     ## Parse macro body 
     implfs = parse_body(body)
-    check_macro_body(body.args, implfs, trait)
-
+    #check_macro_body(body.args, implfs, trait) # doesn't work with associated types
     ## Make methods
     out = quote end
     for (fn, fndef) in implfs
