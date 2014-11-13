@@ -110,11 +110,25 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
         # https://github.com/JuliaLang/julia/issues/8959
 
         sigg = map(x->x===All ? Union() : x, sig[1])
-        if !method_exists(meth, sigg) # I think this does the right thing.
-            if verbose
-                println("Method $meth with signature $sig not defined for $T")
+        if isa(meth, Function)
+            if !method_exists(meth, sigg) # I think this does the right thing.
+                if verbose
+                    println("Method $meth with signature $sig not defined for $T")
+                end
+                out = false
             end
-            out = false
+        elseif isa(meth, DataType) # a constructor, presumably.
+            # But discard the catch all to convert, i.e. this means
+            # method_exists(call, (Type{meth}, sigg...))==true for all types
+            chatch_all =  methods(call, (Type{Array},))
+            if methods(call, (Type{meth}, sigg...))==chatch_all
+                if verbose
+                    println("Datatype constructor $meth with signature $sig not defined for $T")
+                end
+                out = false
+            end
+        else
+            throw(TraitException("Trait $Tr has something funny in its method dictionary: $meth."))
         end
     end
     # check return-type

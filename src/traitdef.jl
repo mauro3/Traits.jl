@@ -224,7 +224,7 @@ macro traitdef(head, body)
     # make sure a generic function of all associated types exisits
     
     traitbody = quote
-        methods::Dict{Function, Tuple}
+        methods::Dict{Union(Function,DataType), Tuple}
         constraints::Vector{Bool}
         assoctyps::Vector{TypeVar}
         function $((name))()

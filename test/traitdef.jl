@@ -220,3 +220,18 @@ end
 @test istrait(Iter2{Int})
 @test istrait(Iter2{Array})
 
+####
+# DataType constructors
+####
+
+@traitdef TT45{D} begin
+    # this is the trait for all datatypes which have a constructor
+    # with no arguments.
+    D() -> D
+end
+type A4758 end
+
+@test istrait(TT45{A4758})
+@test istrait(TT45{Dict{Int,Int}})
+@test istrait(TT45{Set{Int}})
+@test !istrait(TT45{Int})
