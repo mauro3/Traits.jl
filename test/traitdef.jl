@@ -225,8 +225,8 @@ end
 ####
 
 @traitdef TT45{D} begin
-    # this is the trait for all datatypes which have a constructor
-    # with no arguments.
+    # This trait contains all datatypes which have a constructor with
+    # no arguments.
     D() -> D
 end
 type A4758 end
@@ -235,3 +235,23 @@ type A4758 end
 @test istrait(TT45{Dict{Int,Int}})
 @test istrait(TT45{Set{Int}})
 @test !istrait(TT45{Int})
+@test !istrait(TT45{Array{Int,1}})
+
+# This is the trait for datatypes with Array like constructors:
+@traitdef TT46{Ar} begin
+    T = Base.return_types(eltype, (Ar,))[1]
+    Arnp = deparameterize_type(Ar)  # Array stripped of type parameters
+    
+    Arnp(T, Int64) -> Ar
+    Arnp(T, Int64...) -> Ar
+    @constraints begin
+        length(Ar.parameters)>1 # need at least two parameters to be array like, right?
+    end
+end
+@test !istrait(TT46{A4758})
+@test !istrait(TT46{Dict{Int,Int}})
+# @test istrait(TT46{Set{Int}}) this actually works, but not as expected and gives a deprecation warning
+@test !istrait(TT46{Int})
+@test istrait(TT46{Array{Int,1}})
+@test istrait(TT46{Array{Int}})
+@test istrait(TT46{Array})

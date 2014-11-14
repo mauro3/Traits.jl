@@ -1,3 +1,14 @@
+# helper useful for users
+export deparameterize_type
+
+@doc """Removes type parameters from types, e.g. Array{Int}->Array.
+     
+     It is often useful to make an associated type with this to match
+     against methods which do not specialize on the type parameters.
+     """ -> deparameterize_type(A::Type) = eval(A.name.module,
+     A.name.name)::DataType
+
+###############
 function eval_curmod(expr::Union(Symbol,Expr,QuoteNode))
     # evaluates a symbol or expression in the current module.
     # I.e. the one where the macro definition is.

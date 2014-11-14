@@ -1,6 +1,13 @@
 Feature updates for Traits.jl
 =============================
 
+14 Nov 2014
+-----------
+
+- added ability to make type constructors part of a trait
+  specification.  See test at bottom of
+  [test/traitdef.jl](test/traitdef.jl).
+
 12 Nov 2014
 -----------
 
