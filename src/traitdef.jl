@@ -91,59 +91,20 @@ function parsebody(body::Expr)
     # :([f1 => ((X,Y), (Int,Int)),
     #    f2 => ((Y,),  (X,)) ] )
     # :(Bool[X==Y])
+    isassoc(ex::Expr) = ex.head==:(=) # associated types
+    isconstraints(ex::Expr) = ex.head==:macrocall # constraints
+    
     outfns = Expr(:dict)
     constr = :(Bool[])
     assoc = quote end
     for ln in Lines(body)
-        if ln.head==:macrocall # constraints
+        if isconstraints(ln)
             parseconstraints!(constr, ln)
-        elseif ln.head==:(=) # associated types
+        elseif isassoc(ln)
             push!(assoc.args, ln)
-        else
-            argtype = :()
-            rettype = :()
-
-            if ln.head==:tuple
-                # several ret-types:
-                # f1(X,Y) -> x,y
-                append!(rettype.args, ln.args[2:end])
-                ln = ln.args[1]
-            end
-            
-            if ln.head==:(->)
-                # f1(X,Y) -> x
-                fn =  ln.args[1].args[1]
-                append!(argtype.args, ln.args[1].args[2:end])
-                tmp = rettype
-                rettype = :()
-                push!(rettype.args, ln.args[2].args[2])
-                append!(rettype.args, tmp.args)
-            elseif ln.head==:call
-                # f1(X,Y) or X + Y -> Z
-                if isa(ln.args[end], Expr) && ln.args[end].head==:(->) # X + Y -> Z
-                    fn =  ln.args[1]
-                    append!(argtype.args, ln.args[2:end-1])
-                    if isa(ln.args[end].args[1], Expr)
-                        append!(argtype.args, ln.args[end].args[1].args)
-                    else
-                        push!(argtype.args, ln.args[end].args[1])
-                    end
-                    tmp = rettype
-                    rettype = :()
-                    push!(rettype.args, ln.args[end].args[2].args[2])
-                    append!(rettype.args, tmp.args)
-                else # f1(X,Y)
-                    fn =  ln.args[1]
-                    append!(argtype.args, ln.args[2:end])
-                    rettype =  :((Any...))
-                end
-            else
-                throw(TraitException(
-                                     "Something went wrong parsing the trait definition body with line:\n$ln"))
-            end
-            push!(outfns.args, :($fn => ($argtype, $rettype)))
+        else # the rest of the body are function signatures
+            parsefnstypes!(outfns, ln)
         end
-        
     end
     # store associated types:
     tmp = :(TypeVar[])
@@ -168,6 +129,71 @@ function parseconstraints!(constr, block)
     for ln in Lines(block.args[2])
         push!(constr.args, ln)
     end
+end
+
+function parsefnstypes!(outfns, ln)
+    function parsefn(def)
+        # Parse to get function signature.
+        # parses f(X,Y), f{X <:T}(X,Y) and X+Y
+        if isa(def.args[1], Symbol)
+            fn =  def.args[1]
+        elseif def.args[1].head==:curly
+            fn =  def.args[1].args[1]
+            # todo
+        else
+            throw(TraitException(
+                             "Something went wrong parsing the trait definition body with line:\n$ln"))
+        end
+        argtype = :()
+        append!(argtype.args, def.args[2:end])
+        return fn, argtype # typvars
+    end
+    function parseret!(rettype, ln)
+        # parse to get return types
+        while ln.head!=:block
+            ln = ln.args[end]
+        end
+        tmp = rettype.args
+        rettype.args = Any[]
+        push!(rettype.args, ln.args[end])
+        append!(rettype.args, tmp)
+    end
+
+    
+    rettype = :()
+    if ln.head==:tuple
+        # several ret-types:
+        # f1(X,Y) -> X,Y
+        append!(rettype.args, ln.args[2:end])
+        ln = ln.args[1]
+    end
+    
+    if ln.head==:(->) # f1(X,Y) -> x
+        parseret!(rettype, ln)
+        fn, argtype = parsefn(ln.args[1])
+    elseif ln.head==:call # either f1(X,Y) or X + Y -> Z
+        if isa(ln.args[end], Expr) && ln.args[end].head==:(->) # X + Y -> Z
+            def = Expr(:call)
+            append!(def.args, ln.args[1:end-1])
+            if length(ln.args)==2
+                append!(def.args, ln.args[end].args[1].args)
+            else
+                push!(def.args, ln.args[end].args[1])
+            end
+            parseret!(rettype, ln)
+        else # f1(X,Y)
+            def = ln
+            rettype =  :((Any...))
+        end
+        fn, argtype = parsefn(def)
+    else
+        throw(TraitException(
+                             "Something went wrong parsing the trait definition body with line:\n$ln"))
+    end
+    # replace types with constraints by TypeVars
+    #...
+    
+    push!(outfns.args, :($fn => ($argtype, $rettype)))
 end
 
 # 3) piece it together

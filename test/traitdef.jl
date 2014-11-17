@@ -30,22 +30,31 @@ a,b = Traits.parsebody(td1.args[end])
 
 td2 = :(@traitdef Cr20{X,Y} begin
     X + Y -> Int,Float64
+    -(X,Y) -> Int
+    (/)(X,Y) -> Int
     
     @constraints begin
         string(X.name)[1]=='I'
     end
 end)
 a,b,c = Traits.parsebody(td2.args[end])
-@test a==Expr(:dict, :((+) => ((X,Y),(Int,Float64))))
+@test a==Expr(:dict, :((+) => ((X,Y),(Int,Float64))),
+                     :((-) => ((X,Y),(Int,))),
+              :((/) => ((X,Y),(Int,))))
 @test b==:(Bool[(string(X.name))[1] == 'I'])
 @test c.head==:block
+
+td3 = :(@traitdef Cr20{X,Y} begin
+    fn(X) -> Type{X}
+end)
+a,b,c = Traits.parsebody(td3.args[end])
+@test a==Expr(:dict, :((fn) => ((X,),(Type{X},))))
 
 ## test making traits
 
 @traitdef MyIter{X}  begin
     start(X)
 end
-
 
 ## Testing trait definitions
 @test istrait(Cmp{Int,Int})

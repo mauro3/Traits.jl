@@ -113,7 +113,7 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
         if isa(meth, Function)
             if !method_exists(meth, sigg) # I think this does the right thing.
                 if verbose
-                    println("Method $meth with signature $sig not defined for $T")
+                    println("Method $meth with call signature $(sig[1]) not defined for $T")
                 end
                 out = false
             end
