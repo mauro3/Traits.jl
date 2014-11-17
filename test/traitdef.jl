@@ -50,6 +50,20 @@ end)
 a,b,c = Traits.parsebody(td3.args[end])
 @test a==Expr(:dict, :((fn) => ((X,),(Type{X},))))
 
+td4 = :(@traitdef Cr20{X} begin
+    fn{Y<:II}(X,Y) -> Type{X}
+    fn76{K<:FloatingPoint, I<:Integer}(X, Vector{I}, Vector{K}) -> I
+end)
+a,b,c = Traits.parsebody(td4.args[end])
+v = :(TypeVar(symbol("Y"),II))
+t = :(TypeVar(symbol("I"),Integer))
+k = :(TypeVar(symbol("K"),FloatingPoint))
+
+@test a==Expr(:dict, :(fn=>((X,$v),(Type{X},))),
+                     :(fn76=>((X,Vector{$t},Vector{$k}),($t,)))
+              )
+
+
 ## test making traits
 
 @traitdef MyIter{X}  begin
@@ -149,6 +163,33 @@ end
 @test !issubtrait((Tr21{Int},), (Tr20{Float64},))
 
 #--> need to be able to do this in terms of type variables.
+
+# test functions parameterized on non-trait parameters
+
+@traitdef Pr0{X} begin
+    fn75{Y <: Integer}(X, Y) -> Y
+end
+fn75{Y <: Integer}(x::UInt8, y::Y) = y+x
+if method_exists_bug2
+    @test !istrait(Pr0{UInt8})
+else
+    @test istrait(Pr0{UInt8})
+end
+@test !istrait(Pr0{Int8})
+
+fn75(x::UInt8, y::Int8) = y+x
+@test !istrait(Pr0{UInt8})  # this works, not because only for y::Int8 not for all Integers
+
+@traitdef Pr1{X}  begin
+    fn76{I<:Integer}(X, Vector{I}) -> I
+end
+fn76{I<:Integer}(x::Uint8, v::Vector{I}) = v[x]
+if method_exists_bug2
+    @test !istrait(Pr1{UInt8})
+else
+    @test istrait(Pr1{UInt8})
+end
+@test !istrait(Pr1{UInt8})
 
 # test constraints
 

@@ -135,18 +135,20 @@ function parsefnstypes!(outfns, ln)
     function parsefn(def)
         # Parse to get function signature.
         # parses f(X,Y), f{X <:T}(X,Y) and X+Y
+        tvars = Any[]
         if isa(def.args[1], Symbol)
-            fn =  def.args[1]
+            fn = def.args[1]
         elseif def.args[1].head==:curly
-            fn =  def.args[1].args[1]
-            # todo
+            fn = def.args[1].args[1]
+            # get
+            tvars = def.args[1].args[2:end]
         else
             throw(TraitException(
                              "Something went wrong parsing the trait definition body with line:\n$ln"))
         end
         argtype = :()
         append!(argtype.args, def.args[2:end])
-        return fn, argtype # typvars
+        return fn, argtype, tvars
     end
     function parseret!(rettype, ln)
         # parse to get return types
@@ -170,7 +172,7 @@ function parsefnstypes!(outfns, ln)
     
     if ln.head==:(->) # f1(X,Y) -> x
         parseret!(rettype, ln)
-        fn, argtype = parsefn(ln.args[1])
+        fn, argtype, tvars = parsefn(ln.args[1])
     elseif ln.head==:call # either f1(X,Y) or X + Y -> Z
         if isa(ln.args[end], Expr) && ln.args[end].head==:(->) # X + Y -> Z
             def = Expr(:call)
@@ -185,13 +187,18 @@ function parsefnstypes!(outfns, ln)
             def = ln
             rettype =  :((Any...))
         end
-        fn, argtype = parsefn(def)
+        fn, argtype, tvars = parsefn(def)
     else
         throw(TraitException(
                              "Something went wrong parsing the trait definition body with line:\n$ln"))
     end
     # replace types with constraints by TypeVars
-    #...
+    trans = Dict(zip([t.args[1] for t in tvars], tvars))  # this will error if there is a type-var without constraints!
+    translate!(argtype.args, trans)
+    tvar2tvar!(argtype.args)
+    subt2tvar!(rettype.args)
+    translate!(rettype.args, trans)
+    tvar2tvar!(rettype.args)
     
     push!(outfns.args, :($fn => ($argtype, $rettype)))
 end

@@ -10,6 +10,7 @@ type A2 end
 
 # BUG flags: set to false once fixed to activate tests
 method_exists_bug = true # see https://github.com/JuliaLang/julia/issues/8959
+method_exists_bug2 = true # see https://github.com/JuliaLang/julia/issues/9043
 
 # manual implementations
 include("manual-traitdef.jl")

@@ -1,14 +1,15 @@
-# helper useful for users
+# helpers useful for users
 export deparameterize_type
 
 @doc """Removes type parameters from types, e.g. Array{Int}->Array.
      
      It is often useful to make an associated type with this to match
      against methods which do not specialize on the type parameters.
-     """ -> deparameterize_type(A::Type) = eval(A.name.module,
-     A.name.name)::DataType
+     """ ->
+deparameterize_type(A::Type) = eval(A.name.module, A.name.name)::DataType
 
-###############
+# Internal helpers
+##################
 function eval_curmod(expr::Union(Symbol,Expr,QuoteNode))
     # evaluates a symbol or expression in the current module.
     # I.e. the one where the macro definition is.
@@ -35,6 +36,53 @@ function Base.done(lns::Lines, nr)
         false
     end
 end
+
+
+## Parsing
+####
+# translate a symbol in a array of expressions and/or symbols
+function translate!(ex::Vector{Any}, di::Dict)
+    for (i,e) in enumerate(ex)
+        if isa(e, Symbol)
+            ex[i] = get(di, e, e)
+        else
+            translate!(e.args, di)
+        end
+    end
+    nothing
+end
+
+# expressions like :(I<:Int) are not parsed into TypeVar expressions
+# but subtype comparisons.  This function translates this
+function subt2tvar!(exs::Vector{Any})
+    for (i,ex) in enumerate(exs)
+        if isa(ex, Symbol)
+            # do nothing
+        elseif ex.head==:comparison
+            exs[i] = Expr(:<:, ex.args[1], ex.args[3])
+        else
+            subt2tvar!(ex.args)
+        end
+    end
+    nothing
+end
+
+function tvar2tvar!(exs::Vector{Any})
+    # tranlates x<:Int -> TypeVar(:X, Int)
+    for (i,ex) in enumerate(exs)
+        if isa(ex, Symbol)
+            # do nothing
+        elseif ex.head==:<:
+            var = ex.args[1]
+            exs[i] = :(TypeVar(symbol($(string(var))), $(ex.args[2])))
+        else
+            tvar2tvar!(ex.args)
+        end
+    end
+    nothing
+end
+
+
 
 # function return_types_v2(f::Function, typs::ANY)
 #     # for some reason this function take forever to JIT. (about 4 secs!)
