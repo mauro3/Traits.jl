@@ -46,7 +46,7 @@ tf89(2, Integer[1,2])
     getBarY(Type{X}) -> DataType
     gnx(X, Vector{Y}) -> Integer
     @constraints begin
-        eltype(Y)<:Integer
+        Y<:Integer
     end
 end
 
@@ -60,9 +60,24 @@ end
     gnx(x::Int, y::Array{Integer,1}) = y[iround(x)]
 end
 
+@traitimpl Bar{Int} begin
+    getBarY(::Type{Int}) = Integer
+    gnx(x::Int, y::Array{Integer,1}) = y[iround(x)]
+end
+
+@traitimpl Bar{Int8} begin
+    getBarY(::Type{Int8}) = Integer
+    gnx{Y<:Integer}(x::Int8, y::Array{Y,1}) = y[iround(x)]
+end
+istrait(Bar{Int8}, verbose=true)
+
 @traitfn tf90{X, Y<:Integer; Bar{X}}(x::X, a::Vector{Y}) = gnx(x, a) + 5
 
 tf90(2., Uint8[1,2])
 tf90(2, Integer[1,2])
+# tf90(2, Int[1,2]) # errors
+tf90(Int8(2), Integer[1,2])
+tf90(Int8(2), Int[1,2])
+tf90(Int8(2), UInt[1,2])
 
 # tf90(2., Int[1,2]) # errors

@@ -1,3 +1,8 @@
+# test parsing
+@test Traits.get_fname(:(sin(x::T1) = sin(x.t1)))==:sin
+@test Traits.get_fname(:(sin{X<:Int}(x::X) = sin(x.t1)))==:(sin{X<:Int})
+@test Traits.get_fname_only(:(sin{X<:Int}(x::X) = sin(x.t1)))==:sin
+
 # Testing @traitimpl
 @traitdef Tr100{X,Y} begin
     fun1(X,Y)
@@ -50,3 +55,18 @@ end
     fun2(a::A110) = 6
     fun3(b::B110) = 7
 end
+
+
+### issue 2
+@traitdef Tr101{X} begin
+    Y = getTr101(X)
+    getTr101(Type{X}) -> DataType
+    fun11(X, Vector{Y})
+end
+
+@traitimpl Tr101{Int} begin
+    getTr101(::Type{Int}) = Integer
+    fun11{Y<:Integer}(x::Int, y::Vector{Y}) = y[x]
+end
+
+

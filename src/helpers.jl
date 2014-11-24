@@ -82,10 +82,9 @@ function tvar2tvar!(exs::Vector{Any})
     nothing
 end
 
-
-
 # function return_types_v2(f::Function, typs::ANY)
 #     # for some reason this function take forever to JIT. (about 4 secs!)
+#     # see https://github.com/JuliaLang/julia/issues/9131
 #     a = code_typed(f, typs)
 #     if length(a)>1
 #         error("several return types")

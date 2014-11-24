@@ -356,12 +356,17 @@ do not have a strict hierarchy like types.
 # Issues
 
 
-# Previous trait implementations
+# Other trait implementations
 
 See the Julia-issue
 [#6975](https://github.com/JuliaLang/julia/issues/6975) for a
 discussion about interfaces/traits.
 
+Jason Morton's package
+[Typeclass.jl](https://github.com/jasonmorton/Typeclass.jl)
+
+- does multiple parameters
+- no dispatch
 
 @pao's https://gist.github.com/pao/2432554
 

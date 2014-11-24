@@ -16,17 +16,23 @@
 # - more checks?
 
 function get_fname(ex::Expr)
-    # :(sin(x::T1) = sin(x.t1))
-    # -> :sin
+    # :(sin{T1<:Interger}(x::T1) = sin(x.t1))
+    # -> :sin{T1<:Interger}
     out = ex.args[1].args[1]
-    if typeof(out)==Symbol
+    if typeof(out)==Symbol || out.head==:curly
         return out
-    elseif out.head==:curly
-        out = out.args[1]
     else
         error("Could not parse function definition: $ex")
     end
 end
+
+function get_fname_only(ex)
+    # :(sin{T1<:Interger}(x::T1) = sin(x.t1))
+    # -> :sin
+    ex = get_fname(ex)
+    isa(ex,Symbol) ? ex : ex.args[1]
+end
+
 function get_fsig(ex::Expr) 
     ex.args[1].args[2:end]
 end
@@ -52,11 +58,11 @@ end
 function parse_body(body::Expr)
     implfs = Dict()
     for ln in Lines(body)
-        if !isdefined(get_fname(ln))
+        if !isdefined(get_fname_only(ln))
             # define a standard generic function:
-            eval_curmod(:($(get_fname(ln))() = error("Not defined")))
+            eval_curmod(:($(get_fname_only(ln))() = error("Not defined")))
         end
-        implfs[eval_curmod(get_fname(ln))] = ln
+        implfs[eval_curmod(get_fname_only(ln))] = ln
     end
     return implfs
 end
@@ -73,13 +79,17 @@ function prefix_module!(ex::Expr, modname::Symbol)
     end
     
     fnname = get_fname(ex)
-    if typeof(fnname)==Symbol
+    fnname_only = get_fname_only(ex)    
+    if isa(fnname, Symbol)
         ex.args[1].args[1] = :($modname.$fnname)
-    elseif fnname.head==:(.)
-        # has a module already prefixed
+    elseif fnname.head==:curly
+        if isa(fnname.args[1], Symbol)
+            ex.args[1].args[1].args[1] = :($modname.$fnname_only)
+        end
     else
         error("something went wrong, $fnname is not a Symbol")
     end
+    nothing
 end
 
 @doc """The `@traitimpl` macro can be used to implement a trait for a
