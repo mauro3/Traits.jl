@@ -17,10 +17,15 @@
 function parsecurly(def::Expr)
     # parses :(Cmp{x,y})
     # into: :Cmp, [:x,:y], :(Cmp{x,y}), ()
+
+    # parses :(Monad{X{Y}})
+    # into: :Monad, [:( :curly, :X, :Y )], :(Monad{X}), ()
     name = def.args[1]
-    paras = Symbol[]
-    append!(paras,def.args[2:end])
-    trait = def
+    paras = Any[]
+    append!(paras,def.args[2:end] )
+    trait = Expr( :curly, name,
+        map( x->typeof(x)==Symbol ? x : Base.Meta.isexpr( x, :curly )? x.args[1] : error( "Traits: unknown " * string(x) ),
+        def.args[2:end])... )
     return name, paras, trait, :(())
 end
 function parsecomp(def::Expr)
@@ -50,10 +55,10 @@ function parsetraithead(def::Expr)
     # trait = :(Cmp{X,Y}
     # supertraits = :(Eq{X,Y}, Tr1{X})
     # paras = [:X,:Y]
-    # 
+    #
     # Returns:
     # :(immutable Cmp{X,Y} <: Trait{(Eq{X,Y}, Tr1{X})} end)
-    
+
     if def.head==:tuple # contains several parents
         name, paras, trait, supertraits = parsetuple(def)
     elseif def.head==:comparison # contains a <:
@@ -70,13 +75,25 @@ function parsetraithead(def::Expr)
     end
     # make :(immutable Cmp{X,Y} <: Trait{(Eq{X,Y}, Tr1{X})} end)
     out = :(immutable $trait <: Traits.Trait{$supertraits} end)
-    return out, name
+
+    # capture Y in Monad{X{Y}}
+    headassoc = Symbol[]
+    for p in paras
+        if Base.Meta.isexpr( p, :curly )
+            @assert( typeof( p.args[2] ) == Symbol )
+            if !in( p.args[2], headassoc )
+                push!( headassoc, p.args[2] )
+            end
+        end
+    end
+
+    return out, name, paras, headassoc
 end
 
 # 2) parse the function definitions
 ###
 
-function parsebody(body::Expr)
+function parsebody(body::Expr, paras::Array{Any,1}, headassoc::Array{Symbol,1} )
     # Transforms:
     # body = quote
     #     R = g(X)
@@ -93,10 +110,26 @@ function parsebody(body::Expr)
     # :(Bool[X==Y])
     isassoc(ex::Expr) = ex.head==:(=) # associated types
     isconstraints(ex::Expr) = ex.head==:macrocall # constraints
-    
+
     outfns = Expr(:dict)
     constr = :(Bool[])
     assoc = quote end
+    # but first, add the assoc types from the head
+    for s in headassoc
+        local s_inited::Bool = false
+        for p in paras
+            if Base.Meta.isexpr( p, :curly ) && p.args[2] == s
+                hosttype = p.args[1]
+                if !s_inited
+                    push!( assoc.args, :($s = Traits.tparlast( $hosttype ) ) )
+                    s_inited=true
+                else
+                    push!( assoc.args, :( @assert( $s == Traits.tparlast( $hosttype ) ) ) )
+                end
+            end
+        end
+    end
+
     for ln in Lines(body)
         if isconstraints(ln)
             parseconstraints!(constr, ln)
@@ -147,7 +180,15 @@ function parsefnstypes!(outfns, ln)
                              "Something went wrong parsing the trait definition body with line:\n$ln"))
         end
         argtype = :()
-        append!(argtype.args, def.args[2:end])
+        for i = 2:length( def.args )
+            a = def.args[i]
+            if Base.Meta.isexpr( a, :(::) ) # shorthand
+                t = a.args[1]
+                push!( argtype.args, Expr( :curly, :Type, t ) )
+            else
+                push!( argtype.args, a )
+            end
+        end
         return fn, argtype, tvars
     end
     function parseret!(rettype, ln)
@@ -161,7 +202,7 @@ function parsefnstypes!(outfns, ln)
         append!(rettype.args, tmp)
     end
 
-    
+
     rettype = :()
     tuplereturn = false
     if ln.head==:tuple
@@ -171,7 +212,7 @@ function parsefnstypes!(outfns, ln)
         append!(rettype.args, ln.args[2:end])
         ln = ln.args[1]
     end
-    
+
     if ln.head==:(->) # f1(X,Y) -> x
         parseret!(rettype, ln)
         fn, argtype, tvars = parsefn(ln.args[1])
@@ -214,7 +255,7 @@ end
 ###
 
 @doc """The `@traitdef` macro is used to construct a trait.  Example:
-      
+
      ```
      @traitdef MyArith{X,Y} begin
          # associated types
@@ -235,7 +276,7 @@ end
      end
      istrait(MyArith{Int, Int8}) # -> true
      ```
-     
+
      - Assignments are for associated types, here `Z,D`.  These are
        types which can be calculated from the input types `X,Y`
 
@@ -258,11 +299,11 @@ end
      """ ->
 macro traitdef(head, body)
     ## make Trait type
-    traithead, name = parsetraithead(head)
+    traithead, name, paras, headassoc = parsetraithead(head)
     # make the body
-    meths, constr, assoc = parsebody(body)
+    meths, constr, assoc = parsebody(body, paras, headassoc)
     # make sure a generic function of all associated types exisits
-    
+
     traitbody = quote
         methods::Dict{Union(Function,DataType), Tuple}
         constraints::Vector{Bool}
