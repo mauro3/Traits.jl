@@ -2,7 +2,7 @@
 export deparameterize_type
 
 @doc """Removes type parameters from types, e.g. Array{Int}->Array.
-     
+
      It is often useful to make an associated type with this to match
      against methods which do not specialize on the type parameters.
      """ ->
@@ -109,6 +109,25 @@ function hasparameters(t::DataType)
     end
 end
 
+function tpar1( t::DataType )
+    for p in t.parameters
+        if typeof( p ) == DataType
+            return p
+        end
+    end
+    error( "Parametric Trait: tpar1: No type parameter found" )
+end
+
+function tparlast( t::DataType )
+    for i in length(t.parameters):-1:1
+        p = t.parameters[i]
+        if typeof( p ) == DataType
+            return p
+        end
+    end
+    error( "Parametric Trait: tparlast: No type parameter found" )
+end
+
 # # check whether a function is parameterized
 # function isparameterized(m::Method)
 #     if isa(m.tvars, Tuple)
@@ -149,13 +168,13 @@ end
 #     inds = ones(Int,len)
 #     out = Array(Tuple, n)
 #     for j=1:n
-#         try 
+#         try
 #             out[j] = tuple([typs[ii][i] for (ii,i) in enumerate(inds)]...)
 #         catch e
 #             @show j, inds
 #         end
 #         # updated inds
-#         inds[1] += 1        
+#         inds[1] += 1
 #         for i=1:len-1
 #             if inds[i]>lens[i]
 #                 inds[i] = 1
@@ -233,7 +252,7 @@ end
 #     # if there are one or more methods, check them
 #     for mm in meths
 #         if is_fnparameter_match_inputs(mm[2])
-# ----------> check this            
+# ----------> check this
 #             @show TS, mm[1], TS<:mm[1], mm[1]<:TS
 #             if TS<:mm[1]
 #                 dbg_println("A parameterized method matches exactly: $TS")
@@ -245,9 +264,9 @@ end
 #             dbg_println("A parameterized cannot match: $TS")
 #             return Res.F
 #         end
-        
+
 #     end
-    
+
 #     # if length(meths)==1 && isparameterized(meths[1][3])
 #     #     if is_parameter_match_inputs(meths[1][2])
 #     #         if Base.typeseq(meths[1][1], TS)
@@ -323,7 +342,7 @@ end
 #         end
 #         if r==Res.M
 #             push!(checksTS, sTS) # needs further checking below
-#         end 
+#         end
 #     end
 #     # recurse into subtypes where above was not
 #     out = 0
@@ -333,9 +352,9 @@ end
 #             dbg_println("False: one lower subtype does not check: $sTS")
 #             return Res.F
 #         end
-#         out += r # accumulate undicided 
+#         out += r # accumulate undicided
 #     end
-    
+
 #     if out==0
 #         dbg_println("True: all subtypes test true.")
 #         return Res.T
