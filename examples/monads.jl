@@ -24,6 +24,7 @@ end
             end
         end
     end
+    @sample_params Dict(:Y => [Int,Float64]) # this tests out the params a bit
 end
 
 @assert isequal( mreturn( Nullable, 1.0 ), Nullable{Float64}( 1.0 ) )

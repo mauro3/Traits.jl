@@ -14,7 +14,7 @@
 
 # 1) parse the header
 ###
-function parsecurly(def::Expr)
+function parsecurly(def::Expr )
     # parses :(Cmp{x,y})
     # into: :Cmp, [:x,:y], :(Cmp{x,y}), ()
 
@@ -114,14 +114,18 @@ function parsebody(body::Expr, paras::Array{Any,1}, headassoc::Array{Symbol,1} )
     outfns = Expr(:dict)
     constr = :(Bool[])
     assoc = quote end
+    params_rename = Dict{Symbol,Symbol}()
     # but first, add the assoc types from the head
     for s in headassoc
         local s_inited::Bool = false
         for p in paras
             if Base.Meta.isexpr( p, :curly ) && p.args[2] == s
+                rootsym = symbol( string(p.args[1],"0") )
                 hosttype = p.args[1]
                 if !s_inited
-                    push!( assoc.args, :($s = Traits.tparlast( $hosttype ) ) )
+                    params_rename[ hosttype ] = rootsym
+                    push!( assoc.args, :($rootsym = Traits.tparpop( $hosttype ) ) )
+                    push!( assoc.args, :($s       = Traits.tparlast( $hosttype ) ) )
                     s_inited=true
                 else
                     push!( assoc.args, :( @assert( $s == Traits.tparlast( $hosttype ) ) ) )
@@ -136,12 +140,15 @@ function parsebody(body::Expr, paras::Array{Any,1}, headassoc::Array{Symbol,1} )
         elseif isassoc(ln)
             push!(assoc.args, ln)
         else # the rest of the body are function signatures
-            parsefnstypes!(outfns, ln)
+            parsefnstypes!(outfns, ln, params_rename)
         end
     end
     # store associated types:
     tmp = :(TypeVar[])
     for ln in Lines(assoc)
+        if Base.Meta.isexpr( ln, :macrocall )
+            continue
+        end
         tvar = ln.args[1]
         stvar = string(tvar)
         push!(tmp.args, :(TypeVar(symbol($stvar) ,$tvar)))
@@ -164,7 +171,10 @@ function parseconstraints!(constr, block)
     end
 end
 
-function parsefnstypes!(outfns, ln)
+function parsefnstypes!(outfns::Expr, lnargs::Expr, params_rename::Dict{Symbol,Symbol} )
+    ln = deepcopy( lnargs )
+    argreplace!( ln, params_rename )
+
     function parsefn(def)
         # Parse to get function signature.
         # parses f(X,Y), f{X <:T}(X,Y) and X+Y
