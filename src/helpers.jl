@@ -128,6 +128,32 @@ function tparlast( t::DataType )
     error( "Parametric Trait: tparlast: No type parameter found" )
 end
 
+function tparpop( t::DataType )
+    root = deparameterize_type(t)
+    for i in length(t.parameters):-1:1
+        p = t.parameters[i]
+        if typeof( p ) == DataType
+            if i == 1
+                return root
+            else
+                return root{ t.parameters[1:i-1]... }
+            end
+        end
+    end
+    error( "Parametric Trait: tparpop: No type parameter found" )
+end
+
+function argreplace!( ex::Expr, nmap )
+    for j = 1:length(ex.args)
+        a = ex.args[j]
+        if typeof(a) == Symbol && haskey( nmap, a )
+            ex.args[j] = nmap[a]
+        elseif typeof(a) == Expr
+            argreplace!( a, nmap )
+        end
+    end
+end
+
 # # check whether a function is parameterized
 # function isparameterized(m::Method)
 #     if isa(m.tvars, Tuple)

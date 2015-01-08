@@ -33,7 +33,7 @@ function get_fname_only(ex)
     isa(ex,Symbol) ? ex : ex.args[1]
 end
 
-function get_fsig(ex::Expr) 
+function get_fsig(ex::Expr)
     ex.args[1].args[2:end]
 end
 
@@ -45,7 +45,7 @@ function check_macro_body(bodyargs, implfs, trait)
     # check that the signature of implfs agrees with trait().methods
     for (f,sig) in trait().methods
         # for now just check length.
-        if length(sig[1])!=length(get_fsig(implfs[f])) 
+        if length(sig[1])!=length(get_fsig(implfs[f]))
             error("""Method definition:
                      $f  $sig
                      does not match implementation:
@@ -55,16 +55,21 @@ function check_macro_body(bodyargs, implfs, trait)
     nothing
 end
 
-function parse_body(body::Expr)
+function parse_impl_body(body::Expr)
     implfs = Dict()
+    sample_params = Dict()
+
     for ln in Lines(body)
-        if !isdefined(get_fname_only(ln))
+        if Base.Meta.isexpr( ln, :macrocall ) && ln.args[1] == symbol( "@sample_params" )
+            sample_params = eval_curmod( ln.args[2] )
+            continue
+        elseif !isdefined(get_fname_only(ln))
             # define a standard generic function:
             eval_curmod(:($(get_fname_only(ln))() = error("Not defined")))
         end
         implfs[eval_curmod(get_fname_only(ln))] = ln
     end
-    return implfs
+    return implfs, sample_params
 end
 
 function prefix_module!(ex::Expr, modname::Symbol)
@@ -77,9 +82,9 @@ function prefix_module!(ex::Expr, modname::Symbol)
     elseif ex.head!= :function
         error("Not a function definition:\n$ex")
     end
-    
+
     fnname = get_fname(ex)
-    fnname_only = get_fname_only(ex)    
+    fnname_only = get_fname_only(ex)
     if isa(fnname, Symbol)
         ex.args[1].args[1] = :($modname.$fnname)
     elseif fnname.head==:curly
@@ -100,7 +105,7 @@ end
      Example continuing from the documentation of `@traitdef`, implementing the
      `MyArith` trait:
 
-     ``` 
+     ```
      type A; a end; type AB; b end
      @traitimpl MyArith{A,AB} begin
          +(x::A,y::AB) = A(x.a+y.b)
@@ -126,8 +131,8 @@ macro traitimpl(head, body)
         throw(TraitException("""Not all supertraits of $trait are implemented.
              Implement them first."""))
     end
-    ## Parse macro body 
-    implfs = parse_body(body)
+    ## Parse macro body
+    implfs,sample_params = parse_impl_body(body)
     #check_macro_body(body.args, implfs, trait) # doesn't work with associated types
     ## Make methods
     out = quote end
@@ -136,8 +141,53 @@ macro traitimpl(head, body)
         prefix_module!(fndef, modname)
         push!(out.args,fndef)
     end
-    
+
+    headassoc = Symbol[]
+    for p in paras
+        if Base.Meta.isexpr( p, :curly )
+            @assert( typeof( p.args[2] ) == Symbol )
+            if !in( p.args[2], headassoc )
+                push!( headassoc, p.args[2] )
+            end
+        end
+    end
+
     ## Assert that the implementation went smoothly
-    push!(out.args, :(@assert istrait($trait_expr, verbose=true)))
+    if isempty( headassoc )
+        push!(out.args, :(@assert istrait($trait_expr, verbose=true)))
+    elseif !isempty( sample_params )
+        traithead = deepcopy( head )
+        sample_exprs = Any[]
+        for s in headassoc
+            push!( sample_exprs, map( x->parse(string(x)), sample_params[ s ]) )
+        end
+        # get all the permutations, using ideas from cartesian
+        sz = Int[ length(x) for x in sample_exprs ]
+        N = length(headassoc)
+        c = ones(Int, N)
+        sz1 = sz[1]
+        isdone = false
+        while !isdone
+            dt = Dict{Symbol,Any}()
+            for (i,s) in enumerate( headassoc )
+                dt[s] = sample_exprs[i][ c[i] ]
+            end
+            traithead = deepcopy( head )
+            argreplace!( traithead, dt )
+            push!( out.args, :( @assert istrait( $traithead, verbose=true ) ) )
+
+            if (c[1]+=1) > sz1
+                idim = 1
+                while c[idim] > sz[idim] && idim < N
+                    c[idim] = 1
+                    idim += 1
+                    c[idim] += 1
+                end
+                isdone = c[end] > sz[end]
+            end
+        end
+    else
+        println( "@traitimpl: " * string( head ) * " should include @sample_params to test it out." )
+    end
     return esc(out)
 end
