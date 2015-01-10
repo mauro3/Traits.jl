@@ -109,13 +109,14 @@ function hasparameters(t::DataType)
     end
 end
 
-function tpar1( t::DataType )
-    for p in t.parameters
-        if typeof( p ) == DataType
-            return p
-        end
+# tparfirst, tparlast, tparpop, tparshift: low-level lookup of type parameters
+# tparprefix, tparget, tparsuffix: based on tparusesuffix, get the composition
+function tparfirst( t::DataType )
+    if isempty( t.parameters )
+        error( "Parametric Trait: tpar1: " * string(t) * " doesn't support parameters" )
     end
-    error( "Parametric Trait: tpar1: No type parameter found" )
+
+    return t.parameters[1]
 end
 
 function tparlast( t::DataType )
@@ -143,6 +144,43 @@ function tparpop( t::DataType )
     error( "Parametric Trait: tparpop: No type parameter found" )
 end
 
+# return a tuple of the rest of the type parameters after the first
+function tparshift( t::DataType )
+    return t.parameters[2:end]
+end
+
+trait_use1st_reg = Set{Any}()
+
+function tparprefix( trait::Any, pos::Any, t::Any)
+    global trait_use1st_reg
+    args = ( trait, pos, deparameterize_type(t) )
+    if !in( args, trait_use1st_reg )
+        tparpop( t )
+    else
+        args[end]
+    end
+end
+
+function tparget( trait::Any, pos::Any, t::Any)
+    global trait_use1st_reg
+    args = ( trait, pos, deparameterize_type(t) )
+    if !in( args, trait_use1st_reg )
+        tparlast( t )
+    else
+        tparfirst( t )
+    end
+end
+
+function tparsuffix( trait::Any, pos::Any, t::Any)
+    global trait_use1st_reg
+    args = ( trait, pos, deparameterize_type(t) )
+    if !in( args, trait_use1st_reg )
+        ()
+    else
+        tparshift( t )
+    end
+end
+
 function argreplace!( ex::Expr, nmap )
     for j = 1:length(ex.args)
         a = ex.args[j]
@@ -152,6 +190,62 @@ function argreplace!( ex::Expr, nmap )
             argreplace!( a, nmap )
         end
     end
+end
+
+# a hacky way to test when the signature has type variables in them
+# There would be false positive in pathological cases!
+function method_exists_tvars( f::Function, argts::Tuple, verbose::Bool )
+    for m in methods(f)
+        if verbose
+            println( "matching ", m )
+        end
+        if length(m.sig) > length(argts)
+            continue
+        end
+        n = min( length(m.sig), length(argts ) )
+        lasttype = Any
+        if length(m.sig) < length(argts)
+            if isempty( m.sig ) || m.sig[end].name.name != :Vararg
+                continue
+            end
+            lasttype = m.sig[end].parameters[1]
+        end
+        match=true
+        for i in 1:n
+            if verbose
+                print( "  check ", argts[i], " ? <: ", m.sig[i], " = " )
+            end
+            if !( argts[i] <: m.sig[i] )
+                if verbose
+                    println( "false")
+                end
+                match=false
+                break
+            else
+                if verbose
+                    println( "true" )
+                end
+            end
+        end
+        if match # so far
+            for i in n+1:length( argts )
+                if !(argts[i] <: lasttype )
+                    match=false
+                    break
+                end
+            end
+        end
+        if match
+            if verbose
+                println( " ... a match" )
+            end
+            return true
+        end
+    end
+    if verbose
+        println( " ... not a match" )
+    end
+    return false
 end
 
 # # check whether a function is parameterized

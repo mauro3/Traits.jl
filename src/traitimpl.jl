@@ -60,10 +60,7 @@ function parse_impl_body(body::Expr)
     sample_params = Dict()
 
     for ln in Lines(body)
-        if Base.Meta.isexpr( ln, :macrocall ) && ln.args[1] == symbol( "@sample_params" )
-            sample_params = eval_curmod( ln.args[2] )
-            continue
-        elseif !isdefined(get_fname_only(ln))
+        if !isdefined(get_fname_only(ln))
             # define a standard generic function:
             eval_curmod(:($(get_fname_only(ln))() = error("Not defined")))
         end
@@ -116,10 +113,27 @@ end
      istrait(MyArith{A, AB}) # -> true
      ```
 
-     Notes
+     if a trait accepts a type parameter, by default it is the last one
+     ```
+     @traitdef SemiFunctor{X{Y}} begin
+         fmap( Function, X{Y}) -> Any
+     end
+     @traitimpl SemiFunctor{Nullable{Y}} begin
+         fmap{Y}( f::Function, x::Nullable{Y} ) = Nullable(f(x.value))
+     end
+     istrait( SemiFunctor{Nullable{Int} }) # -> true
+     ```
+     However, for Array type, we could still use SemiFunctor but we have to use
+     @traitimpl explicitly, like so
+     ```
+     # NOTE THE ellipsis "..."" IN THE TYPE PARAMETER
+     @traitimpl SemiFunctor{Array{Y...}} begin
+         fmap{Y}( f::Function, x::Array{Y,1} ) = map(f, x)
+     end
+     istrait( SemiFunctor{Array{Int,1} }) # -> true
+     istrait( SemiFunctor{Array{Int,2} }) # -> false
+     ```
 
-     - the type annotations are mandatory.  No parameterized methods
-       are allowed (for now).
      """ ->
 macro traitimpl(head, body)
     ## Parse macro header
@@ -133,28 +147,37 @@ macro traitimpl(head, body)
     end
     ## Parse macro body
     implfs,sample_params = parse_impl_body(body)
-    #check_macro_body(body.args, implfs, trait) # doesn't work with associated types
-    ## Make methods
     out = quote end
+    #check_macro_body(body.args, implfs, trait) # doesn't work with associated types
+    headassoc = Symbol[]
+    for (i,p) in enumerate(paras)
+        if Base.Meta.isexpr( p, :curly )
+            if Base.Meta.isexpr(p.args[2], :(...) )
+                rootsym = p.args[1]
+                testsym = p.args[2].args[1]
+                push!( out.args, :( push!( Traits.trait_use1st_reg, ($name, Val{$i}, $rootsym ) ) ) )
+            elseif typeof( p.args[2] ) == Symbol
+                testsym = p.args[2]
+            else
+                error( "traitimpl: in head, "*string(p)* " should be either a Symbol or T...")
+            end
+            if !in( testsym, headassoc )
+                push!( headassoc, testsym )
+            end
+        end
+    end
+
+    ## Make methods
     for (fn, fndef) in implfs
         modname = module_name(Base.function_module(fn))
         prefix_module!(fndef, modname)
         push!(out.args,fndef)
     end
 
-    headassoc = Symbol[]
-    for p in paras
-        if Base.Meta.isexpr( p, :curly )
-            @assert( typeof( p.args[2] ) == Symbol )
-            if !in( p.args[2], headassoc )
-                push!( headassoc, p.args[2] )
-            end
-        end
-    end
-
-    ## Assert that the implementation went smoothly
+    ## Assert that the implementation went smoothly for non-parametric strait
     if isempty( headassoc )
         push!(out.args, :(@assert istrait($trait_expr, verbose=true)))
+        #=
     elseif !isempty( sample_params )
         traithead = deepcopy( head )
         sample_exprs = Any[]
@@ -188,6 +211,7 @@ macro traitimpl(head, body)
         end
     else
         println( "@traitimpl: " * string( head ) * " should include @sample_params to test it out." )
+        =#
     end
     return esc(out)
 end

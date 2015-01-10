@@ -93,7 +93,7 @@ end
 # 2) parse the function definitions
 ###
 
-function parsebody(body::Expr, paras::Array{Any,1}, headassoc::Array{Symbol,1} )
+function parsebody(name::Symbol, body::Expr, paras::Array{Any,1}, headassoc::Array{Symbol,1} )
     # Transforms:
     # body = quote
     #     R = g(X)
@@ -115,20 +115,32 @@ function parsebody(body::Expr, paras::Array{Any,1}, headassoc::Array{Symbol,1} )
     constr = :(Bool[])
     assoc = quote end
     params_rename = Dict{Symbol,Symbol}()
+    local_typesyms = Set{Symbol}()
+    push!( local_typesyms, name )
+    for p in paras
+        if typeof( p ) == Symbol
+            push!( local_typesyms, p )
+        end
+    end
     # but first, add the assoc types from the head
     for s in headassoc
         local s_inited::Bool = false
-        for p in paras
+        for (i,p) in enumerate( paras )
             if Base.Meta.isexpr( p, :curly ) && p.args[2] == s
                 rootsym = symbol( string(p.args[1],"0") )
                 hosttype = p.args[1]
+                tailsym = symbol( string(p.args[1],"0_" ) )
                 if !s_inited
                     params_rename[ hosttype ] = rootsym
-                    push!( assoc.args, :($rootsym = Traits.tparpop( $hosttype ) ) )
-                    push!( assoc.args, :($s       = Traits.tparlast( $hosttype ) ) )
+                    push!( assoc.args, :($rootsym = Traits.tparprefix( $name, Val{$i}, $hosttype ) ) )
+                    push!( assoc.args, :($s       = Traits.tparget( $name, Val{$i}, $hosttype ) ) )
+                    push!( assoc.args, :($tailsym = Traits.tparsuffix( $name, Val{$i}, $hosttype ) ) )
+                    push!( local_typesyms, rootsym )
+                    push!( local_typesyms, s )
+                    push!( local_typesyms, tailsym )
                     s_inited=true
                 else
-                    push!( assoc.args, :( @assert( $s == Traits.tparlast( $hosttype ) ) ) )
+                    push!( assoc.args, :( @assert( $s == Traits.tparget( $name, Val{$i}, $hosttype ) ) ) )
                 end
             end
         end
@@ -140,13 +152,16 @@ function parsebody(body::Expr, paras::Array{Any,1}, headassoc::Array{Symbol,1} )
         elseif isassoc(ln)
             push!(assoc.args, ln)
         else # the rest of the body are function signatures
-            parsefnstypes!(outfns, ln, params_rename)
+            parsefnstypes!(outfns, ln, local_typesyms, params_rename )
         end
     end
     # store associated types:
     tmp = :(TypeVar[])
     for ln in Lines(assoc)
         if Base.Meta.isexpr( ln, :macrocall )
+            continue
+        end
+        if endswith( string(ln.args[1]), "0_" )
             continue
         end
         tvar = ln.args[1]
@@ -171,9 +186,23 @@ function parseconstraints!(constr, block)
     end
 end
 
-function parsefnstypes!(outfns::Expr, lnargs::Expr, params_rename::Dict{Symbol,Symbol} )
+function parsefnstypes!(outfns::Expr, lnargs::Expr, local_typesyms::Set{Symbol}, params_rename::Dict{Symbol,Symbol} )
     ln = deepcopy( lnargs )
     argreplace!( ln, params_rename )
+    rootsyms = values( params_rename )
+
+    function addargscurlytails!( def )
+        if typeof( def ) == Expr
+            for a in def.args
+                addargscurlytails!( a )
+            end
+            if Base.Meta.isexpr( def, :curly )
+                if in( def.args[1], rootsyms )
+                    push!( def.args, Expr( :(...), symbol( string(def.args[1])*"_" ) ) )
+                end
+            end
+        end
+    end
 
     function parsefn(def)
         # Parse to get function signature.
@@ -191,7 +220,8 @@ function parsefnstypes!(outfns::Expr, lnargs::Expr, params_rename::Dict{Symbol,S
         end
         argtype = :()
         for i = 2:length( def.args )
-            a = def.args[i]
+            a = deepcopy( def.args[i] )
+            addargscurlytails!( a )
             if Base.Meta.isexpr( a, :(::) ) # shorthand
                 t = a.args[1]
                 push!( argtype.args, Expr( :curly, :Type, t ) )
@@ -299,12 +329,23 @@ end
      istrait(MyInv{Int}) # -> false
      istrait(MyInv{Float64}) # -> true
      ```
+
+     A trait can be declare to accept a type parameter:
+    ```
+    @traitdef SemiFunctor{X{Y}} begin
+        fmap( Function, X{Y} ) -> Any # we ignore the output sig for now
+    end
+    fmap{T}( f::Function, a::Nullable{T}) = Nullable(f(a))
+    istrait(SemiFunctor{Nullable{Int}}) # -> true
+    ```
+
+    By default, the type parameter in question must be the last one. To override this (e.g. Array), see @traitimpl
      """ ->
 macro traitdef(head, body)
     ## make Trait type
     traithead, name, paras, headassoc = parsetraithead(head)
     # make the body
-    meths, constr, assoc = parsebody(body, paras, headassoc)
+    meths, constr, assoc = parsebody(name, body, paras, headassoc)
     # make sure a generic function of all associated types exisits
 
     traitbody = quote

@@ -97,6 +97,12 @@ end
     Z = promote_type(X,Y) # calculates Z from X and Y
     fun5(X,Y) -> Z
 end
+
+# using parametric trait. Note the nested curly
+@traitdef SemiFunctor{X{Y}} begin
+    fmap( Function, X{Y} } -> Any
+end
+
 ```
 Note that return-type checking is quite experimental.  It can be
 turned off by defining `Main.Traits_check_return_types=false` before
@@ -154,6 +160,17 @@ try
     end))
 catch e
     println(e)  # ErrorException("assertion failed: istrait(Tr4{Int,Float64})")
+end
+
+# for parametric trait,
+@traitimpl SemiFunctor{Nullable{T}} begin
+    fmap{T}( f::Function, x::Nullable{T}) = Nullable(f(x.value))
+end
+
+# for Array, it is a bit difficult because the eltype is the first argument.
+# Also note that this sample implementation won’t cover higher dimensions
+@traitimpl SemiFunctor{Array{T...}} begin
+    fmap{T}( f::Function, x::Array{T,1}) = map(f, x)
 end
 ```
 
@@ -342,16 +359,9 @@ do not have a strict hierarchy like types.
 
 -   Are there better ways for trait-dispatch?
 
--   Sometimes it would be good to get at type parameters, for instance
-    for Arrays and the like:
-    ```julia
-    @traitdef Indexable{X{Y}} begin
-        getindex(X, Any) -> Y
-        setindex!(X, Y, Any) -> X
-    end
-    ```
-    This problem is similar to triangular dispatch and may be solved
-    by: https://github.com/JuliaLang/julia/issues/6984#issuecomment-49751358
+-   Issues related to parametric trait:
+    * Triangular dispatch:
+     https://github.com/JuliaLang/julia/issues/6984#issuecomment-49751358
 
 # Issues
 
