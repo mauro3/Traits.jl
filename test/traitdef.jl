@@ -2,29 +2,29 @@
 td = :(@traitdef Cr20{X} begin
     length(X)
 end)
-a,b = Traits.parsebody(td.args[end])
+a,b = Traits.parsebody(:Cr20, td.args[end], Any[], Symbol[] )
 @test a==Expr(:dict, :(length=>((X,),Any)))
 @test b==:(Bool[])
 
 td0 = :(@traitdef Cr20{X} begin
     length(X)
-    
+
     @constraints begin
         string(X.name)[1]=='I'
     end
 end)
-a,b = Traits.parsebody(td0.args[end])
+a,b = Traits.parsebody(:Cr20, td0.args[end], Any[], Symbol[] )
 @test a==Expr(:dict, :(length=>((X,),Any)))
 @test b==:(Bool[(string(X.name))[1] == 'I'])
 
 td1 = :(@traitdef Cr20{X} begin
     length(X) -> Int
-    
+
     @constraints begin
         string(X.name)[1]=='I'
     end
 end)
-a,b = Traits.parsebody(td1.args[end])
+a,b = Traits.parsebody(:Cr20, td1.args[end], Any[], Symbol[] )
 @test a==Expr(:dict, :(length=>((X,),Int)))
 @test b==:(Bool[(string(X.name))[1] == 'I'])
 
@@ -32,12 +32,12 @@ td2 = :(@traitdef Cr20{X,Y} begin
     X + Y -> Int,Float64
     -(X,Y) -> Int
     (/)(X,Y) -> Int
-    
+
     @constraints begin
         string(X.name)[1]=='I'
     end
 end)
-a,b,c = Traits.parsebody(td2.args[end])
+a,b,c = Traits.parsebody(:Cr20, td2.args[end], Any[], Symbol[])
 @test a==Expr(:dict, :((+) => ((X,Y),(Int,Float64))),
                      :((-) => ((X,Y),Int)),
               :((/) => ((X,Y),Int)))
@@ -47,14 +47,14 @@ a,b,c = Traits.parsebody(td2.args[end])
 td3 = :(@traitdef Cr20{X,Y} begin
     fn(X) -> Type{X}
 end)
-a,b,c = Traits.parsebody(td3.args[end])
+a,b,c = Traits.parsebody(:Cr20, td3.args[end], Any[:X,:Y], Symbol[] )
 @test a==Expr(:dict, :((fn) => ((X,),Type{X})))
 
 td4 = :(@traitdef Cr20{X} begin
     fn{Y<:II}(X,Y) -> Type{X}
     fn76{K<:FloatingPoint, I<:Integer}(X, Vector{I}, Vector{K}) -> I
 end)
-a,b,c = Traits.parsebody(td4.args[end])
+a,b,c = Traits.parsebody(:Cr20, td4.args[end], Any[:X], Symbol[] )
 v = :(TypeVar(symbol("Y"),II))
 t = :(TypeVar(symbol("I"),Integer))
 k = :(TypeVar(symbol("K"),FloatingPoint))
@@ -174,13 +174,12 @@ end
 fn75{Y <: Integer}(x::UInt8, y::Y) = y+x
 if method_exists_bug2
     @test !istrait(Pr0{UInt8})
+    fn75(x::UInt8, y::Int8) = y+x
+    @test !istrait(Pr0{UInt8})  # this works, not because only for y::Int8 not for all Integers
 else
     @test istrait(Pr0{UInt8})
 end
 @test !istrait(Pr0{Int8})
-
-fn75(x::UInt8, y::Int8) = y+x
-@test !istrait(Pr0{UInt8})  # this works, not because only for y::Int8 not for all Integers
 
 @traitdef Pr1{X}  begin
     fn76{I<:Integer}(X, Vector{I}) -> I
@@ -191,13 +190,12 @@ if method_exists_bug2
 else
     @test istrait(Pr1{UInt8})
 end
-@test !istrait(Pr1{UInt8})
 
 # test constraints
 
 @traitdef Cr20{X} begin
     length(X) -> Any
-    
+
     @constraints begin
         string(X.name)[1]=='I'
     end
@@ -261,7 +259,7 @@ end
     # type-functions based on return_type:
     State = Base.return_types(start, (X,))[1]  # this is circular but that is ok, as trait needs to be implemented.
     Item =  Base.return_types(next, (X,State))[1][1]
-    
+
     # interface functions
     start(X) -> State
     next(X, State) -> Item, State
@@ -293,7 +291,7 @@ type A4758 end
 @traitdef TT46{Ar} begin
     T = Type{eltype(Ar)}
     Arnp = deparameterize_type(Ar)  # Array stripped of type parameters
-    
+
     Arnp(T, Int64) -> Ar
     Arnp(T, Int64...) -> Ar
     @constraints begin
