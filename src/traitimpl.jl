@@ -177,41 +177,6 @@ macro traitimpl(head, body)
     ## Assert that the implementation went smoothly for non-parametric strait
     if isempty( headassoc )
         push!(out.args, :(@assert istrait($trait_expr, verbose=true)))
-        #=
-    elseif !isempty( sample_params )
-        traithead = deepcopy( head )
-        sample_exprs = Any[]
-        for s in headassoc
-            push!( sample_exprs, map( x->parse(string(x)), sample_params[ s ]) )
-        end
-        # get all the permutations, using ideas from cartesian
-        sz = Int[ length(x) for x in sample_exprs ]
-        N = length(headassoc)
-        c = ones(Int, N)
-        sz1 = sz[1]
-        isdone = false
-        while !isdone
-            dt = Dict{Symbol,Any}()
-            for (i,s) in enumerate( headassoc )
-                dt[s] = sample_exprs[i][ c[i] ]
-            end
-            traithead = deepcopy( head )
-            argreplace!( traithead, dt )
-            push!( out.args, :( @assert istrait( $traithead, verbose=true ) ) )
-
-            if (c[1]+=1) > sz1
-                idim = 1
-                while c[idim] > sz[idim] && idim < N
-                    c[idim] = 1
-                    idim += 1
-                    c[idim] += 1
-                end
-                isdone = c[end] > sz[end]
-            end
-        end
-    else
-        println( "@traitimpl: " * string( head ) * " should include @sample_params to test it out." )
-        =#
     end
     return esc(out)
 end
