@@ -1,7 +1,6 @@
 using Traits
 using Base.Test
 
-import Traits: tparusesuffix
 @traitdef SemiFunctor{X{Y}} begin
     fmap( Function, X{Y} ) -> Any
 end

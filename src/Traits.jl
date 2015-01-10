@@ -10,8 +10,7 @@ module Traits
 
 export istrait, istraittype, issubtrait,
        traitgetsuper, traitgetpara, traitmethods,
-       @traitdef, @traitimpl, @traitfn, TraitException, All,
-       tparusesuffix
+       @traitdef, @traitimpl, @traitfn, TraitException, All
 
 if !(VERSION>v"0.4-")
     error("Traits.jl needs Julia version 0.4.-")
