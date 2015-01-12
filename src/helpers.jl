@@ -149,6 +149,8 @@ function tparshift( t::DataType )
     return t.parameters[2:end]
 end
 
+# to store if ( Trait name, Trait's nth parameter, nth's parameter being type )
+# should use the 1st type parameter instead of the last one (default)
 trait_use1st_reg = Set{Any}()
 
 function tparprefix( trait::Any, pos::Any, t::Any)
@@ -247,6 +249,8 @@ function method_exists_tvars( f::Function, argts::Tuple, verbose::Bool )
     end
     return false
 end
+
+trait_match_scores = Dict{Symbol,Float64}()
 
 # # check whether a function is parameterized
 # function isparameterized(m::Method)
