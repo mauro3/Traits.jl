@@ -19,7 +19,15 @@ function parsecurly(def::Expr )
     # into: :Cmp, [:x,:y], :(Cmp{x,y}), ()
 
     # parses :(Monad{X{Y}})
-    # into: :Monad, [:( :curly, :X, :Y )], :(Monad{X}), ()
+    # into: :Monad, [:(X{Y})], :(Monad{X}), ()
+
+    # multiple parametric trait:
+    # parses :(ComboTr{X{Y}, Z{T}})
+    # into: :ComboTr, [:(X{Y}), :(Z{T}) ]], :(ComboTr{X,Z}), ()
+
+    # Note that if we have
+    #       :(ComboTr{X{Y}, Z{Y}}) # note the same Y
+    # The trait constructor will have an assertion that the parameter in X and Z must match
     name = def.args[1]
     paras = Any[]
     append!(paras,def.args[2:end] )
@@ -31,20 +39,49 @@ end
 function parsecomp(def::Expr)
     # parses :(Cmp{x,y} <: Eq{x,y})
     # into:  :Cmp, [:x,:y], :(Cmp{x,y}), :((Eq{x,y},))
+
+    # parses :(Tr2{X{Z1},Y{Z2}} <: Tr2base{X,Y})
+    # into:  :Tr2, [:(X{Z1}),:(Y{Z2})], :(Tr2{X,Y}), :((Tr2base{X,Y},))
+    # the supertraits' parameters are redundant and, if given, are stripped out. So the following
+    # would produce the same output
+    #        :(Tr2{X{Z1},Y{Z2}} <: Tr2base{X{Z1},Y{Z2}})
     if  def.args[2]!=:<:
         error("not a <:")
     end
     name, paras, trait = parsecurly(def.args[1])
     supertraits = :()
-    push!(supertraits.args, def.args[3])
+
+    if !Base.Meta.isexpr( def.args[3], :curly )
+        error( "Traits: RHS of " * string( def ) * " must be a curly (Trait) expression" )
+    end
+    c = def.args[3]
+    supertrait = Expr( :curly, c.args[1],
+        map( x->typeof(x)==Symbol ? x : Base.Meta.isexpr( x, :curly )? x.args[1] : error( "Traits: unknown " * string(x) ),
+        c.args[2:end] )... )
+
+    push!(supertraits.args, supertrait )
     return name, paras, trait, supertraits
 end
 
 function parsetuple(def::Expr)
     # parses :(Cmp{x,y} <: Eq{x,y}, Sz{x}, Uz{y})
     # into   :Cmp, [:x,:y], :(Cmp{x,y}), :((Eq{x,y},Sz{x},Uz{y}))
+
+    # parses :(Tr2{X{Z1},Y{Z2}} <: Tr2base{X,Y}), Tr1base{X}
+    # into:  :Tr2, [:(X{Z1}),:(Y{Z2})], :(Tr2{X,Y}), :((Tr2base{X,Y},Tr1base{X}))
+    # the supertraits' parameters are redundant and, if given, are stripped out. So the following
+    # would produce the same output
+    #        :(Tr2{X{Z1},Y{Z2}} <: Tr2base{X{Z1},Y{Z2}}, Tr1base{X{Z1}})
     name, paras, trait, supertraits = parsecomp(def.args[1])
-    append!(supertraits.args, def.args[2:end])
+    for i in 2:length(def.args)
+        c = def.args[i]
+        if !Base.Meta.isexpr( c, :curly )
+            error( "Traits: supertrait #" * string(i) * " is not a curly (Trait) expression" )
+        end
+        push!( supertraits.args, Expr( :curly, c.args[1],
+            map( x->typeof(x)==Symbol ? x : Base.Meta.isexpr( x, :curly )? x.args[1] : error( "Traits: unknown " * string(x) ),
+            c.args[2:end] )... ) )
+    end
     return name, paras, trait, supertraits
 end
 
@@ -69,14 +106,18 @@ function parsetraithead(def::Expr)
         error("Interface specification error")
     end
     # check supertraits<:Traits
+    maxscore = 0.0
     for i =1:length(supertraits.args)
+        global trait_match_scores
         st = supertraits.args[i].args[1]
+        maxscore = max( trait_match_scores[st], maxscore )
         eval_curmod(:(@assert istraittype($st)))
     end
+    basescore = maxscore + 1.0 + 0.1 * length( supertraits.args )
     # make :(immutable Cmp{X,Y} <: Trait{(Eq{X,Y}, Tr1{X})} end)
     out = :(immutable $trait <: Traits.Trait{$supertraits} end)
 
-    # capture Y in Monad{X{Y}}
+    # capture type parameters e.g. the Y in Monad{X{Y}}
     headassoc = Symbol[]
     for p in paras
         if Base.Meta.isexpr( p, :curly )
@@ -86,8 +127,7 @@ function parsetraithead(def::Expr)
             end
         end
     end
-
-    return out, name, paras, headassoc
+    return out, name, paras, headassoc, basescore
 end
 
 # 2) parse the function definitions
@@ -140,7 +180,9 @@ function parsebody(name::Symbol, body::Expr, paras::Array{Any,1}, headassoc::Arr
                     push!( local_typesyms, tailsym )
                     s_inited=true
                 else
-                    push!( assoc.args, :( @assert( $s == Traits.tparget( $name, Val{$i}, $hosttype ) ) ) )
+                    teststmt = :( @assert( $s == Traits.tparget( $name, Val{$i}, $hosttype ) ) )
+                    push!( teststmt.args, :( string( "In ", p, ", ", s, " does not match an earlier definition" ) ) )
+                    push!( assoc.args, teststmt )
                 end
             end
         end
@@ -350,10 +392,11 @@ end
      """ ->
 macro traitdef(head, body)
     ## make Trait type
-    traithead, name, paras, headassoc = parsetraithead(head)
+    traithead, name, paras, headassoc, basescore = parsetraithead(head)
     # make the body
     meths, constr, assoc = parsebody(name, body, paras, headassoc)
     # make sure a generic function of all associated types exisits
+    global trait_match_scores
 
     traitbody = quote
         methods::Dict{Union(Function,DataType), Tuple}
@@ -364,6 +407,7 @@ macro traitdef(head, body)
             new( $meths, $constr, assoctyps)
         end
     end
+    trait_match_scores[ name ] = basescore + 0.1 * (length( constr.args )-1)
     # add body to the type definition
     traithead.args[3] = traitbody
     return esc(traithead)
