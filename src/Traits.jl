@@ -92,8 +92,9 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
     # check supertraits
     !istrait(traitgetsuper(Tr); verbose=verbose) && return false
     # check methods definitions
+    local tr::T
     try
-        Tr()
+        tr=Tr()
     catch
         if verbose
             println("""Not all generic functions of trait $Tr are defined.
@@ -120,7 +121,7 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
     end
     anytypevars = false
     # check call signature of methods:
-    for (meth,sig) in Tr().methods
+    for (meth,sig) in tr.methods
         # instead of:
         ## checks = length(methods(meth, sig[1]))>0
         # Now using method_exists.  But see bug
@@ -152,7 +153,7 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
     # unfortunately if the sig has TypeVar in them it doesn't seem possible to check
     # the return type
     if !anytypevars && flag_check_return_types && out # only check if all methods were defined
-        for (meth,sig) in Tr().methods
+        for (meth,sig) in tr.methods
             # replace All in sig[1] with Any
             sigg = map(x->x===All ? Any : x, sig[1])
             tmp = Base.return_types(meth, sigg)
@@ -177,7 +178,7 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
         end
     end
     # check constraints
-    if !all(Tr().constraints)
+    if !all(tr.constraints)
         if verbose
             println("Not all constraints are satisfied for $T")
         end
