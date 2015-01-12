@@ -3,8 +3,8 @@
 
 # All type belong to the empty trait, as it makes no restriction on
 # the types:
-@test istrait( () )  
- 
+@test istrait( () )
+
 
 immutable Tr1{X1} <: Traits.Trait{()}
     methods
@@ -22,6 +22,10 @@ immutable Tr3{X1,X2} <: Traits.Trait{(Tr1{X1}, Tr2{X1,X2})}
     Tr3() = new(Dict(), [])
 end
 
+Traits.trait_match_scores[:Tr1] = 1.0
+Traits.trait_match_scores[:Tr2] = 1.0
+Traits.trait_match_scores[:Tr3] = 2.2
+
 @test istraittype(Tr1)
 @test istraittype(Tr1{A1})
 @test istraittype( (Tr1{A1},Tr2{A1,A2}) )
@@ -32,7 +36,7 @@ end
 @test traitgetsuper(Tr3{A1,A2})==(Tr1{A1},Tr2{A1,A2})
 
 # any type is part of a unconstrained trait:
-@test istrait(Tr1{Int}) 
+@test istrait(Tr1{Int})
 @test istrait(Tr2{DataType,Int})
 @test istrait(Tr3{String,DataType})
 @test_throws TraitException istrait(Tr3{:a,7})  # maybe this should error?
@@ -40,7 +44,7 @@ end
 immutable D1{X1} <: Traits.Trait{()}
     methods
     constraints
-    function D1() 
+    function D1()
         new(Dict(
              sin => ((X1,), Float64), 
              cos => ((X1,), Float64), 
@@ -50,13 +54,15 @@ immutable D1{X1} <: Traits.Trait{()}
     end
 end
 
+Traits.trait_match_scores[:D1] = 1.0
+
 @test istrait(D1{Int})
 @test !istrait(D1{String})
 
 immutable D2{X1,X2} <: Traits.Trait{(D1{X1}, D1{X2})}
     methods
     constraints
-    function D2() 
+    function D2()
         new(Dict(
              (+) => ((X1, X2), Any),
              (-) => ((X1, X2), Any)
@@ -66,13 +72,15 @@ immutable D2{X1,X2} <: Traits.Trait{(D1{X1}, D1{X2})}
     end
 end
 
+Traits.trait_match_scores[:D2] = 2.2
+
 @test istrait(D2{Int, Int})
 @test !istrait(D2{Int, String})
 
 immutable D3{X1} <: Traits.Trait{()}
     methods
     constraints
-    function D3() 
+    function D3()
         new(Dict(
              getkey => ((X1,Any,Any), Any),
              get!   => ((X1, Any, Any), Any)
@@ -81,11 +89,12 @@ immutable D3{X1} <: Traits.Trait{()}
             )
     end
 end
+Traits.trait_match_scores[:D3] = 1.0
 
 immutable D4{X1,X2} <: Traits.Trait{()} # like D2 but without supertraits
     methods
     constraints
-    function D4() 
+    function D4()
         new(Dict(
              (+) => ((X1, X2), Any),
              (-) => ((X1, X2), Any)
@@ -95,6 +104,7 @@ immutable D4{X1,X2} <: Traits.Trait{()} # like D2 but without supertraits
     end
 end
 
+Traits.trait_match_scores[:D4] = 1.02
 
 @test istrait(D3{Dict{Int,Int}})
 @test !istrait(D3{Int})
@@ -110,7 +120,7 @@ immutable CTr1{X1,X2} <: Traits.Trait{()}
     constraints::Array{Bool,1} # constraints are an array of functions
                             # which need to evaluate to true.  Their
                             # signature is f(X,Y) = ...
-        
+
     function CTr1()
         new(Dict(
              (+) => ((X1, X2), Any),
@@ -121,6 +131,7 @@ immutable CTr1{X1,X2} <: Traits.Trait{()}
             )
     end
 end
+Traits.trait_match_scores[:CTr1] = 1.1
 
 @test !istrait(CTr1{Int32, Int})
 @test istrait(CTr1{Int, Int})
@@ -146,6 +157,7 @@ immutable CTrAs{X1,X2} <: Traits.Trait{()}
             )
     end
 end
+Traits.trait_match_scores[:CTrAs] = 1.0
 
 @test istrait(CTrAs{Int32, Int})
 # @test istrait(CTrAs{Integer, Integer}) # doesn't work because return type of /(Integer, Integer)==Any
