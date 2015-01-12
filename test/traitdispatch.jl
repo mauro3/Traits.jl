@@ -174,8 +174,8 @@ end
 end
 
 @traitfn tf7465{X<:Integer,Y; TrTr22{X,Y}}(x::X,y::Y) = x*y*1000
-  # errors again because ambigours again
-@test_throws Traits.TraitException tf7465(5,6)
+  # no ambiguities because TrTr22 is hierarchically more specific
+@test tf7465(5,6) == 5*6*1000
 
 ## single argument ambiguities
 ####

@@ -113,7 +113,7 @@ function parsetraithead(def::Expr)
         maxscore = max( trait_match_scores[st], maxscore )
         eval_curmod(:(@assert istraittype($st)))
     end
-    basescore = maxscore + 1.0 + 0.1 * length( supertraits.args )
+    basescore = maxscore + 1.0 + 0.1 * length( supertraits.args ) + 0.01 * (length( paras )-1)
     # make :(immutable Cmp{X,Y} <: Trait{(Eq{X,Y}, Tr1{X})} end)
     out = :(immutable $trait <: Traits.Trait{$supertraits} end)
 
