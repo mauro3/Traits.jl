@@ -40,14 +40,14 @@ ff1(x,y) = x==y
 #################
 @traitfn function ft2{X,Y; Arith{X,Y}}(x::X,y::Y)
     out = zero(promote(x,y)[1])
-    for xe in 1:iround(x)
+    for xe in 1:round(Int,x)
         out += xe + y
     end
     out
 end
 function ff2{X,Y}(x::X,y::Y)
     out = zero(promote(x,y)[1])
-    for xe in 1:iround(x)
+    for xe in 1:round(Int,x)
         out += xe + y
     end
     out
@@ -55,8 +55,8 @@ end
 
 @test ff2(7.3,5.)==ft2(7.3,5.)
 # check the generated code is within some % of each other
-@test 0.04<compare_code_native(ff2, ft2, (Int,Int))<0.07
-@test 0.05<compare_code_native(ff2, ft2, (BigFloat,BigInt))<0.9
+@test 0.05<compare_code_native(ff2, ft2, (Int,Int))<0.07
+@test 0.05<compare_code_native(ff2, ft2, (BigFloat,BigInt))<0.7
 # @code_llvm ft2(7.3,5.)
 # @code_llvm ff2(7.3,5.)
 
@@ -206,3 +206,79 @@ end
 # end
 # # no need to implement it for Float64: it's already a member:
 # @test istrait(STrTr{Float64})
+
+
+## test resolution of single argument ambiguities with subtraits
+####
+# came up here: https://github.com/mauro3/Traits.jl/pull/4#issuecomment-69742371
+@traitdef U1{X} begin
+    u1(X)
+end
+@traitdef U2{X} <: U1{X} begin
+    u2(X)
+end
+
+@traitdef UU1{X} <: U1{X} begin
+    uu1(X)
+end
+@traitdef UU2{X} <: U2{X} begin
+    uu2(X)
+end
+
+@traitimpl U1{Int} begin
+    u1(x::Int) = 1
+end
+@traitimpl U2{Int} begin
+    u2(x::Int) = 2
+end
+@traitimpl UU1{Int} begin
+    uu1(x::Int) = 11
+end
+@traitimpl UU2{Int} begin
+    uu2(x::Int) = 12
+end
+
+@traitfn tttf238{X; UU1{X}}(x::X) = "this should loose"
+@traitfn tttf238{X; UU2{X}}(x::X) = "this should win"
+
+println("This test in traitdispatch.jl should probably pass, fix dispatch and change here.")
+@test_throws Traits.TraitException tttf238(5)=="this should win"
+
+# however if U2 were a subtrait of something else but U1 then dispatch should be ambiguous:
+@traitdef V1{X} begin
+    v1(X)
+end
+@traitdef Other1{X} begin
+    other1(X)
+end
+
+@traitdef V2{X} <: Other1{X} begin
+    v2(X)
+end
+
+@traitdef VV1{X} <: V1{X} begin
+    vv1(X)
+end
+@traitdef VV2{X} <: V2{X} begin
+    vv2(X)
+end
+
+@traitimpl V1{Int} begin
+    v1(x::Int) = 1
+end
+@traitimpl Other1{Int} begin
+    other1(x::Int) = -1
+end
+@traitimpl V2{Int} begin
+    v2(x::Int) = 2
+end
+@traitimpl VV1{Int} begin
+    vv1(x::Int) = 11
+end
+@traitimpl VV2{Int} begin
+    vv2(x::Int) = 12
+end
+
+@traitfn tttf240{X; VV1{X}}(x::X) = "neither should win 1"
+@traitfn tttf240{X; VV2{X}}(x::X) = "neither should win 2"
+@test_throws Traits.TraitException tttf240(5)
