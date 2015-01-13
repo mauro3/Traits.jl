@@ -244,3 +244,41 @@ end
 println("This test in traitdispatch.jl should probably pass, fix dispatch and change here.")
 @test_throws Traits.TraitException tttf238(5)=="this should win"
 
+# however if U2 were a subtrait of something else but U1 then dispatch should be ambiguous:
+@traitdef V1{X} begin
+    v1(X)
+end
+@traitdef Other1{X} begin
+    other1(X)
+end
+
+@traitdef V2{X} <: Other1{X} begin
+    v2(X)
+end
+
+@traitdef VV1{X} <: V1{X} begin
+    vv1(X)
+end
+@traitdef VV2{X} <: V2{X} begin
+    vv2(X)
+end
+
+@traitimpl V1{Int} begin
+    v1(x::Int) = 1
+end
+@traitimpl Other1{Int} begin
+    other1(x::Int) = -1
+end
+@traitimpl V2{Int} begin
+    v2(x::Int) = 2
+end
+@traitimpl VV1{Int} begin
+    vv1(x::Int) = 11
+end
+@traitimpl VV2{Int} begin
+    vv2(x::Int) = 12
+end
+
+@traitfn tttf240{X; VV1{X}}(x::X) = "neither should win 1"
+@traitfn tttf240{X; VV2{X}}(x::X) = "neither should win 2"
+@test_throws Traits.TraitException tttf240(5)
