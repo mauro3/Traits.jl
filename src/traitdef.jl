@@ -170,20 +170,21 @@ function parsebody(name::Symbol, body::Expr, paras::Array{Any,1}, headassoc::Arr
                 rootsym = symbol( string(p.args[1],"0") )
                 hosttype = p.args[1]
                 tailsym = symbol( string(p.args[1],"0_" ) )
+                params_rename[ hosttype ] = rootsym
+                push!( assoc.args, :($rootsym = Traits.tparprefix( $name, Val{$i}, $hosttype ) ) )
                 if !s_inited
-                    params_rename[ hosttype ] = rootsym
-                    push!( assoc.args, :($rootsym = Traits.tparprefix( $name, Val{$i}, $hosttype ) ) )
                     push!( assoc.args, :($s       = Traits.tparget( $name, Val{$i}, $hosttype ) ) )
-                    push!( assoc.args, :($tailsym = Traits.tparsuffix( $name, Val{$i}, $hosttype ) ) )
-                    push!( local_typesyms, rootsym )
-                    push!( local_typesyms, s )
-                    push!( local_typesyms, tailsym )
                     s_inited=true
                 else
-                    teststmt = :( @assert( $s == Traits.tparget( $name, Val{$i}, $hosttype ) ) )
-                    push!( teststmt.args, :( string( "In ", p, ", ", s, " does not match an earlier definition" ) ) )
+                    teststmt = :( @assert( isequal( $s,  Traits.tparget( $name, Val{$i}, $hosttype ) ) ) )
+                    #push!( teststmt.args, @sprintf( "In %s, %s does not match an earlier definition", p, s ) )
+                    #@show( teststmt )
                     push!( assoc.args, teststmt )
                 end
+                push!( assoc.args, :($tailsym = Traits.tparsuffix( $name, Val{$i}, $hosttype ) ) )
+                push!( local_typesyms, rootsym )
+                push!( local_typesyms, s )
+                push!( local_typesyms, tailsym )
             end
         end
     end
