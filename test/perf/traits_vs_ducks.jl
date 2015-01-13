@@ -25,14 +25,14 @@ end
 ## a simple function:
 @traitfn function ft2{X,Y; Arith{X,Y}}(x::X,y::Y) 
     out = zero(promote(x,y)[1])
-    for xe in 1:iround(x)
+    for xe in 1:round(Int,x)
         out += xe + y
     end
     out
 end
 function ff2{X,Y}(x::X,y::Y) 
     out = zero(promote(x,y)[1])
-    for xe in 1:iround(x)
+    for xe in 1:round(Int,x)
         out += xe + y
     end
     out
