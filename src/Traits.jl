@@ -1,7 +1,7 @@
 module Traits
-@doc """This package provides an implementation of traits, aka interfaces or type-classes.  
+@doc """This package provides an implementation of traits, aka interfaces or type-classes.
      It is based on the premises that traits are:
-     
+
      - contracts on one type or between several types.  The contract can
         contain required methods but also other assertions and just
         belonging to a group (i.e. the trait).
@@ -9,7 +9,7 @@ module Traits
         """ -> current_module()
 
 export istrait, istraittype, issubtrait,
-       traitgetsuper, traitgetpara, traitmethods, 
+       traitgetsuper, traitgetpara, traitmethods,
        @traitdef, @traitimpl, @traitfn, TraitException, All
 
 if !(VERSION>v"0.4-")
@@ -32,9 +32,9 @@ end
          SUPER of Trait is needed to specify super-traits (a tuple).""" ->
 abstract Trait{SUPER}
 
-# A concrete trait type has the form 
+# A concrete trait type has the form
 ## Tr{X,Y,Z} <: Trait{(ST1{X,Y},ST2{Z})}
-# 
+#
 # immutable Tr{X,Y,Z} <: Trait{(ST1{X,Y},ST2{Z})}
 #   methods
 #   Tr() = new(methods_made_in_macro)
@@ -52,16 +52,16 @@ immutable _TraitStorage end
 
 @doc """Type All is to denote that any type goes in type signatures in
     @traitdef.  This is a bit awkward:
-    
+
     - method_exists(f, s) returns true if there is a method of f with
       signature sig such that s<:sig.  Thus All<->Union()
     - Base.return_types works the other way around, there All<->Any
-   
+
     See also https://github.com/JuliaLang/julia/issues/8974"""->
 abstract All
 
 # General trait exception
-type TraitException <: Exception 
+type TraitException <: Exception
     msg::String
 end
 
@@ -92,30 +92,48 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
     # check supertraits
     !istrait(traitgetsuper(Tr); verbose=verbose) && return false
     # check methods definitions
-    try 
-        Tr()
+    local tr::T
+    try
+        tr=Tr()
     catch
         if verbose
-            println("""Not all generic functions of trait $Tr are defined.  
+            println("""Not all generic functions of trait $Tr are defined.
                        Define them before using $Tr""")
         end
         return false
     end
     out = true
+    function testanytypevars( at )
+        if typeof(at) == TypeVar
+            return true
+        elseif typeof(at) == DataType
+            return( any( y->typeof(y) == TypeVar, at.parameters ) )
+        elseif typeof(at) <: Tuple
+            for sat in at
+                if testanytypevars(sat)
+                    return true
+                end
+            end
+            return false
+        else
+            println( "unknown type in signature " * string( typeof( at ) ) * " val: " * string(at) )
+        end
+    end
+    anytypevars = false
     # check call signature of methods:
-    for (meth,sig) in Tr().methods
+    for (meth,sig) in tr.methods
         # instead of:
         ## checks = length(methods(meth, sig[1]))>0
         # Now using method_exists.  But see bug
         # https://github.com/JuliaLang/julia/issues/8959
 
         sigg = map(x->x===All ? Union() : x, sig[1])
+        anytypevars = testanytypevars( sig[1] )
+
         if isa(meth, Function)
-            if !method_exists(meth, sigg) # I think this does the right thing.
-                if verbose
-                    println("Method $meth with call signature $(sig[1]) not defined for $T")
-                end
-                out = false
+            out = !anytypevars ? method_exists(meth,sigg) : method_exists_tvars( meth,sigg,verbose )
+            if !out && verbose
+                println("Method $meth with call signature $(sig[1]) not defined for $T")
             end
         elseif isa(meth, DataType) # a constructor, presumably.
             # But discard the catch all to convert, i.e. this means
@@ -132,8 +150,10 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
         end
     end
     # check return-type
-    if flag_check_return_types && out # only check if all methods were defined
-        for (meth,sig) in Tr().methods
+    # unfortunately if the sig has TypeVar in them it doesn't seem possible to check
+    # the return type
+    if !anytypevars && flag_check_return_types && out # only check if all methods were defined
+        for (meth,sig) in tr.methods
             # replace All in sig[1] with Any
             sigg = map(x->x===All ? Any : x, sig[1])
             tmp = Base.return_types(meth, sigg)
@@ -158,7 +178,7 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
         end
     end
     # check constraints
-    if !all(Tr().constraints)
+    if !all(tr.constraints)
         if verbose
             println("Not all constraints are satisfied for $T")
         end

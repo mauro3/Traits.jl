@@ -33,7 +33,7 @@ function get_fname_only(ex)
     isa(ex,Symbol) ? ex : ex.args[1]
 end
 
-function get_fsig(ex::Expr) 
+function get_fsig(ex::Expr)
     ex.args[1].args[2:end]
 end
 
@@ -45,7 +45,7 @@ function check_macro_body(bodyargs, implfs, trait)
     # check that the signature of implfs agrees with trait().methods
     for (f,sig) in trait().methods
         # for now just check length.
-        if length(sig[1])!=length(get_fsig(implfs[f])) 
+        if length(sig[1])!=length(get_fsig(implfs[f]))
             error("""Method definition:
                      $f  $sig
                      does not match implementation:
@@ -55,8 +55,10 @@ function check_macro_body(bodyargs, implfs, trait)
     nothing
 end
 
-function parse_body(body::Expr)
+function parse_impl_body(body::Expr)
     implfs = Dict()
+    sample_params = Dict()
+
     for ln in Lines(body)
         if !isdefined(get_fname_only(ln))
             # define a standard generic function:
@@ -64,7 +66,7 @@ function parse_body(body::Expr)
         end
         implfs[eval_curmod(get_fname_only(ln))] = ln
     end
-    return implfs
+    return implfs, sample_params
 end
 
 function prefix_module!(ex::Expr, modname::Symbol)
@@ -77,9 +79,9 @@ function prefix_module!(ex::Expr, modname::Symbol)
     elseif ex.head!= :function
         error("Not a function definition:\n$ex")
     end
-    
+
     fnname = get_fname(ex)
-    fnname_only = get_fname_only(ex)    
+    fnname_only = get_fname_only(ex)
     if isa(fnname, Symbol)
         ex.args[1].args[1] = :($modname.$fnname)
     elseif fnname.head==:curly
@@ -100,7 +102,7 @@ end
      Example continuing from the documentation of `@traitdef`, implementing the
      `MyArith` trait:
 
-     ``` 
+     ```
      type A; a end; type AB; b end
      @traitimpl MyArith{A,AB} begin
          +(x::A,y::AB) = A(x.a+y.b)
@@ -111,10 +113,27 @@ end
      istrait(MyArith{A, AB}) # -> true
      ```
 
-     Notes
+     if a trait accepts a type parameter, by default it is the last one
+     ```
+     @traitdef SemiFunctor{X{Y}} begin
+         fmap( Function, X{Y}) -> Any
+     end
+     @traitimpl SemiFunctor{Nullable{Y}} begin
+         fmap{Y}( f::Function, x::Nullable{Y} ) = Nullable(f(x.value))
+     end
+     istrait( SemiFunctor{Nullable{Int} }) # -> true
+     ```
+     However, for Array type, we could still use SemiFunctor but we have to use
+     @traitimpl explicitly, like so
+     ```
+     # NOTE THE ellipsis "..."" IN THE TYPE PARAMETER
+     @traitimpl SemiFunctor{Array{Y...}} begin
+         fmap{Y}( f::Function, x::Array{Y,1} ) = map(f, x)
+     end
+     istrait( SemiFunctor{Array{Int,1} }) # -> true
+     istrait( SemiFunctor{Array{Int,2} }) # -> false
+     ```
 
-     - the type annotations are mandatory.  No parameterized methods
-       are allowed (for now).
      """ ->
 macro traitimpl(head, body)
     ## Parse macro header
@@ -126,18 +145,38 @@ macro traitimpl(head, body)
         throw(TraitException("""Not all supertraits of $trait are implemented.
              Implement them first."""))
     end
-    ## Parse macro body 
-    implfs = parse_body(body)
-    #check_macro_body(body.args, implfs, trait) # doesn't work with associated types
-    ## Make methods
+    ## Parse macro body
+    implfs,sample_params = parse_impl_body(body)
     out = quote end
+    #check_macro_body(body.args, implfs, trait) # doesn't work with associated types
+    headassoc = Symbol[]
+    for (i,p) in enumerate(paras)
+        if Base.Meta.isexpr( p, :curly )
+            if Base.Meta.isexpr(p.args[2], :(...) )
+                rootsym = p.args[1]
+                testsym = p.args[2].args[1]
+                push!( out.args, :( push!( Traits.trait_use1st_reg, ($name, Val{$i}, $rootsym ) ) ) )
+            elseif typeof( p.args[2] ) == Symbol
+                testsym = p.args[2]
+            else
+                error( "traitimpl: in head, "*string(p)* " should be either a Symbol or T...")
+            end
+            if !in( testsym, headassoc )
+                push!( headassoc, testsym )
+            end
+        end
+    end
+
+    ## Make methods
     for (fn, fndef) in implfs
         modname = module_name(Base.function_module(fn))
         prefix_module!(fndef, modname)
         push!(out.args,fndef)
     end
-    
-    ## Assert that the implementation went smoothly
-    push!(out.args, :(@assert istrait($trait_expr, verbose=true)))
+
+    ## Assert that the implementation went smoothly for non-parametric strait
+    if isempty( headassoc )
+        push!(out.args, :(@assert istrait($trait_expr, verbose=true)))
+    end
     return esc(out)
 end

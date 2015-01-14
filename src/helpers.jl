@@ -2,7 +2,7 @@
 export deparameterize_type
 
 @doc """Removes type parameters from types, e.g. Array{Int}->Array.
-     
+
      It is often useful to make an associated type with this to match
      against methods which do not specialize on the type parameters.
      """ ->
@@ -109,6 +109,147 @@ function hasparameters(t::DataType)
     end
 end
 
+# tparfirst, tparlast, tparpop, tparshift: low-level lookup of type parameters
+# tparprefix, tparget, tparsuffix: based on tparusesuffix, get the composition
+function tparfirst( t::DataType )
+    if isempty( t.parameters )
+        error( "Parametric Trait: tpar1: " * string(t) * " doesn't support parameters" )
+    end
+
+    return t.parameters[1]
+end
+
+function tparlast( t::DataType )
+    for i in length(t.parameters):-1:1
+        p = t.parameters[i]
+        if typeof( p ) == DataType
+            return p
+        end
+    end
+    error( "Parametric Trait: tparlast: No type parameter found" )
+end
+
+function tparpop( t::DataType )
+    root = deparameterize_type(t)
+    for i in length(t.parameters):-1:1
+        p = t.parameters[i]
+        if typeof( p ) == DataType
+            if i == 1
+                return root
+            else
+                return root{ t.parameters[1:i-1]... }
+            end
+        end
+    end
+    error( "Parametric Trait: tparpop: No type parameter found" )
+end
+
+# return a tuple of the rest of the type parameters after the first
+function tparshift( t::DataType )
+    return t.parameters[2:end]
+end
+
+# to store if ( Trait name, Trait's nth parameter, nth's parameter being type )
+# should use the 1st type parameter instead of the last one (default)
+trait_use1st_reg = Set{Any}()
+
+function tparprefix( trait::Any, pos::Any, t::Any)
+    global trait_use1st_reg
+    args = ( trait, pos, deparameterize_type(t) )
+    if !in( args, trait_use1st_reg )
+        tparpop( t )
+    else
+        args[end]
+    end
+end
+
+function tparget( trait::Any, pos::Any, t::Any)
+    global trait_use1st_reg
+    args = ( trait, pos, deparameterize_type(t) )
+    if !in( args, trait_use1st_reg )
+        tparlast( t )
+    else
+        tparfirst( t )
+    end
+end
+
+function tparsuffix( trait::Any, pos::Any, t::Any)
+    global trait_use1st_reg
+    args = ( trait, pos, deparameterize_type(t) )
+    if !in( args, trait_use1st_reg )
+        ()
+    else
+        tparshift( t )
+    end
+end
+
+function argreplace!( ex::Expr, nmap )
+    for j = 1:length(ex.args)
+        a = ex.args[j]
+        if typeof(a) == Symbol && haskey( nmap, a )
+            ex.args[j] = nmap[a]
+        elseif typeof(a) == Expr
+            argreplace!( a, nmap )
+        end
+    end
+end
+
+# a hacky way to test when the signature has type variables in them
+# There would be false positive in pathological cases!
+function method_exists_tvars( f::Function, argts::Tuple, verbose::Bool )
+    for m in methods(f)
+        if verbose
+            println( "matching ", m )
+        end
+        if length(m.sig) > length(argts)
+            continue
+        end
+        n = min( length(m.sig), length(argts ) )
+        lasttype = Any
+        if length(m.sig) < length(argts)
+            if isempty( m.sig ) || m.sig[end].name.name != :Vararg
+                continue
+            end
+            lasttype = m.sig[end].parameters[1]
+        end
+        match=true
+        for i in 1:n
+            if verbose
+                print( "  check ", argts[i], " ? <: ", m.sig[i], " = " )
+            end
+            if !( argts[i] <: m.sig[i] )
+                if verbose
+                    println( "false")
+                end
+                match=false
+                break
+            else
+                if verbose
+                    println( "true" )
+                end
+            end
+        end
+        if match # so far
+            for i in n+1:length( argts )
+                if !(argts[i] <: lasttype )
+                    match=false
+                    break
+                end
+            end
+        end
+        if match
+            if verbose
+                println( " ... a match" )
+            end
+            return true
+        end
+    end
+    if verbose
+        println( " ... not a match" )
+    end
+    return false
+end
+
 # # check whether a function is parameterized
 # function isparameterized(m::Method)
 #     if isa(m.tvars, Tuple)
@@ -149,13 +290,13 @@ end
 #     inds = ones(Int,len)
 #     out = Array(Tuple, n)
 #     for j=1:n
-#         try 
+#         try
 #             out[j] = tuple([typs[ii][i] for (ii,i) in enumerate(inds)]...)
 #         catch e
 #             @show j, inds
 #         end
 #         # updated inds
-#         inds[1] += 1        
+#         inds[1] += 1
 #         for i=1:len-1
 #             if inds[i]>lens[i]
 #                 inds[i] = 1
@@ -233,7 +374,7 @@ end
 #     # if there are one or more methods, check them
 #     for mm in meths
 #         if is_fnparameter_match_inputs(mm[2])
-# ----------> check this            
+# ----------> check this
 #             @show TS, mm[1], TS<:mm[1], mm[1]<:TS
 #             if TS<:mm[1]
 #                 dbg_println("A parameterized method matches exactly: $TS")
@@ -245,9 +386,9 @@ end
 #             dbg_println("A parameterized cannot match: $TS")
 #             return Res.F
 #         end
-        
+
 #     end
-    
+
 #     # if length(meths)==1 && isparameterized(meths[1][3])
 #     #     if is_parameter_match_inputs(meths[1][2])
 #     #         if Base.typeseq(meths[1][1], TS)
@@ -323,7 +464,7 @@ end
 #         end
 #         if r==Res.M
 #             push!(checksTS, sTS) # needs further checking below
-#         end 
+#         end
 #     end
 #     # recurse into subtypes where above was not
 #     out = 0
@@ -333,9 +474,9 @@ end
 #             dbg_println("False: one lower subtype does not check: $sTS")
 #             return Res.F
 #         end
-#         out += r # accumulate undicided 
+#         out += r # accumulate undicided
 #     end
-    
+
 #     if out==0
 #         dbg_println("True: all subtypes test true.")
 #         return Res.T

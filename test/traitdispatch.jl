@@ -35,24 +35,24 @@ ff1(x,y) = x==y
 # @code_llvm ft1(4,5)
 # @code_llvm ff1(4,5)
 @test 0.02<compare_code_native(ff1, ft1, (Int,Int))<0.03
-@test 0.015compare_code_native(ff1, ft1, (BigFloat,BigInt))<0.025
+@test 0.015<compare_code_native(ff1, ft1, (BigFloat,BigInt))<0.025
 
 #################
-@traitfn function ft2{X,Y; Arith{X,Y}}(x::X,y::Y) 
+@traitfn function ft2{X,Y; Arith{X,Y}}(x::X,y::Y)
     out = zero(promote(x,y)[1])
     for xe in 1:round(Int,x)
         out += xe + y
     end
     out
 end
-function ff2{X,Y}(x::X,y::Y) 
+function ff2{X,Y}(x::X,y::Y)
     out = zero(promote(x,y)[1])
     for xe in 1:round(Int,x)
         out += xe + y
     end
     out
 end
-        
+
 @test ff2(7.3,5.)==ft2(7.3,5.)
 # check the generated code is within some % of each other
 @test 0.05<compare_code_native(ff2, ft2, (Int,Int))<0.07
@@ -73,7 +73,7 @@ ff3{Y}(x,y::Y) = Y[i+y for i in x]
 # @show "---------------------------------------------------"
 # @code_llvm ff3([1:10],5)
 @test compare_code_native(ff3, ft3, (Array{Int,1},Int))<0.17
-@test compare_code_native(ff3, ft3, (Array{BigFloat,1},BigInt))<0.1
+@test compare_code_native(ff3, ft3, (Array{BigFloat,1},BigInt))<0.2
 
 
 ###############
@@ -120,7 +120,7 @@ bar(a::B2, b::B2) = a.a==b.a
 @test istrait(MyTr2{B2,B2})
 
 @test gt1(B1(1), B1(1))=="MyTr"
-@test gt1(B2(1), B2(1))=="MyTr2" 
+@test gt1(B2(1), B2(1))=="MyTr2"
 
 
 ##########
@@ -153,7 +153,7 @@ import Base.sin
 # Ambiguities
 ######
 @traitdef TrTr1{X} begin
-    len1(X) 
+    len1(X)
 end
 
 @traitfn tf7465{X<:Integer,Y; TrTr1{X}}(x::X,y::Y) = x-y
@@ -174,13 +174,13 @@ end
 end
 
 @traitfn tf7465{X<:Integer,Y; TrTr22{X,Y}}(x::X,y::Y) = x*y*1000
-  # errors again because ambigours again
+# ambiguities because TrTr22 and TrTr1{X},TrTr1{Y} are equally applicable
 @test_throws Traits.TraitException tf7465(5,6)
 
 ## single argument ambiguities
 ####
 @traitdef TrTr2{X} begin
-    len2(X) 
+    len2(X)
 end
 
 @traitfn tttf{X; TrTr1{X}}(x::X) = len1(x)
@@ -239,7 +239,7 @@ end
 end
 
 @traitfn tttf238{X; UU1{X}}(x::X) = "this should loose"
-@traitfn tttf238{X; UU2{X}}(x::X) = "this should win"  
+@traitfn tttf238{X; UU2{X}}(x::X) = "this should win"
 
 println("This test in traitdispatch.jl should probably pass, fix dispatch and change here.")
 @test_throws Traits.TraitException tttf238(5)=="this should win"
