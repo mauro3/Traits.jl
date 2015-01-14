@@ -288,10 +288,10 @@ function traitdispatch(traittypes, fname)
         # - pick method with most points
         #
         # This is not the end of the story but better...
-        score = zeros(Float64, length(poss))
+        score = zeros(Int, length(poss))
         for (i,p1) in enumerate(poss)
             for t in p1
-                score[i] += trait_match_scores[ t.name.name ]
+                score[i] += length( t.parameters )
             end
         end
         poss = poss[find(maximum(score).==score)]

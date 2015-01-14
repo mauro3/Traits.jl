@@ -250,8 +250,6 @@ function method_exists_tvars( f::Function, argts::Tuple, verbose::Bool )
     return false
 end
 
-trait_match_scores = Dict{Symbol,Float64}()
-
 # # check whether a function is parameterized
 # function isparameterized(m::Method)
 #     if isa(m.tvars, Tuple)

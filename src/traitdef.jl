@@ -106,14 +106,10 @@ function parsetraithead(def::Expr)
         error("Interface specification error")
     end
     # check supertraits<:Traits
-    maxscore = 0.0
     for i =1:length(supertraits.args)
-        global trait_match_scores
         st = supertraits.args[i].args[1]
-        maxscore = max( trait_match_scores[st], maxscore )
         eval_curmod(:(@assert istraittype($st)))
     end
-    basescore = maxscore + 1.0 + 0.1 * length( supertraits.args ) + 0.01 * (length( paras )-1)
     # make :(immutable Cmp{X,Y} <: Trait{(Eq{X,Y}, Tr1{X})} end)
     out = :(immutable $trait <: Traits.Trait{$supertraits} end)
 
@@ -127,7 +123,7 @@ function parsetraithead(def::Expr)
             end
         end
     end
-    return out, name, paras, headassoc, basescore
+    return out, name, paras, headassoc
 end
 
 # 2) parse the function definitions
@@ -393,11 +389,10 @@ end
      """ ->
 macro traitdef(head, body)
     ## make Trait type
-    traithead, name, paras, headassoc, basescore = parsetraithead(head)
+    traithead, name, paras, headassoc= parsetraithead(head)
     # make the body
     meths, constr, assoc = parsebody(name, body, paras, headassoc)
     # make sure a generic function of all associated types exisits
-    global trait_match_scores
 
     traitbody = quote
         methods::Dict{Union(Function,DataType), Tuple}
@@ -408,7 +403,6 @@ macro traitdef(head, body)
             new( $meths, $constr, assoctyps)
         end
     end
-    trait_match_scores[ name ] = basescore + 0.1 * (length( constr.args )-1)
     # add body to the type definition
     traithead.args[3] = traitbody
     return esc(traithead)
