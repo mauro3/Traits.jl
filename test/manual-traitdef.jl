@@ -22,10 +22,6 @@ immutable Tr3{X1,X2} <: Traits.Trait{(Tr1{X1}, Tr2{X1,X2})}
     Tr3() = new(Dict(), [])
 end
 
-Traits.trait_match_scores[:Tr1] = 1.0
-Traits.trait_match_scores[:Tr2] = 1.0
-Traits.trait_match_scores[:Tr3] = 2.2
-
 @test istraittype(Tr1)
 @test istraittype(Tr1{A1})
 @test istraittype( (Tr1{A1},Tr2{A1,A2}) )
@@ -54,8 +50,6 @@ immutable D1{X1} <: Traits.Trait{()}
     end
 end
 
-Traits.trait_match_scores[:D1] = 1.0
-
 @test istrait(D1{Int})
 @test !istrait(D1{String})
 
@@ -72,8 +66,6 @@ immutable D2{X1,X2} <: Traits.Trait{(D1{X1}, D1{X2})}
     end
 end
 
-Traits.trait_match_scores[:D2] = 2.2
-
 @test istrait(D2{Int, Int})
 @test !istrait(D2{Int, String})
 
@@ -89,7 +81,6 @@ immutable D3{X1} <: Traits.Trait{()}
             )
     end
 end
-Traits.trait_match_scores[:D3] = 1.0
 
 immutable D4{X1,X2} <: Traits.Trait{()} # like D2 but without supertraits
     methods
@@ -103,8 +94,6 @@ immutable D4{X1,X2} <: Traits.Trait{()} # like D2 but without supertraits
             )
     end
 end
-
-Traits.trait_match_scores[:D4] = 1.02
 
 @test istrait(D3{Dict{Int,Int}})
 @test !istrait(D3{Int})
@@ -131,7 +120,6 @@ immutable CTr1{X1,X2} <: Traits.Trait{()}
             )
     end
 end
-Traits.trait_match_scores[:CTr1] = 1.1
 
 @test !istrait(CTr1{Int32, Int})
 @test istrait(CTr1{Int, Int})
@@ -157,7 +145,6 @@ immutable CTrAs{X1,X2} <: Traits.Trait{()}
             )
     end
 end
-Traits.trait_match_scores[:CTrAs] = 1.0
 
 @test istrait(CTrAs{Int32, Int})
 # @test istrait(CTrAs{Integer, Integer}) # doesn't work because return type of /(Integer, Integer)==Any

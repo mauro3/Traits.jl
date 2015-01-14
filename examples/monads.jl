@@ -18,19 +18,19 @@ end
 
 @traitdef SemiMonad{X{Y}} begin
     mreturn( ::X,Y) ->X{Y}
-    bind( X{Y}, Function ) -> Any
+    bind( Function, X{Y} ) -> Any
 end
 
 # ::X is the shorthand for singleton type argument
 @traitdef Monad{X{Y}} begin
     mreturn(::X, Y) -> X{Y} # we cannot infer X so we have to supply it
-    bind( X{Y}, FuncFullSig{Y, X{Y}} ) -> X{Y}
+    bind( FuncFullSig{Y, X{Y}}, X{Y} ) -> X{Y}
 end
 
 # === implementation of traits
 @traitimpl SemiMonad{ Nullable{Y} } begin
     mreturn{Y}( ::Type{Nullable}, x::Y ) = Nullable{Y}(x)
-    bind{Y}( x::Nullable{Y}, f::Function ) = begin
+    bind{Y}( f::Function, x::Nullable{Y} ) = begin
         if isnull(x)
             return Nullable()
         else
@@ -45,7 +45,7 @@ end
 
 @traitimpl SemiMonad{ Array{Y...} } begin
     mreturn{Y}( ::Type{Array}, x::Y ) = Y[x]
-    bind{Y}( x::Array{Y,1}, f::Function ) = [ f(_) for _ in x ]
+    bind{Y}( f::Function, x::Array{Y,1} ) = [ f(_) for _ in x ]
 end
 
 # === some combo traits ======
@@ -86,6 +86,12 @@ end
 @traitdef IterM{X{Y}} <: Iter{X} begin
     @constraints begin
         istrait( SemiMonad{Y} ) # we cannot put it in the header
+    end
+end
+
+@traitdef SemiFunctorMonad{X{Y}} <: SemiFunctor{X} begin
+    @constraints begin
+        istrait( SemiMonad{Y} )
     end
 end
 
