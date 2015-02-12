@@ -48,7 +48,7 @@ function parsetraitfn_head(head::Expr)
     nametyp = head.args[1]
     sig = head.args[2:end]
     name = nametyp.args[1]
-    fun = Expr(:curly, deepcopy(nametyp.args[[1,3:end]])...)
+    fun = Expr(:curly, deepcopy(nametyp.args[[1;3:end]])...)
     typs = fun.args[2:end]
     traits = nametyp.args[2].args
     return ParsedFn(name, fun, typs, sig, traits, :())

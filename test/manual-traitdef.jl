@@ -42,8 +42,8 @@ immutable D1{X1} <: Traits.Trait{()}
     constraints
     function D1() 
         new(Dict(
-             sin => ((X1,), (Float64,)), 
-             cos => ((X1,), (Float64,)), 
+             sin => ((X1,), Float64), 
+             cos => ((X1,), Float64), 
              ),
             []
             )
@@ -58,8 +58,8 @@ immutable D2{X1,X2} <: Traits.Trait{(D1{X1}, D1{X2})}
     constraints
     function D2() 
         new(Dict(
-             (+) => ((X1, X2), (Any,)),
-             (-) => ((X1, X2), (Any,))
+             (+) => ((X1, X2), Any),
+             (-) => ((X1, X2), Any)
              ),
             []
             )
@@ -74,8 +74,8 @@ immutable D3{X1} <: Traits.Trait{()}
     constraints
     function D3() 
         new(Dict(
-             getkey => ((X1,Any,Any), (Any,)),
-             get!   => ((X1, Any, Any), (Any,))
+             getkey => ((X1,Any,Any), Any),
+             get!   => ((X1, Any, Any), Any)
              ),
             []
             )
@@ -87,8 +87,8 @@ immutable D4{X1,X2} <: Traits.Trait{()} # like D2 but without supertraits
     constraints
     function D4() 
         new(Dict(
-             (+) => ((X1, X2), (Any,)),
-             (-) => ((X1, X2), (Any,))
+             (+) => ((X1, X2), Any),
+             (-) => ((X1, X2), Any)
              ),
             []
             )
@@ -113,7 +113,7 @@ immutable CTr1{X1,X2} <: Traits.Trait{()}
         
     function CTr1()
         new(Dict(
-             (+) => ((X1, X2), (Any,)),
+             (+) => ((X1, X2), Any),
              ),
             Bool[
                  X1==X2
@@ -138,8 +138,8 @@ immutable CTrAs{X1,X2} <: Traits.Trait{()}
         D = (X1,X2)<:(Integer,Integer) ? Float64 : promote_type(X1, X2)
         assoctyps = [TypeVar(:R, R), TypeVar(:D, D)]
         new(Dict(
-                 (+) => ((X1, X2), (R,)),
-                 (/) => ((X1, X2), (D,)),
+                 (+) => ((X1, X2), R),
+                 (/) => ((X1, X2), D),
              ),
             Bool[],
             assoctyps

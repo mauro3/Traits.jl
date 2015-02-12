@@ -163,7 +163,9 @@ function parsefnstypes!(outfns, ln)
 
     
     rettype = :()
+    tuplereturn = false
     if ln.head==:tuple
+        tuplereturn = true
         # several ret-types:
         # f1(X,Y) -> X,Y
         append!(rettype.args, ln.args[2:end])
@@ -185,7 +187,7 @@ function parsefnstypes!(outfns, ln)
             parseret!(rettype, ln)
         else # f1(X,Y)
             def = ln
-            rettype =  :((Any...))
+            rettype =  :(Any,)
         end
         fn, argtype, tvars = parsefn(def)
     else
@@ -199,7 +201,12 @@ function parsefnstypes!(outfns, ln)
     subt2tvar!(rettype.args)
     translate!(rettype.args, trans)
     tvar2tvar!(rettype.args)
-    
+
+    # if return is not a tuple, ditch the tuple
+    if !tuplereturn
+        rettype = rettype.args[1]
+    end
+
     push!(outfns.args, :($fn => ($argtype, $rettype)))
 end
 

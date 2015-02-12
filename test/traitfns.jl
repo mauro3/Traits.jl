@@ -117,6 +117,7 @@ eval(:(@traitfn $f1d2))
 
 
 @traitfn yt1{X,Y; Arith{X,Y}}(x::X,y::Y) = x+y
+a = yt1(5,6)
 @test yt1(5,6)==5+6
 @traitfn xt1{X<:Int,Y<:FloatingPoint; Arith{X,Y}}(x::X,y::Y) = x-y
 @test_throws MethodError xt1(5,6)
@@ -193,8 +194,9 @@ import Mod1.tf1
 # @show tf1(Traits._TraitStorage,Any,Int)
 # typs = Any[:(Traits._TraitStorage),:X, Expr(:<:, :X1, :Int)]
 # methods(eval(:tf1), Traits. get_concrete_type_Typetuple(typs))
-
+println("  These warnings are ok:")  # Well, I'm not sure whether they are ok.  But at least normal...
 @traitfn tf1{X, Y<:Int;  M1Tr100{X}}(a::X, b::Y) = foofoo(a)^b
+println("  endof ok-warnings.")
 #methods(eval(:tf1), Traits. get_concrete_type_Typetuple(typs))
 #@show tf1(Traits._TraitStorage, Any, Int)
 

@@ -3,7 +3,7 @@ td = :(@traitdef Cr20{X} begin
     length(X)
 end)
 a,b = Traits.parsebody(td.args[end])
-@test a==Expr(:dict, :(length=>((X,),(Any...,))))
+@test a==Expr(:dict, :(length=>((X,),Any)))
 @test b==:(Bool[])
 
 td0 = :(@traitdef Cr20{X} begin
@@ -14,7 +14,7 @@ td0 = :(@traitdef Cr20{X} begin
     end
 end)
 a,b = Traits.parsebody(td0.args[end])
-@test a==Expr(:dict, :(length=>((X,),(Any...,))))
+@test a==Expr(:dict, :(length=>((X,),Any)))
 @test b==:(Bool[(string(X.name))[1] == 'I'])
 
 td1 = :(@traitdef Cr20{X} begin
@@ -25,7 +25,7 @@ td1 = :(@traitdef Cr20{X} begin
     end
 end)
 a,b = Traits.parsebody(td1.args[end])
-@test a==Expr(:dict, :(length=>((X,),(Int,))))
+@test a==Expr(:dict, :(length=>((X,),Int)))
 @test b==:(Bool[(string(X.name))[1] == 'I'])
 
 td2 = :(@traitdef Cr20{X,Y} begin
@@ -39,8 +39,8 @@ td2 = :(@traitdef Cr20{X,Y} begin
 end)
 a,b,c = Traits.parsebody(td2.args[end])
 @test a==Expr(:dict, :((+) => ((X,Y),(Int,Float64))),
-                     :((-) => ((X,Y),(Int,))),
-              :((/) => ((X,Y),(Int,))))
+                     :((-) => ((X,Y),Int)),
+              :((/) => ((X,Y),Int)))
 @test b==:(Bool[(string(X.name))[1] == 'I'])
 @test c.head==:block
 
@@ -48,7 +48,7 @@ td3 = :(@traitdef Cr20{X,Y} begin
     fn(X) -> Type{X}
 end)
 a,b,c = Traits.parsebody(td3.args[end])
-@test a==Expr(:dict, :((fn) => ((X,),(Type{X},))))
+@test a==Expr(:dict, :((fn) => ((X,),Type{X})))
 
 td4 = :(@traitdef Cr20{X} begin
     fn{Y<:II}(X,Y) -> Type{X}
@@ -59,8 +59,8 @@ v = :(TypeVar(symbol("Y"),II))
 t = :(TypeVar(symbol("I"),Integer))
 k = :(TypeVar(symbol("K"),FloatingPoint))
 
-@test a==Expr(:dict, :(fn=>((X,$v),(Type{X},))),
-                     :(fn76=>((X,Vector{$t},Vector{$k}),($t,)))
+@test a==Expr(:dict, :(fn=>((X,$v),Type{X})),
+                     :(fn76=>((X,Vector{$t},Vector{$k}),$t))
               )
 
 
@@ -203,7 +203,7 @@ end
     end
 end
 
-@test Cr20{Int}().methods==Dict(length => ((Int,),(Any,)))
+@test Cr20{Int}().methods==Dict(length => ((Int,),Any))
 
 @test !istrait(Cr20{Float32})
 @test istrait(Cr20{Int})
@@ -291,7 +291,7 @@ type A4758 end
 
 # This is the trait for datatypes with Array like constructors:
 @traitdef TT46{Ar} begin
-    T = Base.return_types(eltype, (Ar,))[1]
+    T = Type{eltype(Ar)}
     Arnp = deparameterize_type(Ar)  # Array stripped of type parameters
     
     Arnp(T, Int64) -> Ar
@@ -302,8 +302,8 @@ type A4758 end
 end
 @test !istrait(TT46{A4758})
 @test !istrait(TT46{Dict{Int,Int}})
-# @test istrait(TT46{Set{Int}}) this actually works, but not as expected and gives a deprecation warning
+# @test istrait(TT46{Set{Int}}, verbose=true) this actually works, but not as expected and gives a deprecation warning
 @test !istrait(TT46{Int})
-@test istrait(TT46{Array{Int,1}})
+@test istrait(TT46{Array{Int,1}}, verbose=true)
 @test istrait(TT46{Array{Int}})
 @test istrait(TT46{Array})

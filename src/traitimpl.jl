@@ -132,7 +132,7 @@ macro traitimpl(head, body)
     ## Make methods
     out = quote end
     for (fn, fndef) in implfs
-        modname = module_name(Base.function_module(fn))
+        modname = module_name(Base.function_module(fn, (Any...)))
         prefix_module!(fndef, modname)
         push!(out.args,fndef)
     end

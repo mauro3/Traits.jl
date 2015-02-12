@@ -84,7 +84,7 @@ end
 
 # make method definitions
 for (fn, fndef) in implfns
-    modname = module_name(Base.function_module(fn))
+    modname = module_name(Base.function_module(fn, (Any...)))
     # I think meta-programming is needed to make the new function def
     prefix_module!(fndef, modname)
     eval(fndef)

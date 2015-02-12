@@ -45,7 +45,7 @@ using Traits
     foobar(X,Y) -> Bool
 end
 type A
-    a
+    a::Int
 end
 foobar(a::A, b::A) = a.a==b.a
 @assert istrait(MyTr{A,A})  # true

@@ -143,17 +143,19 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
                 if verbose
                     println("Method `$meth` with signature $sigg->$(sig[2]) has an empty return signature!")
                 end
-            else
+            else#if length(tmp)==1
                 rettype = tmp[1]
-                if !isa(rettype, Tuple)
-                    rettype = (rettype,)
-                end
                 if !(rettype<:sig[2])
                     out = false
                     if verbose
                         println("Method `$meth` with signature $sigg->$(sig[2]) has wrong return type: $rettype")
                     end
                 end
+            # else
+            #     out = false
+            #     if verbose
+            #         println("Method `$meth` with signature $sigg->$(sig[2]) has more than one return type!")
+            #     end
             end
         end
     end
@@ -215,6 +217,9 @@ function issubtrait(t1::Tuple, t2::Tuple)
     end
     return checks
 end
+
+## patches for bugs in base
+include("base_fixes.jl")
 
 ## common helper functions
 include("helpers.jl")
