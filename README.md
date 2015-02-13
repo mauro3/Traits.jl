@@ -1,5 +1,7 @@
 # Traits.jl
 
+[![Build Status](https://travis-ci.org/mauro3/Traits.jl.svg?branch=master)](https://travis-ci.org/mauro3/Traits.jl)
+
 `Traits.jl` allows to:
 
 - define traits/interfaces with `@traitdef`
