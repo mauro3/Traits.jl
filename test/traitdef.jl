@@ -58,11 +58,38 @@ a,b,c = Traits.parsebody(:Cr20, td4.args[end], Any[:X], Symbol[] )
 v = :(TypeVar(symbol("Y"),II))
 t = :(TypeVar(symbol("I"),Integer))
 k = :(TypeVar(symbol("K"),FloatingPoint))
-
 @test a==Expr(:dict, :(fn=>((X,$v),Type{X})),
                      :(fn76=>((X,Vector{$t},Vector{$k}),$t))
               )
 
+# associated types
+td5 = :(@traitdef Cr20{X} begin
+    Y = eltype(X)
+    length(X)
+    length2(Y)
+end)
+out, name, paras, headassoc = Traits.parsetraithead(td5.args[2])
+@test name==:Cr20
+@test paras==[:X]
+@test headassoc==Symbol[]
+a,b,c = Traits.parsebody(:Cr20, td5.args[end], paras, headassoc)
+@test a==Expr(:dict, :(length=>((X,),Any)), :(length2=>((Y,),Any)) )
+@test b==:(Bool[])
+
+
+# parameterized traits
+td6 = :(@traitdef Cr20{X{Y}} begin
+    Y = eltype(X)
+    length(X)
+    length2(Y)
+end)
+out, name, paras, headassoc = Traits.parsetraithead(td6.args[2])
+@test name==:Cr20
+@test paras==[:(X{Y})]
+@test headassoc==Symbol[:Y]
+a,b,c = Traits.parsebody(:Cr20, td6.args[end], paras, headassoc)
+@test a==Expr(:dict, :(length=>((X0,),Any)), :(length2=>((Y,),Any)) )
+@test b==:(Bool[])
 
 ## test making traits
 

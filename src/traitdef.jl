@@ -27,7 +27,8 @@ function parsecurly(def::Expr )
 
     # Note that if we have
     #       :(ComboTr{X{Y}, Z{Y}}) # note the same Y
-    # The trait constructor will have an assertion that the parameter in X and Z must match
+    # The trait constructor will have an assertion that the parameter
+    # in X and Z must match
     name = def.args[1]
     paras = Any[]
     append!(paras,def.args[2:end] )
@@ -89,7 +90,7 @@ function parsetraithead(def::Expr)
     # Transforms
     # :(Cmp{X,Y} <: Eq{X,Y}, Tr1{X})
     # into
-    # trait = :(Cmp{X,Y}
+    # trait = :(Cmp{X,Y})
     # supertraits = :(Eq{X,Y}, Tr1{X})
     # paras = [:X,:Y]
     #

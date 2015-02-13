@@ -12,6 +12,7 @@ call{TI,TO}( fs::FuncFullSig{TI,TO}, x::TI ) = (fs.f(x))::TO
     fmap( Function, X{Y} ) -> Any
 end
 
+# m3: this does not work as Z is not defined.
 @traitdef Functor{X{Y}} begin
     fmap( FuncFullSig{Y,Z}, X{Y} ) -> X{Z}
 end
@@ -32,12 +33,12 @@ end
     mreturn{Y}( ::Type{Nullable}, x::Y ) = Nullable{Y}(x)
     bind{Y}( f::Function, x::Nullable{Y} ) = begin
         if isnull(x)
-            return Nullable()
+            return Nullable{Y}()
         else
             try
                 return f( x.value )
             catch
-                return Nullable()
+                return Nullable{Y}()
             end
         end
     end

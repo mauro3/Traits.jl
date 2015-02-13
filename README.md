@@ -164,7 +164,7 @@ end
 
 # for parametric trait,
 @traitimpl SemiFunctor{Nullable{T}} begin
-    fmap{T}( f::Function, x::Nullable{T}) = isnull(x) ? Nullable() : Nullable(f(x.value))
+    fmap{T}( f::Function, x::Nullable{T}) = isnull(x) ? Nullable{T}() : Nullable(f(x.value))
 end
 
 # for Array, it is a bit difficult because the eltype is the first argument.
