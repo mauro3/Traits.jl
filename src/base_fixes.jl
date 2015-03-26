@@ -1,8 +1,5 @@
 # patching issues in base
 
-# https://github.com/JuliaLang/julia/pull/10164
-Base.eltype{N}(::Type{AbstractArray{N}}) = N
-
 # https://github.com/JuliaLang/julia/issues/10178#issuecomment-74136186
 println("  This warning is ok:")
 function Base.func_for_method(m::Method, tt, env)
