@@ -10,7 +10,7 @@
 
 typealias FName Union(Symbol,Expr)
 
-# generates: X1, X2,... or x1, x2....
+# generates: X1, X2,... or x1, x2.... (just symbols not actual TypeVar)
 type GenerateTypeVars{CASE}
 end
 Base.start(::GenerateTypeVars) = 1
@@ -29,7 +29,7 @@ type ParsedFn  # (probably should adapt MetaTools.jl...)
 end
 function ==(p::ParsedFn, q::ParsedFn) 
     out = true
-    for n in names(p)
+    for n in fieldnames(p)
         out = out && getfield(p,n)==getfield(q,n)
         if !out
             @show n, getfield(p,n), getfield(q,n)

@@ -294,16 +294,20 @@ type A4758 end
     T = Type{eltype(Ar)}
     Arnp = deparameterize_type(Ar)  # Array stripped of type parameters
     
-    Arnp(T, Int64) -> Ar
-    Arnp(T, Int64...) -> Ar
+    #Arnp(T, Int64) -> Ar
+    Arnp(T, Int...) -> Ar # see issue #8 & https://github.com/JuliaLang/julia/issues/10642
     @constraints begin
-        length(Ar.parameters)>1 # need at least two parameters to be array like, right?
+        length(Ar.parameters)>1 # need at least two parameters to be array-like, right?
     end
 end
 @test !istrait(TT46{A4758})
-@test !istrait(TT46{Dict{Int,Int}})
+if Traits.flag_check_return_types
+    @test !istrait(TT46{Dict{Int,Int}})
+else
+    @test istrait(TT46{Dict{Int,Int}}, verbose=true) # this is a false positive
+end
 # @test istrait(TT46{Set{Int}}, verbose=true) this actually works, but not as expected and gives a deprecation warning
 @test !istrait(TT46{Int})
 @test istrait(TT46{Array{Int,1}}, verbose=true)
-@test istrait(TT46{Array{Int}})
-@test istrait(TT46{Array})
+# @test istrait(TT46{Array{Int}}, verbose=true) # this does not pass currently because of https://github.com/JuliaLang/julia/issues/10642
+@test istrait(TT46{Array}, verbose=true)

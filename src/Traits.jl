@@ -121,9 +121,9 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
             # But discard the catch all to convert, i.e. this means
             # method_exists(call, (Type{meth}, sigg...))==true for all types
             chatch_all =  methods(call, (Type{Array},))
-            if methods(call, (Type{meth}, sigg...))==chatch_all
+            if methods(call, tuple(Type{meth}, sigg...))==chatch_all
                 if verbose
-                    println("Datatype constructor $meth with signature $sig not defined for $T")
+                    println("Datatype constructor $meth with call signature $sigg not defined for trait $T")
                 end
                 out = false
             end
