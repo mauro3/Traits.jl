@@ -129,7 +129,7 @@ end
 
 immutable CTrAs{X1,X2} <: Traits.Trait{()}
     methods::Dict
-    constraints::Array{Bool,1} # constraints are an array of functions
+    constraints::Array{Bool,1} # constraints are an array of statements
                             # which need to evaluate to true.  Their
                             # signature is f(X,Y) = ...
     assoctyps::Array{TypeVar,1}

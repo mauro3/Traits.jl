@@ -94,10 +94,10 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
     # check methods definitions
     try 
         Tr()
-    catch
+    catch err
         if verbose
-            println("""Not all generic functions of trait $Tr are defined.  
-                       Define them before using $Tr""")
+            println("""Trait $Tr cannot be instantiated with $Tr(). 
+                    The error was: $err""")
         end
         return false
     end
@@ -174,6 +174,15 @@ function istrait(Trs::Tuple; verbose=false)
         istrait(Tr; verbose=verbose) || return false
     end
     return true
+end
+
+function istrait(dt::Type; verbose=false)
+    # loop over all super-types
+    ST = super(dt)
+    while ST!===Any
+        # check whether it got any traits associated with it
+        ST = super(ST)
+    end
 end
 
 @doc """Returns the super traits""" ->
