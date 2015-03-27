@@ -217,3 +217,15 @@ println("  endof ok-warnings.")
 @traitfn ffgg{T; Eq{T,T}}(x::T,y::T) = 2x==y
 @test ffgg(5,6)==false
 @test ffgg(6,12)==true
+
+######
+# traitmethods in modules
+@traitfn ff879{T; Eq{T,T}}(x::T,y::T) = 2x==y
+@test length(traitmethods(ff879))==1
+module A9374
+using Traits
+using Base.Test
+@traitfn ff879{T; Eq{T,T}}(x::T,y::T) = 2x==y
+@test length(traitmethods(ff879))==1
+end
+@test length(traitmethods(ff879))==1

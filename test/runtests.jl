@@ -21,5 +21,8 @@ include("manual-traitdispatch.jl")
 #include("helpers.jl")
 include("traitdef.jl")
 include("traitfns.jl")
+include("traitdispatch-manual-vs-auto.jl")
 include("traitdispatch.jl")
 
+# Run the performance tests as well.
+include("perf/perf.jl")
