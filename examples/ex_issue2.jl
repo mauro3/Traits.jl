@@ -10,7 +10,7 @@ end
 # This errors because of https://github.com/JuliaLang/julia/issues/9043
 # 
 # @traitimpl Foo_NotWorking{Float64} begin
-#     fnxx(x::Float64, y::Array{Uint8,1}) = y[iround(x)]
+#     fnxx(x::Float64, y::Array{Uint8,1}) = y[round(Integer,x)]
 # end
 
 @traitdef Foo{X} begin
@@ -24,12 +24,12 @@ end
 
 @traitimpl Foo{Float64} begin
     getFooY(::Type{Float64}) = Array{Uint8,1}
-    fnx(x::Float64, y::Array{Uint8,1}) = y[iround(x)]
+    fnx(x::Float64, y::Array{Uint8,1}) = y[round(Integer,x)]
 end
 
 @traitimpl Foo{Int} begin
     getFooY(::Type{Int}) = Array{Integer,1}
-    fnx(x::Int, y::Array{Integer,1}) = y[iround(x)]
+    fnx(x::Int, y::Array{Integer,1}) = y[round(Integer,x)]
 end
 
 @traitfn tf89{X, Y<:Integer; Foo{X}}(x::X, a::Vector{Y}) = fnx(x, a) + 5
@@ -52,22 +52,22 @@ end
 
 @traitimpl Bar{Float64} begin
     getBarY(::Type{Float64}) = Uint8
-    gnx(x::Float64, y::Array{Uint8,1}) = y[iround(x)]
+    gnx(x::Float64, y::Array{Uint8,1}) = y[round(Integer,x)]
 end
 
 @traitimpl Bar{Int} begin
     getBarY(::Type{Int}) = Integer
-    gnx(x::Int, y::Array{Integer,1}) = y[iround(x)]
+    gnx(x::Int, y::Array{Integer,1}) = y[round(Integer,x)]
 end
 
 @traitimpl Bar{Int} begin
     getBarY(::Type{Int}) = Integer
-    gnx(x::Int, y::Array{Integer,1}) = y[iround(x)]
+    gnx(x::Int, y::Array{Integer,1}) = y[round(Integer,x)]
 end
 
 @traitimpl Bar{Int8} begin
     getBarY(::Type{Int8}) = Integer
-    gnx{Y<:Integer}(x::Int8, y::Array{Y,1}) = y[iround(x)]
+    gnx{Y<:Integer}(x::Int8, y::Array{Y,1}) = y[round(Integer,x)]
 end
 istrait(Bar{Int8}, verbose=true)
 
