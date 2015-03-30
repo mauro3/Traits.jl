@@ -14,6 +14,7 @@ method_exists_bug2 = true # see https://github.com/JuliaLang/julia/issues/9043
 
 # manual implementations
 include("manual-traitdef.jl")
+include("manual-type-trait.jl")
 include("manual-traitimpl.jl")
 include("manual-traitdispatch.jl")
 

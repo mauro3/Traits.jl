@@ -128,7 +128,7 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
                 out = false
             end
         else
-            throw(TraitException("Trait $Tr has something funny in its method dictionary: $meth."))
+            throw(TraitException("Trait $Tr contains a funny entry in its method dictionary: $meth."))
         end
     end
     # check return-type
@@ -168,8 +168,8 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
     end
     return out
 end
-# check a tuple of traits against a signature
-function istrait(Trs::Tuple; verbose=false)
+# check an interable of traits against a signature, empty trait Trait(()) returns true
+function istrait(Trs::(Type...); verbose=false)
     for Tr in Trs
         istrait(Tr; verbose=verbose) || return false
     end
@@ -177,12 +177,56 @@ function istrait(Trs::Tuple; verbose=false)
 end
 
 function istrait(dt::Type; verbose=false)
-    # loop over all super-types
-    ST = super(dt)
-    while ST!===Any
+    # Check whether the associated traits of a type and its subtypes
+    # are satisfied.
+    #
+    # Loop over all abstract-types, for now assumes that the trait is
+    # in this module or is visible without qualification.
+    #
+    # TODO: think about a viable storage scheme. At the moment it
+    # assumes that the corresponding Trait_* type is either defined in
+    # the same module as the passed-in type dt, the module of the
+    # super-type of dt, or in Traits.
+    prefix = "Trait_"
+    
+    if dt.abstract
+        if verbose
+            warn("""It really only makes sense to check the trait-conformance 
+                 of a concrete type!  This may lead to unexpected results.""")
+        end
+        ST = dt # already abstract
+    else
+        ST = super(dt)
+    end
+    verdict = true
+    module_of_dt = dt.name.module
+    while ST!==Any # discard Any
         # check whether it got any traits associated with it
+        tn = symbol(prefix * string(ST.name))
+        module_of_ST = ST.name.module
+        if isdefined(module_of_ST, tn)
+            tn = eval(module_of_ST, tn)
+        elseif isdefined(module_of_dt, tn)
+            tn = eval(module_of_dt, tn)
+        elseif isdefined(Traits, tn)
+            tn = eval(Traits, tn)
+        elseif isdefined(tn)  # this is really non-portable!
+            tn = eval(current_module(), tn)
+        end
+        if isa(tn, Type)
+            if !(tn<:Trait)
+                error("The type $tn is not a subtype of Traits.Trait!")
+            end
+            verdict = istrait(tn{dt}; verbose=verbose) # Note the check against dt, not ST!
+        end
+        if !verdict
+            return false
+        end
+        # loop around
         ST = super(ST)
     end
+    return true # true is also returned if no supertypes have any
+                # associated traits
 end
 
 @doc """Returns the super traits""" ->
