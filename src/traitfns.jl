@@ -21,21 +21,11 @@ Base.done(::GenerateTypeVars, state) = false
 # Type to hold parsed function defs:
 type ParsedFn  # (probably should adapt MetaTools.jl...)
     name::FName  # f1
-    fun # f1{X<:Int,Y}
-    typs # [:(X<:Int),:Y]
-    sig # [:(x::X), :(y::Y)] 
-    traits # (D1{X}, D2{X,Y})
-    body # quote ... end
-end
-function ==(p::ParsedFn, q::ParsedFn) 
-    out = true
-    for n in fieldnames(p)
-        out = out && getfield(p,n)==getfield(q,n)
-        if !out
-            @show n, getfield(p,n), getfield(q,n)
-        end
-    end
-    out
+    fun::Expr # :(f1{X<:Int,Y})
+    typs::Vector{Any} # [:(X<:Int),:Y]
+    sig::Vector{Any} # [:(x::X), :(y::Y)] 
+    traits::Vector{Any} # [D1{X}, D2{X,Y}]
+    body::Expr # quote ... end
 end
 
 # Parsing:

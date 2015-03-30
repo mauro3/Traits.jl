@@ -21,6 +21,21 @@ f1e_pt = Traits.ParsedFn(
                  Any[:(x1::X1), :(x2::X2)], 
                  Any[:(D1{X1}), :(D2{X1,X2})],
                  :(()))
+function ==(p::Traits.ParsedFn, q::Traits.ParsedFn) 
+    out = true
+    for n in fieldnames(p)
+        if n==:body # tricky to compare...
+            continue
+        end
+        out = out && getfield(p,n)==getfield(q,n)
+        if !out
+            @show n, getfield(p,n), getfield(q,n)
+        end
+    end
+    out
+end
+
+         
 @test Traits.parsetraitfn_head(f1e)==f1e_p
 @test Traits.translate_head(Traits.parsetraitfn_head(f1e))==f1e_pt
 @test Traits.parsetraitfn(f1e_b)==(f1e_p, f1e_pt)
