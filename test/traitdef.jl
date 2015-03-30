@@ -272,6 +272,21 @@ end
 @test istrait(Iter2{Int})
 @test istrait(Iter2{Array})
 
+# isbits associated types, issue #9
+
+@traitdef AssocIsBits{X} begin
+    T = X.parameters[1]  # a type
+    N = X.parameters[2]  # a isbits
+    S = X.parameters[3]  # a symbol
+    getindex(X, Int) -> T
+end
+type T3484675{T,N,S} end
+Base.getindex(::T3484675, i::Int) = i
+AssocIsBits{T3484675{Int,4.5,:a}}()
+@test istrait(AssocIsBits{T3484675{Int,4.5,:a}}) # errors because it is assumed that all
+                                                 # parameters are TypeVars
+
+
 ####
 # DataType constructors
 ####

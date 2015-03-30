@@ -89,8 +89,9 @@ function parsebody(body::Expr)
     #
     # into
     # :([f1 => ((X,Y), (Int,Int)),
-    #    f2 => ((Y,),  (X,)) ] )
-    # :(Bool[X==Y])
+    #    f2 => ((Y,),  (X,)) ] ),
+    # :(Bool[X==Y]),
+    # :(...associated types...)
     isassoc(ex::Expr) = ex.head==:(=) # associated types
     isconstraints(ex::Expr) = ex.head==:macrocall # constraints
     
@@ -106,12 +107,11 @@ function parsebody(body::Expr)
             parsefnstypes!(outfns, ln)
         end
     end
-    # store associated types:
-    tmp = :(TypeVar[])
+    # store associated types (no need for TypeVar here):
+    tmp = :(Any[])
     for ln in Lines(assoc)
         tvar = ln.args[1]
-        stvar = string(tvar)
-        push!(tmp.args, :(TypeVar(symbol($stvar) ,$tvar)))
+        push!(tmp.args, tvar)
     end
     push!(assoc.args, :(assoctyps = $tmp))
     return outfns, constr, assoc
@@ -266,7 +266,7 @@ macro traitdef(head, body)
     traitbody = quote
         methods::Dict{Union(Function,DataType), Tuple}
         constraints::Vector{Bool}
-        assoctyps::Vector{TypeVar}
+        assoctyps::Vector{Any}
         function $((name))()
             $assoc
             new( $meths, $constr, assoctyps)
