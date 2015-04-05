@@ -94,10 +94,10 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
     # check methods definitions
     try 
         Tr()
-    catch
+    catch err
         if verbose
-            println("""Not all generic functions of trait $Tr are defined.  
-                       Define them before using $Tr""")
+            println("""Could not instantiate instance for type encoding the trait $Tr.  
+                    Failed with error: $err""")
         end
         return false
     end
