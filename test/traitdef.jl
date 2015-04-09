@@ -78,10 +78,10 @@ end
 
 coll = [Vector{Int}, Dict{Int,Int}, Set{Int}]
 iter = [Traits.GenerateTypeVars{:upcase},  Int] #todo: add String,
-if method_exists_bug
+if method_exists_bug1
     assoc = [] #todo add again: Dict{Int,Int}] # , ObjectIdDict]
 else
-    index = [Array{Int,2}, Dict{Int,Int}, StepRange{Int,Int}]
+    assoc = [Array{Int,2}, Dict{Int,Int}, StepRange{Int,Int}]
 end
 index = [Array{Int,2}, StepRange{Int,Int}]
 
@@ -166,7 +166,9 @@ end
 
 #--> need to be able to do this in terms of type variables.
 
-# test functions parameterized on non-trait parameters
+# test functions parameterized on non-trait parameters.  This isn't currently working:
+# https://github.com/mauro3/Traits.jl/issues/2
+# https://github.com/JuliaLang/julia/issues/9043
 
 @traitdef Pr0{X} begin
     fn75{Y <: Integer}(X, Y) -> Y
@@ -193,6 +195,16 @@ else
 end
 @test !istrait(Pr1{UInt8})
 
+@traitdef Pr2{X} begin
+    fn77{Y<:Number}(X,Y,Y) -> Y
+#    fn77{Y}(X)
+end
+fn77(a::Array,b::Int, c::Float64) = a[1]
+if method_exists_bug2
+    @test !istrait(Pr2{Array})
+else
+    @test istrait(Pr2{Array})
+end
 # test constraints
 
 @traitdef Cr20{X} begin

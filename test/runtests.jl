@@ -8,9 +8,12 @@ type A2 end
 
 @test !istraittype(A1)
 
-# BUG flags: set to false once fixed to activate tests
-method_exists_bug = true # see https://github.com/JuliaLang/julia/issues/8959
-method_exists_bug2 = true # see https://github.com/JuliaLang/julia/issues/9043
+## BUG flags: set to false once fixed to activate tests
+# Julia issues:
+method_exists_bug1 = true # see https://github.com/JuliaLang/julia/issues/8959
+method_exists_bug2 = true # see https://github.com/JuliaLang/julia/issues/9043 and https://github.com/mauro3/Traits.jl/issues/2
+# Traits.jl issues:
+dispatch_bug1 = true # in traitdispatch.jl 
 
 # manual implementations
 include("manual-traitdef.jl")

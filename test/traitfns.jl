@@ -137,7 +137,7 @@ a = yt1(5,6)
 @traitfn xt1{X<:Int,Y<:FloatingPoint; Arith{X,Y}}(x::X,y::Y) = x-y
 @test_throws MethodError xt1(5,6)
 
-if !(method_exists_bug)
+if !(method_exists_bug1)
     od = ObjectIdDict(); od[5]=8
     @traitfn yt1{X,Y; Assoc{X}}(x::X,y::Y) = x==y
     @test yt1(Dict(5=>7), Dict(5=>8))==false

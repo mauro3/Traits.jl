@@ -136,9 +136,9 @@ function parsefnstypes!(outfns, ln)
         # Parse to get function signature.
         # parses f(X,Y), f{X <:T}(X,Y) and X+Y
         tvars = Any[]
-        if isa(def.args[1], Symbol)
+        if isa(def.args[1], Symbol) # f(X,Y)
             fn = def.args[1]
-        elseif def.args[1].head==:curly
+        elseif def.args[1].head==:curly # f{X}(X,Y)
             fn = def.args[1].args[1]
             # get
             tvars = def.args[1].args[2:end]
@@ -195,7 +195,17 @@ function parsefnstypes!(outfns, ln)
                              "Something went wrong parsing the trait definition body with line:\n$ln"))
     end
     # replace types with constraints by TypeVars
-    trans = Dict(zip([t.args[1] for t in tvars], tvars))  # this will error if there is a type-var without constraints!
+    tmp = Any[]
+    for t in tvars
+        if isa(t,Symbol)
+            #error("Having a ")
+            push!(tmp,t)
+        else
+            push!(tmp,t.args[1])
+        end
+    end
+    #    trans = Dict(zip([t.args[1] for t in tvars], tvars))  # this will error if there is a type-var without constraints!
+    trans = Dict(zip(tmp,tvars))
     translate!(argtype.args, trans)
     tvar2tvar!(argtype.args)
     subt2tvar!(rettype.args)

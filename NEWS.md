@@ -1,6 +1,11 @@
 Feature updates for Traits.jl
 =============================
 
+30 March 2015
+-------------
+
+- Allowing symbols and isbits as associated types.
+
 14 Nov 2014
 -----------
 

@@ -213,8 +213,12 @@ end
 @traitfn tttf238{X; UU1{X}}(x::X) = "this should loose"
 @traitfn tttf238{X; UU2{X}}(x::X) = "this should win"  
 
-println("This test in traitdispatch.jl should probably pass, fix dispatch and change here.")
-@test_throws Traits.TraitException tttf238(5)=="this should win"
+# This test in traitdispatch.jl should probably pass:
+if dispatch_bug1
+    @test_throws Traits.TraitException tttf238(5)=="this should win"
+else
+    @test tttf238(5)=="this should win"
+end
 
 # however if U2 were a subtrait of something else but U1 then dispatch should be ambiguous:
 @traitdef V1{X} begin

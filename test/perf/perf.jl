@@ -61,8 +61,8 @@ end
 include("traits_vs_ducks.jl")
 
 # load all examples from
+dispatch_bug1 = true # needs to be synchronized with ../runtests.jl:dispatch_bug1
 include("../traitdispatch.jl")
-
 
 println("""\n\nAny warnings following this line can indicate code-generation problems:""")
 # the bounds used below are from my Linux i7, Julia commit 01a3216*,
