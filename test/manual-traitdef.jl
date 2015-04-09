@@ -5,21 +5,23 @@
 # the types:
 @test istrait( () )
 
-
 immutable Tr1{X1} <: Traits.Trait{()}
-    methods
-    constraints
-    Tr1() = new(Dict(), [])
+    methods::Traits.FDict
+    constraints::Vector{Bool}
+    assoctyps::Vector{Any}
+    Tr1() = new(Traits.FDict(), Bool[], [])
 end
 immutable Tr2{X1,X2} <: Traits.Trait{()}
-    methods
-    constraints
-    Tr2() = new(Dict(), [])
+    methods::Traits.FDict
+    constraints::Vector{Bool}
+    assoctyps::Vector{Any}
+    Tr2() = new(Traits.FDict(), Bool[], [])
 end
 immutable Tr3{X1,X2} <: Traits.Trait{(Tr1{X1}, Tr2{X1,X2})}
-    methods
-    constraints
-    Tr3() = new(Dict(), [])
+    methods::Traits.FDict
+    constraints::Vector{Bool}
+    assoctyps::Vector{Any}
+    Tr3() = new(Traits.FDict(), Bool[], [])
 end
 
 @test istraittype(Tr1)
@@ -32,35 +34,40 @@ end
 @test traitgetsuper(Tr3{A1,A2})==(Tr1{A1},Tr2{A1,A2})
 
 # any type is part of a unconstrained trait:
-@test istrait(Tr1{Int})
+@test istrait(Tr1{Int}, verbose=true)
 @test istrait(Tr2{DataType,Int})
 @test istrait(Tr3{String,DataType})
 @test_throws TraitException istrait(Tr3{:a,7})  # maybe this should error?
 
 immutable D1{X1} <: Traits.Trait{()}
-    methods
-    constraints
+    methods::Traits.FDict
+    constraints::Vector{Bool}
+    assoctyps::Vector{Any}
     function D1()
-        new(Dict(
-             sin => ((X1,), Float64),
-             cos => ((X1,), Float64),
+        new(Traits.FDict(
+             sin => _sin(::X1) = Float64(), # note 1: _sin could be any symbol;
+                                            # note 2: Float64() would throw an error but works with return_types
+             cos => _cos(::X1) = Float64()
              ),
+            Bool[],
             []
             )
     end
 end
 
-@test istrait(D1{Int})
+@test istrait(D1{Int}, verbose=true)
 @test !istrait(D1{String})
 
 immutable D2{X1,X2} <: Traits.Trait{(D1{X1}, D1{X2})}
-    methods
-    constraints
+    methods::Traits.FDict
+    constraints::Vector{Bool}
+    assoctyps::Vector{Any}
     function D2()
-        new(Dict(
-             (+) => ((X1, X2), Any),
-             (-) => ((X1, X2), Any)
+        new(Traits.FDict(
+             (+) => _plus(::X1, ::X2) = Any(),
+             (-) => _minus(::X1, ::X2) = Any()
              ),
+            Bool[],
             []
             )
     end
@@ -70,31 +77,34 @@ end
 @test !istrait(D2{Int, String})
 
 immutable D3{X1} <: Traits.Trait{()}
-    methods
-    constraints
+    methods::Traits.FDict
+    constraints::Vector{Bool}
+    assoctyps::Vector{Any}
     function D3()
-        new(Dict(
-             getkey => ((X1,Any,Any), Any),
-             get!   => ((X1, Any, Any), Any)
+        new(Traits.FDict(
+             getkey => _getkey(::X1,::Any,::Any) = Any(),
+             get!   => _get!(::X1, ::Any, ::Any) = Any()
              ),
+            Bool[],
             []
             )
     end
 end
 
 immutable D4{X1,X2} <: Traits.Trait{()} # like D2 but without supertraits
-    methods
-    constraints
+    methods::Traits.FDict
+    constraints::Vector{Bool}
+    assoctyps::Vector{Any}
     function D4()
-        new(Dict(
-             (+) => ((X1, X2), Any),
-             (-) => ((X1, X2), Any)
+        new(Traits.FDict(
+             (+) => _plus(::X1, ::X2) = Any(),
+             (-) => _minus(::X1, ::X2) = Any()
              ),
+            Bool[],
             []
             )
     end
 end
-
 
 @test istrait(D3{Dict{Int,Int}})
 @test !istrait(D3{Int})
@@ -106,18 +116,17 @@ end
 ### adding other constraints
 
 immutable CTr1{X1,X2} <: Traits.Trait{()}
-    methods::Dict
-    constraints::Array{Bool,1} # constraints are an array of functions
-                            # which need to evaluate to true.  Their
-                            # signature is f(X,Y) = ...
-
+    methods::Traits.FDict
+    constraints::Vector{Bool}
+    assoctyps::Vector{Any}
     function CTr1()
-        new(Dict(
-             (+) => ((X1, X2), Any),
+        new(Traits.FDict(
+             (+) => _plus(::X1, ::X2) = Any(),
              ),
             Bool[
                  X1==X2
-                 ]
+                 ],
+            []
             )
     end
 end
@@ -128,18 +137,16 @@ end
 ### adding other associated types
 
 immutable CTrAs{X1,X2} <: Traits.Trait{()}
-    methods::Dict
-    constraints::Array{Bool,1} # constraints are an array of functions
-                            # which need to evaluate to true.  Their
-                            # signature is f(X,Y) = ...
-    assoctyps::Array{TypeVar,1}
+    methods::Traits.FDict
+    constraints::Vector{Bool}
+    assoctyps::Vector{Any}
     function CTrAs()
         R = promote_type(X1, X2)
         D = (X1,X2)<:(Integer,Integer) ? Float64 : promote_type(X1, X2)
-        assoctyps = [TypeVar(:R, R), TypeVar(:D, D)]
-        new(Dict(
-                 (+) => ((X1, X2), R),
-                 (/) => ((X1, X2), D),
+        assoctyps = Any[TypeVar(:R, R), TypeVar(:D, D)]
+        new(Traits.FDict(
+                  (+) => _plus(::X1, ::X2) = Any(),
+                  (-) => _minus(::X1, ::X2) = Any()
              ),
             Bool[],
             assoctyps
