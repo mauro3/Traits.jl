@@ -11,6 +11,7 @@ dispatch_bug1 = true # in traitdispatch.jl
 traitdef_bug1 = true
 varag_not_supported_bug = true
 constructors_not_supported_bug = true
+concrete_type_bug = true
 
 # src/Traits.jl tests
 type A1 end
