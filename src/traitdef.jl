@@ -138,13 +138,16 @@ function parsefnstypes!(outfns, ln)
         # parses f(X,Y), f{X <:T}(X,Y) and X+Y
         # into f and _f(...)
 
+        #        getsymbol = gensym
+        getsymbol(fn) = symbol("__"*string(fn))
+        
         _fn = deepcopy(def)
         if isa(def.args[1], Symbol) # f(X,Y) or X+Y
             fn = def.args[1]
-            _fn.args[1] = gensym(fn)
+            _fn.args[1] = getsymbol(fn)
         elseif def.args[1].head==:curly # f{X}(X,Y)
             fn = def.args[1].args[1]
-            _fn.args[1].args[1] = gensym(fn)
+            _fn.args[1].args[1] = getsymbol(fn)
         else
             throw(TraitException(
                   "Something went wrong parsing the trait function definition:\n$fn"))

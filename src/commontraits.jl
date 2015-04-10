@@ -58,17 +58,17 @@ end
     K,V = eltype(X) 
     
     # note, ObjectId dict is not part of this interface
-    haskey(X, All)
-    get(X, All, All)
-    get(Function, X, All)
-    get!(X, All, All)
-    get!(Function, X, All)
-    getkey(X, All, All)
-    delete!(X, All) -> X
-    pop!(X, All)
-    pop!(X, All, All)
-    merge(X, All...) -> X
-    merge!(X, All...)
+    haskey(X, Any)
+    get(X, Any, Any)
+    get(Function, X, Any)
+    get!(X, Any, Any)
+    get!(Function, X, Any)
+    getkey(X, Any, Any)
+    delete!(X, Any) -> X
+    pop!(X, Any)
+    pop!(X, Any, Any)
+    # merge(X, Any...) -> X
+    # merge!(X, Any...)
     # provieds
     # keys(X) -> Base.KeyIterator
     # values(X) -> Base.ValueIterator
