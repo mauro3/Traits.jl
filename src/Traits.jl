@@ -139,6 +139,9 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
 
     # check call signature of methods:
     for (gf,_gf) in tr.methods # loop over all generic functions in traitdef
+        # if isa(gf, DataType) && gf in traitgetpara(Tr)
+        #     error("asdf")
+        # end
         for tm in methods(_gf) # loop over all methods defined for each function in traitdef
             checks = false
             for fm in methods(gf, NTuple{length(tm.sig),Any}) # only loop over methods which have
@@ -216,6 +219,12 @@ end
      """ ->
 function isfitting(tm::Method, fm::Method; verbose=false) # tm=trait-method, fm=function-method
     println_verb = verbose ? println : x->x
+
+    # special casing for call-overloading:
+    if fm.func.code.name==:call && tm.func.code.name!=:call
+        # make a call-like method
+        error("Constructors not supported yet.")
+    end
 
     # No Vararg methods implement yet
     if tm.va || fm.va
