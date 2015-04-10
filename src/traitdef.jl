@@ -6,6 +6,7 @@
 #
 # It looks like
 # @traitdef Cmp{X,Y} <: Eq{X,Y} begin
+#     T = eltype(X) # associated type
 #     isless(x,y) -> Bool
 #     @constraints begin
 #         X==Y

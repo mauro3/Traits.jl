@@ -314,27 +314,30 @@ AssocIsBits{T3484675{Int,4.5,:a}}()
 ####
 # DataType constructors
 ####
-if !constructors_not_supported_bug
-    @traitdef TT45{D} begin
-        # This trait contains all datatypes which have a constructor with
-        # no arguments.
-        D() -> D
-    end
-    type A4758 end
-    type A4759
-        a
-    end
-    
-    @test istrait(TT45{A4758})
-    @test !istrait(TT45{A4759})
-    @test istrait(TT45{Dict{Int,Int}})
-    @test istrait(TT45{Set{Int}})
-    @test !istrait(TT45{Int})
-    @test !istrait(TT45{Array{Int,1}})
-    
+
+@traitdef TT45{D} begin
+    # This trait contains all datatypes which have a constructor with
+    # no arguments.
+    D() -> D
+end
+type A4758 end
+type A4759
+    a
+end
+
+@test istrait(TT45{A4758})
+@test !istrait(TT45{A4759})
+@test istrait(TT45{Dict{Int,Int}})
+@test istrait(TT45{Set{Int}})
+@test !istrait(TT45{Int})
+@test !istrait(TT45{Array{Int,1}})
+
+
+
+if !varag_not_supported_bug
     @traitdef TT44{D} begin
         # 
-        Array(D,Any)
+        Array(Type{D},Any)
     end
     @test istrait(TT44{A4758})
     @test istrait(TT44{A4759})
@@ -343,7 +346,7 @@ if !constructors_not_supported_bug
     @test istrait(TT44{Int})
     @test istrait(TT44{Array{Int,1}})
 
-if !varag_not_supported_bug
+
     # This is the trait for datatypes with Array like constructors:
     @traitdef TT46{Ar} begin
         T = Type{eltype(Ar)}
@@ -366,6 +369,5 @@ if !varag_not_supported_bug
     @test istrait(TT46{Array{Int,1}}, verbose=true)
     # @test istrait(TT46{Array{Int}}, verbose=true) # this does not pass currently because of https://github.com/JuliaLang/julia/issues/10642
     @test istrait(TT46{Array}, verbose=true)
-    end
+end
 
-end # !constructors_not_supported_bug

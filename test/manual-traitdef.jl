@@ -180,7 +180,7 @@ end
 
 
 g01(::Int, ::Int) = Int
-if traitdef_bug1
+if concrete_type_bug
     @test !istrait(Tr01{Int}) # == true as constraints Int isleaftype
 else
     @test istrait(Tr01{Int}) # == true as constraints Int isleaftype
