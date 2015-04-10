@@ -277,7 +277,9 @@ function isfitting(tm::Method, fm::Method; verbose=false) # tm=trait-method, fm=
     # If !(tm.sig<:fm.sig) then tm<<:fm is false
     # but the converse is not true:
     if !(tm.sig<:fm.sig)
-        println_verb("Reason fail: !(tm.sig<:fm.sig)")
+        println_verb("""Reason fail: !(tm.sig<:fm.sig)
+                     tm.sig = $(tm.sig)
+                     fm.sig = $(fm.sig)""")
         return false
     end
     # False if there are not the same number of arguments: (I don't
@@ -306,17 +308,21 @@ function isfitting(tm::Method, fm::Method; verbose=false) # tm=trait-method, fm=
         if !any(locs)
             error("Bad: the type variable should feature in at least on location.")
         end
-        # Find the tvar in fm which corresponds to tv.  It's ok if ftv
-        # constrains more arguments than tv!
+        # Find the tvar in fm which corresponds to tv. 
         ftvs = Any[]
-        fmtvars = isa(fm.tvars,TypeVar) ? (fm.tvars,) : fm.tvars
+        fmtvars = isa(fm.tvars,TypeVar) ? (fm.tvars,) : fm.tvars # make sure it's a tuple of TypeVar
         for ftv in fmtvars
             flocs = find_tvar(fm.sig, ftv)
             if all(flocs[find(locs)])
                 push!(ftvs,ftv)
             end
         end
-        if ftvs==Any[]
+        if length(ftvs)==0
+            # TODO this should pass (bug traitdef_bug1):
+            # g01 => _g01{T<:X}(::T, ::T) = T()
+            # g01(::Int, ::Int) = Int
+            #@test istrait(Tr01{Int}, verbose=true)
+
             println_verb("Reason fail: parametric constraints on function method not as severe as on trait-method.")
             return false
         end
@@ -344,25 +350,21 @@ function isfitting(tm::Method, fm::Method; verbose=false) # tm=trait-method, fm=
 end
 
 # helpers for isfitting
-function subs_tvar{T<:_TestType}(tv::TypeVar, arg, TestT::Type{T})
+function subs_tvar{T<:_TestType}(tv::TypeVar, arg::DataType, TestT::Type{T})
     # Substitute `TestT` for a particular TypeVar `tv` in an argument `arg`.
     #
     # Example:
     # Array{I<:Int64,N} -> Array{_TestType{23},N}
-    if isa(arg, DataType) && (isleaftype(arg) || length(arg.parameters)==0) # concrete type or abstract type with no parameters
+    if isleaftype(arg) || length(arg.parameters)==0 # concrete type or abstract type with no parameters
         return arg
-    elseif isa(arg,TypeVar)
-        if tv===arg  # note === this it essential!
-            return TestT # replace
-        else
-            return arg
-        end
-    else # It's a parameterized type do substitution on all parameters:
+    else # It's a parameterized type: do substitution on all parameters:
         pa = [ subs_tvar(tv, arg.parameters[i], TestT) for i=1:length(arg.parameters) ]
         typ = deparameterize_type(arg)
         return typ{pa...}
     end
 end
+subs_tvar{T<:_TestType}(tv::TypeVar, arg::TypeVar, TestT::Type{T}) = tv===arg ? TestT : arg  # note === this it essential!
+subs_tvar{T<:_TestType}(tv::TypeVar, arg, TestT::Type{T}) = arg # for anything else
 
 # find_tvar finds index of arguments in a function signature `sig` where a
 # particular TypeVar `tv` features. Example:
