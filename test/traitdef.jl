@@ -163,19 +163,15 @@ end
 @test issubtrait(Tr13, Tr20)
 
 @test issubtrait((Tr21,), (Tr20,))
-@test issubtrait((Tr21,Tr11), (Tr20,Tr10))
+@test  issubtrait((Tr21,Tr11), (Tr20,Tr10))
+@test !issubtrait((Tr21,Tr11), (Tr10,Tr20)) # todo: this should be true, as order shouldn't matter
 @test issubtrait((Tr11,Tr21), (Tr10,Tr20))
-@test !issubtrait((Tr21,Tr11), (Tr10,Tr20)) # todo: this should be true, I think
 
 @test !issubtrait(Tr21{Int}, Tr20{Float64})
 @test !issubtrait((Tr21{Int},), (Tr20{Float64},))
 
-#--> need to be able to do this in terms of type variables.
-
-# test functions parameterized on non-trait parameters.  This isn't currently working:
-# https://github.com/mauro3/Traits.jl/issues/2
-# https://github.com/JuliaLang/julia/issues/9043
-
+# Test functions parameterized on non-trait parameters.
+###
 @traitdef Pr0{X} begin
     fn75{Y <: Integer}(X, Y) -> Y
 end
@@ -208,8 +204,23 @@ fn77{Y<:Real}(a::Array,b::Y, c::Y) = a[1]
 fn77{Y<:Number}(a::Array,b::Y, c::Y) = a[1]
 @test istrait(Pr2{Array})
 
-# test constraints
 
+@traitdef Pr3{X} begin
+    fn78{X}(X,X)
+end
+fn78(b::Int, c::Int) = b
+if concrete_type_bug
+    @test !istrait(Pr3{Int})  # this should not fail!
+else
+    @test istrait(Pr3{Int})  # this should not fail!
+end
+fn78(b::Real, c::Real) = b
+@test !istrait(Pr3{Real})
+fn78{T}(b::T, c::T) = b
+@test istrait(Pr3{Real})
+
+# Test constraints
+###
 @traitdef Cr20{X} begin
     length(X) -> Any
     
@@ -355,6 +366,6 @@ if !varag_not_supported_bug
     @test istrait(TT46{Array{Int,1}}, verbose=true)
     # @test istrait(TT46{Array{Int}}, verbose=true) # this does not pass currently because of https://github.com/JuliaLang/julia/issues/10642
     @test istrait(TT46{Array}, verbose=true)
-end
+    end
 
-    end # !constructors_not_supported_bug
+end # !constructors_not_supported_bug
