@@ -10,7 +10,6 @@ function_types_bug1 = true # set to false if function types get implemented in J
 dispatch_bug1 = true # in traitdispatch.jl
 traitdef_bug1 = true
 varag_not_supported_bug = true
-constructors_not_supported_bug = true
 concrete_type_bug = true
 
 # src/Traits.jl tests

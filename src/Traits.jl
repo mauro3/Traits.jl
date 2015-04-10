@@ -152,7 +152,7 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
                 end
             end
             if !checks # if check==false no fitting method was found
-                println_verb("""No method of the generic function $gf matched the 
+                println_verb("""No method of the generic function/call-overloaded $gf matched the 
                              trait specification: $tm""")
                 return false
             end
@@ -201,8 +201,8 @@ end
 
 ## Helpers for istrait
 @doc """isfitting checks whether a method `tm` specified in the trait definition 
-     is fulfilled by a method `fm` of the corresponding generic function.  One of the
-     core functions of istraits.
+     is fulfilled by a method `fm` of the corresponding generic function.  The
+     core function called by istraits.
 
      Checks that tm.sig<:fm.sig and that the parametric constraints on
      fm and tm are equal.  Lets call this relation tm<<:fm.
@@ -210,7 +210,7 @@ end
      So, summarizing, for a trait-signature to be satisfied (fitting) the following
      condition need to hold:
      A) `tsig<:sig` for just the types themselves (sans parametric constraints)
-     B) The constraints on `sig` and `tsig` need to be equal.
+     B) The parametric constraints on `sig` and `tsig` need to be equal.
 
      Examples, left trait-method, right implementation-method:
      {T<:Real, S}(a::T, b::Array{T,1}, c::S, d::S) <<: {T<:Number, S}(a::T, b::AbstractArray{T,1}, c::S, d::S)
@@ -221,18 +221,51 @@ end
      """ ->
 function isfitting(tm::Method, fm::Method; verbose=false) # tm=trait-method, fm=function-method
     println_verb = verbose ? println : x->x
-
+    iscall_overload(tm,fm) = fm.func.code.name==:call && tm.func.code.name!=:call
+    
     # special casing for call-overloading:
-    if fm.func.code.name==:call && tm.func.code.name!=:call
-        # make a call-like method
-        error("Constructors not supported yet.")
+    if iscall_overload(tm,fm)
+        @show " "
+        @show fm
+        # This is a bad hack: alter the signature of the trait-method
+        # to include the ::Type{...}!  It needs to be undone, to undo
+        # it only use the @goto instead of return!  GOTO, nice! (maybe
+        # I should use a macro...)
+
+        # store old values to be restored at the end of the goto:
+        old_tmsig = tm.sig
+        old_tmtvars = tm.tvars
+        tm.sig = tuple(fm.sig[1], tm.sig...) 
+        @show fm.sig
+        @show tm.sig
+        # check whether there are parameters too!
+        if fm.tvars!=()
+            fmtvars = isa(fm.tvars,TypeVar) ? (fm.tvars,) : fm.tvars # make sure it's a tuple of TypeVar
+            for ftv in fmtvars
+                @show flocs = find_tvar(fm.sig, ftv)
+                if flocs[1] # yep, has a constraint like call{T}(::Type{Array{T}},...)
+                    if sum(flocs)==1
+                        @show tm.tvars = tuple(ftv, tm.tvars...) 
+                    else
+                        println_verb("This check is not implemented, returning false.")
+                        # less than 10 of the 1000 methods of call in
+                        # Base end here.  However, it does include the
+                        # catch all: call{T}(::Type{T},args...) at
+                        # base.jl:38
+                        @goto RETURN_FALSE
+                    end
+                end
+            end
+        end
     end
 
     # No Vararg methods implement yet
     if tm.va || fm.va
         # runtests.jl flag: varag_not_supported_bug
+        #
+        # What do varargs mean?
         println_verb("Vararg methods not currently supported.  Returning false.")
-        return false
+        @goto RETURN_FALSE
     end
     ## Check condition A:
     # If there are no type-vars then just compare the signatures:
@@ -244,12 +277,16 @@ function isfitting(tm::Method, fm::Method; verbose=false) # tm=trait-method, fm=
             for ftv in fmtvars
                 if sum(find_tvar(fm.sig, ftv))>1
                     println_verb("Reason fail: no tvars-constraints in trait-method but in function-method.")
-                    return false
+                    @goto RETURN_FALSE
                 end
             end
         end
         println_verb("Reason fail/pass: no tvars in trait-method. Result: $(tm.sig<:fm.sig)")
-        return tm.sig<:fm.sig
+        if tm.sig<:fm.sig
+            @goto RETURN_TRUE
+        else
+            @goto RETURN_FALSE
+        end
     end
     # If !(tm.sig<:fm.sig) then tm<<:fm is false
     # but the converse is not true:
@@ -257,13 +294,13 @@ function isfitting(tm::Method, fm::Method; verbose=false) # tm=trait-method, fm=
         println_verb("""Reason fail: !(tm.sig<:fm.sig)
                      tm.sig = $(tm.sig)
                      fm.sig = $(fm.sig)""")
-        return false
+        @goto RETURN_FALSE
     end
     # False if there are not the same number of arguments: (I don't
     # think this test is necessary as it is tested above.)
     if length(tm.sig)!=length(fm.sig)!
         println_verb("Reason fail: wrong length")
-        return false
+        @goto RETURN_FALSE
     end
     # Getting to here means that that condition (A) is fulfilled.
 
@@ -272,7 +309,7 @@ function isfitting(tm::Method, fm::Method; verbose=false) # tm=trait-method, fm=
     # constraints play no role:
     if length(tm.sig)==1
         println_verb("Reason pass: length(tm.sig)==1")
-        return true
+        @goto RETURN_TRUE
     end
 
     # Strategy: go through constraints on trait-method and check
@@ -301,7 +338,7 @@ function isfitting(tm::Method, fm::Method; verbose=false) # tm=trait-method, fm=
             #@test istrait(Tr01{Int}, verbose=true)
 
             println_verb("Reason fail: parametric constraints on function method not as severe as on trait-method.")
-            return false
+            @goto RETURN_FALSE
         end
         if length(ftvs)>1
             error("""Not supported if two or more TypeVar appear in the same arguments.
@@ -317,13 +354,25 @@ function isfitting(tm::Method, fm::Method; verbose=false) # tm=trait-method, fm=
             farg = subs_tvar(ftvs[1], fm.sig[i], _TestType{i})
             if !(targ<:farg)
                 println_verb("Reason fail: parametric constraints on args $(tm.sig[i]) and $(fm.sig[i]) on different TypeVar locations!")
-                return false
+                @goto RETURN_FALSE
             end
         end
     end
 
     println_verb("Reason pass: all checks passed")
+    # only return here so it can be tidied up
+    @label RETURN_TRUE
+    if iscall_overload(tm,fm)
+        tm.sig = old_tmsig
+        tm.tvars = old_tmtvars
+    end
     return true
+    @label RETURN_FALSE
+    if iscall_overload(tm,fm)
+        tm.sig = old_tmsig
+        tm.tvars = old_tmtvars
+    end
+    return false
 end
 
 # helpers for isfitting
