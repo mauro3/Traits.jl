@@ -156,66 +156,31 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
         end
     end
 
-    # for (meth,sig) in tr
-    #     # instead of:
-    #     ## checks = length(methods(meth, sig[1]))>0
-    #     # Now using method_exists.  But see bug
-    #     # https://github.com/JuliaLang/julia/issues/8959
-
-    #     sigg = map(x->x===All ? Union() : x, sig[1])
-    #     if isa(meth, Function)
-    #         if !method_exists(meth, sigg) # I think this does the right thing.
-    #             println_verb("Method $meth with call signature $(sig[1]) not defined for $T")
-    #             checks = false
-    #         end
-    #     elseif isa(meth, DataType) # a constructor, presumably.
-    #         # But discard the catch all to convert, i.e. this means
-    #         # method_exists(call, (Type{meth}, sigg...))==true for all types
-    #         chatch_all =  methods(call, (Type{Array},))
-    #         if methods(call, tuple(Type{meth}, sigg...))==chatch_all
-    #             println_verb("Datatype constructor $meth with call signature $sigg not defined for trait $T")
-    #             checks = false
-    #         end
-    #     else
-    #         throw(TraitException("Trait $Tr contains a funny entry in its method dictionary: $meth."))
-    #     end
-    # end
-    
     # check return-type
     if flag_check_return_types
         for (gf,_gf) in tr.methods
             for tm in methods(_gf) # loop over all methods defined for each function in traitdef
-                @show tret_typ = Base.return_types(_gf, tm.sig)
+                @show tret_typ = Base.return_types(_gf, tm.sig) # trait-defined return type
                 if length(tret_typ)!=1
                     throw(TraitException("Querying the return type of the trait-method $tm did not return exactly one return type: $tret_typ"))
                 end
                 tret_typ = tret_typ[1]
                 @show fret_typ = Base.return_types(gf, tm.sig)
+                # at least one of the return types need to be a subtype of tret_typ
+                checks = false
                 for fr in fret_typ
-                    if !(fr<:tret_typ)
-                        println_verb("")
-                        return false
+                    if fr<:tret_typ
+                        checks = true
                     end
                 end
-            # # replace All in sig[1] with Any
-            # sigg = map(x->x===All ? Any : x, sig[1])
-            # tmp = Base.return_types(meth, sigg)
-            # if length(tmp)==0
-            #     rettype = []
-            #     checks = false
-            #     println_verb("Method `$meth` with signature $sigg->$(sig[2]) has an empty return signature!")
-            # else#if length(tmp)==1
-            #     rettype = tmp[1]
-            #     if !(rettype<:sig[2])
-            #         checks = false
-            #         println_verb("Method `$meth` with signature $sigg->$(sig[2]) has wrong return type: $rettype")
-            #     end
-            # # else
-            # #     checks = false
-            # #     if verbose
-            # #         println("Method `$meth` with signature $sigg->$(sig[2]) has more than one return type!")
-            # #     end
-                # end
+                if !checks
+                    println_verb("""No return types found which are subtypes of the specified return type:
+                                 $tret_typ
+                                 found:
+                                 $fret_typ
+                                 """)
+                    return false
+                end
             end
         end
     end
@@ -254,6 +219,7 @@ function isfitting(tm::Method, fm::Method; verbose=false) # tm=trait-method, fm=
 
     # No Vararg methods implement yet
     if tm.va || fm.va
+        # runtests.jl flag: varag_not_supported_bug
         println_verb("Vararg methods not currently supported.  Returning false.")
         return false
     end
@@ -271,7 +237,7 @@ function isfitting(tm::Method, fm::Method; verbose=false) # tm=trait-method, fm=
                 end
             end
         end
-        println_verb("Reason fail/pass: no tvars in trait-method")
+        println_verb("Reason fail/pass: no tvars in trait-method. Result: $(tm.sig<:fm.sig)")
         return tm.sig<:fm.sig
     end
     # If !(tm.sig<:fm.sig) then tm<<:fm is false
