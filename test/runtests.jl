@@ -5,8 +5,10 @@ using Traits
 # Julia issues:
 method_exists_bug1 = true # see https://github.com/JuliaLang/julia/issues/8959
 method_exists_bug2 = true # see https://github.com/JuliaLang/julia/issues/9043 and https://github.com/mauro3/Traits.jl/issues/2
+function_types_bug1 = true # set to false if function types get implemented in Julia
 # Traits.jl issues:
-dispatch_bug1 = true # in traitdispatch.jl 
+dispatch_bug1 = true # in traitdispatch.jl
+traitdef_bug1 = true
 
 # src/Traits.jl tests
 type A1 end

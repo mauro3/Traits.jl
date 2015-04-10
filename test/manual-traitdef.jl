@@ -158,3 +158,83 @@ end
 # @test istrait(CTrAs{Integer, Integer}) # doesn't work because return type of /(Integer, Integer)==Any
 @test istrait(CTrAs{Int, Int})
 @test !istrait(CTrAs{Int, String})
+
+# parametric methods
+
+# @traitdef Tr01{X} begin
+#     g01{T<:X}(T, T) -> T
+# end
+immutable Tr01{X} <: Traits.Trait{()}
+    methods::Traits.FDict
+    constraints::Vector{Bool}
+    assoctyps::Vector{Any}
+    function Tr01()
+        new(Traits.FDict(
+                         g01 => _g01{T<:X}(::T, ::T) = T()
+                         ),
+            Bool[],
+            []
+            )
+    end
+end
+
+
+g01(::Int, ::Int) = Int
+if traitdef_bug1
+    @test !istrait(Tr01{Int}) # == true as constraints Int isleaftype
+else
+    @test istrait(Tr01{Int}) # == true as constraints Int isleaftype
+end
+@test !istrait(Tr01{Integer})
+g01{I<:Integer}(::I, ::I) = I
+@test istrait(Tr01{Integer}) # == true
+
+# @traitdef Tr02{X} begin
+#     g02{T<:X}(T, T) -> T
+# end
+immutable Tr02{X} <: Traits.Trait{()}
+    methods::Traits.FDict
+    constraints::Vector{Bool}
+    assoctyps::Vector{Any}
+    function Tr02()
+        new(Traits.FDict(
+                         g02 => _g02{T<:X}(::T, ::T) = T()
+                         ),
+            Bool[],
+            []
+            )
+    end
+end
+
+g02{I<:Integer}(::I, ::I) = Integer
+# By using Base.return_types it is not possible to figure out whether
+# the returned value is constrained or not by I:
+if function_types_bug1
+    @test istrait(Tr02{Integer})
+    # or throw an error/warning here saying parametric return types
+    # are only supported for leaftypes
+else
+    @test !istrait(Tr02{Integer}) # if function types get implemented this should be possible to catch
+end
+@test istrait(Tr02{Int}) # == true
+
+# @traitdef Tr03{X} begin
+#     g03{T<:X}(T, Vector{T})
+# end
+immutable Tr03{X} <: Traits.Trait{()}
+    methods::Traits.FDict
+    constraints::Vector{Bool}
+    assoctyps::Vector{Any}
+    function Tr03()
+        new(Traits.FDict(
+                         g03 => _g03{T<:X}(::T, ::Vector{T}) = T()
+                         ),
+            Bool[],
+            []
+            )
+    end
+end
+
+g03{I<:Integer}(::I, ::Vector{I}) = 1
+@test istrait(Tr03{Integer})
+@test istrait(Tr03{Int})
