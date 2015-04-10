@@ -79,12 +79,12 @@ end
 coll = [Vector{Int}, Dict{Int,Int}, Set{Int}]
 iter = [Traits.GenerateTypeVars{:upcase},  Int] #todo: add String,
 if method_exists_bug1
-    assoc = [] #todo add again: Dict{Int,Int}] # , ObjectIdDict]
+    dicts = [] #todo add again: Dict{Int,Int}] # , ObjectIdDict]
 else
-    assoc = [Array{Int,2}, Dict{Int,Int}, StepRange{Int,Int}]
+    dicts = [Dict{Int}, Dict{Int,Int}] # Dict does not work, ObjectIdDict does not fulfill the trait
 end
 index = [Array{Int,2}, StepRange{Int,Int}]
-
+c =1
 for c in coll
     @test istrait(Collection{c}, verbose=true)
     @test istrait(Iter{c}, verbose=true)
@@ -98,7 +98,7 @@ for c in iter
     @test istrait(Iter{c}, verbose=true)
 end
 
-for c in assoc
+for c in dicts
     @test istrait(Assoc{c}, verbose=true)
 end
 

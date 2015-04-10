@@ -159,8 +159,10 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
         end
     end
 
-    # check return-type
-    if flag_check_return_types
+    # check return-type.  Specifed return type tret and return-type of
+    # the methods frets should fret<:tret.  This is backwards to
+    # argument types...
+        if flag_check_return_types
         for (gf,_gf) in tr.methods
             for tm in methods(_gf) # loop over all methods defined for each function in traitdef
                 @show tret_typ = Base.return_types(_gf, tm.sig) # trait-defined return type
@@ -177,9 +179,9 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
                     end
                 end
                 if !checks
-                    println_verb("""No return types found which are subtypes of the specified return type:
+                    println_verb("""For function $gf: no return types found which are subtypes of the specified return type:
                                  $tret_typ
-                                 found:
+                                 List of found return types:
                                  $fret_typ
                                  """)
                     return false
