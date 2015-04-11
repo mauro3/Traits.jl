@@ -200,10 +200,10 @@ function istrait(Trs::Tuple; verbose=false)
 end
 
 ## Helpers for istrait
-type FakeMethod
-    sig
-    tvars
-    va
+immutable FakeMethod
+    sig::(Any...,)
+    tvars::(Any...,)
+    va::Bool
 end
 @doc """isfitting checks whether a method `tm` specified in the trait definition 
      is fulfilled by a method `fm` of the corresponding generic function.  The
@@ -224,31 +224,23 @@ end
      {T<:Integer}(T, T, Integer) <<: {T<:Integer}(T, T, T)
      -> false as parametric constraints are not equal
      """ ->
-function isfitting(tm::Method, fm::Method; verbose=false) # tm=trait-method, fm=function-method
+function isfitting(tmm::Method, fm::Method; verbose=false) # tm=trait-method, fm=function-method
     println_verb = verbose ? println : x->x
-    println_verb = verbose ? x->x : x->x
 
-    # Special casing for call-overloading. This is a bit of a hack:
-    # make a new method tm which includes the include the ::Type{...}.
-    if fm.func.code.name==:call && tm.func.code.name!=:call
-        # Make a throw-away method:
-        tmold = tm
-        tm = FakeMethod(tm.sig, tm.tvars, tm.va)
-        ## Alternative would be to make a proper throw-away method, this would make tm typestable:
-        # tmpf967858() = 1
-        # tmpf967858.env.defs.sig = tm.sig
-        # tmpf967858.env.defs.tvars = tm.tvars
-        # tm = tmpf967858.env.defs
+    # Make a "copy" of tmm as it may get updated:
+    tm = FakeMethod(tmm.sig, tmm.tvars, tmm.va)
 
-        # store old values to be restored at the end of the goto:
-        tm.sig = tuple(fm.sig[1], tm.sig...) 
-        # check whether there are parameters too!
+    # Special casing for call-overloading. 
+    if fm.func.code.name==:call && tmm.func.code.name!=:call # true if only fm is call-overloaded
+        # prepend ::Type{...} to signature
+        tm = FakeMethod(tuple(fm.sig[1], tm.sig...), tm.tvars, tm.va)
+        # check whether there are method parameters too:
         fmtvars = isa(fm.tvars,TypeVar) ? (fm.tvars,) : fm.tvars # make sure it's a tuple of TypeVars
         for ftv in fmtvars
             flocs = find_tvar(fm.sig, ftv)
             if flocs[1] # yep, has a constraint like call{T}(::Type{Array{T}},...)
                 if sum(flocs)==1
-                    tm.tvars = tuple(ftv, tm.tvars...) 
+                    tm = FakeMethod(tm.sig, tuple(ftv, tm.tvars...) , tm.va)
                 else
                     println_verb("This check is not implemented, returning false.")
                     # Note that less than none of the 1000 methods
@@ -257,8 +249,16 @@ function isfitting(tm::Method, fm::Method; verbose=false) # tm=trait-method, fm=
                 end
             end
         end
+        # There is a strange bug which is prevented by this never
+        # executing @show.  I'll try and investigate this in branch
+        # m3/heisenbug
+        if length(tm.sig)==-10
+            @show tm
+            error("This is not possible")
+        end
     end
 
+    
     # No Vararg methods implement yet
     if tm.va || fm.va
         # runtests.jl flag: varag_not_supported_bug
