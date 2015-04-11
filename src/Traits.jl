@@ -227,15 +227,14 @@ end
 function isfitting(tm::Method, fm::Method; verbose=false) # tm=trait-method, fm=function-method
     println_verb = verbose ? println : x->x
     println_verb = verbose ? x->x : x->x
-    iscall_overload(tm,fm) = fm.func.code.name==:call && tm.func.code.name!=:call
 
     # Special casing for call-overloading. This is a bit of a hack:
     # make a new method tm which includes the include the ::Type{...}.
-    if iscall_overload(tm,fm)
+    if fm.func.code.name==:call && tm.func.code.name!=:call
         # Make a throw-away method:
         tmold = tm
         tm = FakeMethod(tm.sig, tm.tvars, tm.va)
-        ## Alternative would be to make a proper throw-away method:
+        ## Alternative would be to make a proper throw-away method, this would make tm typestable:
         # tmpf967858() = 1
         # tmpf967858.env.defs.sig = tm.sig
         # tmpf967858.env.defs.tvars = tm.tvars
@@ -258,7 +257,6 @@ function isfitting(tm::Method, fm::Method; verbose=false) # tm=trait-method, fm=
                 end
             end
         end
-        println(tm.sig, tmold.sig)
     end
 
     # No Vararg methods implement yet
