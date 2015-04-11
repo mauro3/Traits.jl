@@ -76,7 +76,7 @@ end
 @test !istrait(Cmp{Int,String})
 
 
-coll = [Vector{Int}, Dict{Int,Int}, Set{Int}]
+coll = [Vector, Vector{Int}, Dict{Int}, Dict{Int,Int}, Set{Int}]
 iter = [Traits.GenerateTypeVars{:upcase},  Int] #todo: add String,
 if method_exists_bug1
     dicts = [] #todo add again: Dict{Int,Int}] # , ObjectIdDict]
