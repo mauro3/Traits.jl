@@ -55,8 +55,9 @@ end
 end
 
 @traitdef Assoc{X} <: Indexable{X} begin
+    tmp1 = println(X)
     K,V = eltype(X) 
-    
+    tmp = println(K,V)
     # note, ObjectId dict is not part of this interface
     haskey(X, Any)
     get(X, Any, Any)
