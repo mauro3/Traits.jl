@@ -252,10 +252,10 @@ function isfitting(tmm::Method, fm::Method; verbose=false) # tm=trait-method, fm
         # There is a strange bug which is prevented by this never
         # executing @show.  I'll try and investigate this in branch
         # m3/heisenbug
-        if length(tm.sig)==-10
-            @show tm
-            error("This is not possible")
-        end
+        # if length(tm.sig)==-10
+        #     @show tm
+        #     error("This is not possible")
+        # end
     end
 
     
