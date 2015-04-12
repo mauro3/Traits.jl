@@ -206,7 +206,7 @@ fn77{Y<:Number}(a::Array,b::Y, c::Y) = a[1]
 
 
 @traitdef Pr3{X} begin
-    fn78{X}(X,X)
+    fn78{T<:X}(T,T)
 end
 fn78(b::Int, c::Int) = b
 if concrete_type_bug

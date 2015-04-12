@@ -16,8 +16,8 @@ end
 
 @traitdef Iter{X}  begin
     # type-functions based on return_type:
-    State = Base.return_types(start, (X,))[1]  # this is circular but that is ok, as trait needs to be implemented.
-    Item =  Base.return_types(next, (X,State))[1][1]
+    State = Base.return_types(start, (X,))[1]
+    Item =  Base.return_types(next, (X,State))[1][1] # use eltype instead
     
     # interface functions
     start(X) -> State

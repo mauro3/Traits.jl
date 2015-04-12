@@ -82,8 +82,12 @@ type TraitException <: Exception
     msg::String
 end
 
-# A helper type used in istrait below
-immutable _TestType{T} end
+# A helper dummy types used in istrait below
+abstract _TestType{T}
+immutable _TestTvar{T}<:_TestType{T} end # used for TypeVar testing
+immutable _TestTraitPara{T}<:_TestType{T} end # used as dummy Trait parameters
+immutable _TestAssoc{T}<:_TestType{T} end # used as dummy Associated types
+Base.show{T<:_TestType}(io::IO, x::Type{T}) = print(io, string(x.parameters[1])*"_")
 
 #########
 # istrait, one of the core functions
@@ -138,15 +142,17 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
     end
 
     # check call signature of methods:
-    for (gf,_gf) in tr.methods # loop over all generic functions in traitdef
-        # if isa(gf, DataType) && gf in traitgetpara(Tr)
-        #     error("asdf")
-        # end
-        for tm in methods(_gf) # loop over all methods defined for each function in traitdef
+
+    # Need a trick to check parameterized methods, see isfitting for details:
+    testtr = tr #make_testtrait(Tr)
+    # Loop over all generic functions in traitdef:
+    for ((gf,_gf), (tgf,_tgf)) in zip(tr.methods, testtr.methods)
+        # Loop over all methods defined for each function in traitdef
+        for (i,(tm,ttm)) in enumerate(zip(methods(_gf),methods(_tgf))) 
             checks = false
-            for fm in methods(gf, NTuple{length(tm.sig),Any}) # only loop over methods which have
-                                                              # the right number of arguments
-                if isfitting(tm, fm, verbose=verbose)
+            # Only loop over methods which have the right number of arguments:
+            for fm in methods(gf, NTuple{length(tm.sig),Any}) 
+                if isfitting(tm, fm, ttm, verbose=verbose)
                     checks = true
                     break
                 end
@@ -200,6 +206,15 @@ function istrait(Trs::Tuple; verbose=false)
 end
 
 ## Helpers for istrait
+
+@doc """make_testtrait makes a trait containing test types instead of
+     'real' types for the trait-parameters and the associated types.""" ->
+function make_testtrait{T<:Trait}(Tr::Type{T})
+    TTr = deparameterize_type(Tr)
+    TestTypes = [_TestTraitPara{TTr.parameters[i].name} for i=1:length(TTr.parameters) ]
+    testtr = TTr{TestTypes...}(_TestTraitPara) # note the _TestTraitPara argument
+end
+
 immutable FakeMethod
     sig::(Any...,)
     tvars::(Any...,)
@@ -224,7 +239,7 @@ end
      {T<:Integer}(T, T, Integer) <<: {T<:Integer}(T, T, T)
      -> false as parametric constraints are not equal
      """ ->
-function isfitting(tmm::Method, fm::Method; verbose=false) # tm=trait-method, fm=function-method
+function isfitting(tmm::Method, fm::Method, testtm::Method; verbose=false) # tm=trait-method, fm=function-method
     println_verb = verbose ? println : x->x
 
     # Make a "copy" of tmm as it may get updated:
@@ -279,6 +294,7 @@ function isfitting(tmm::Method, fm::Method; verbose=false) # tm=trait-method, fm
     # If !(tm.sig<:fm.sig) then tm<<:fm is false
     # but the converse is not true:
     if !(tm.sig<:fm.sig)
+        @show typeof(tm.sig[1])
         println_verb("""Reason fail: !(tm.sig<:fm.sig)
                      tm.sig = $(tm.sig)
                      fm.sig = $(fm.sig)""")
@@ -314,11 +330,15 @@ function isfitting(tmm::Method, fm::Method; verbose=false) # tm=trait-method, fm
     # whether they are fulfilled in function-method.
     tmtvars = isa(tm.tvars,Tuple) ? tm.tvars : (tm.tvars,)
     tvars = isa(tm.tvars,TypeVar) ? (tm.tvars,) : tm.tvars
-    for tv in tvars
+    # However, if one of the tm.tvars is a leaftype, then relax
+    # requirement on fm.tvars to be of the same specific type.  This
+    # is done using testtm.
+    testtvars = isa(testtm.tvars,TypeVar) ? (testtm.tvars,) : testtm.tvars
+    for (i,tv) in enumerate(tvars)
         # find all occurrences in the signature
         locs = find_tvar(tm.sig, tv)
         if !any(locs)
-            error("Bad: the type variable should feature in at least on location.")
+            throw(TraitException("The type variable should feature in at least on location."))
         end
         # Find the tvar in fm which corresponds to tv. 
         ftvs = Any[]
@@ -329,18 +349,36 @@ function isfitting(tmm::Method, fm::Method; verbose=false) # tm=trait-method, fm
                 push!(ftvs,ftv)
             end
         end
-        if length(ftvs)==0
-            # TODO this should pass (bug traitdef_bug1):
-            # g01 => _g01{T<:X}(::T, ::T) = T()
-            # g01(::Int, ::Int) = Int
-            #@test istrait(Tr01{Int}, verbose=true)
 
+        if length(ftvs)==0
+            @show tv, locs
+            ## This should pass, because the trait-parameter is a leaftype:
+            # @traitdef Tr01{X} begin
+            #     g01{T<:X}(T, T) -> T
+            # end
+            # g01(::Int, ::Int) = Int
+            # @assert istrait(Tr01{Int}, verbose=true)
+
+            # find X
+            @show isleaftype(tv.ub)
+            if isleaftype(tv.ub)
+                @show ltype = tv.ub
+                # Now check if the method definition of fm
+                # has the same leaftypes in the same location.
+                @show fm.sig[locs]
+                @show mapreduce(x -> x==ltype, &, true, fm.sig[locs])
+                if mapreduce(x -> x==ltype, &, true, fm.sig[locs])
+                    println_verb("Reason pass: parametric constraints only on leaftypes.")
+                    return true
+                end
+            end
             println_verb("Reason fail: parametric constraints on function method not as severe as on trait-method.")
             return false
         end
         if length(ftvs)>1
-            error("""Not supported if two or more TypeVar appear in the same arguments.
-                  Example f{K,V}(::Dict{K,V}, ::Dict{V,K})""")
+            # TODO: this should be able to pass
+            throw(TraitException("""Not supported yet if two or more TypeVar appear in the same arguments.
+                  Example f{K,V}(::Dict{K,V}, ::Dict{V,K})"""))
         end
         
         # Check that they constrain the same thing in each argument.
@@ -348,8 +386,8 @@ function isfitting(tmm::Method, fm::Method; verbose=false) # tm=trait-method, fm
         # Do this by substituting a concrete type into the respective
         # TypeVars and check that arg(tv')<:arg(ftv')
         for i in find(locs)
-            targ = subs_tvar(tv,      tm.sig[i], _TestType{i})
-            farg = subs_tvar(ftvs[1], fm.sig[i], _TestType{i})
+            targ = subs_tvar(tv,      tm.sig[i], _TestTvar{i})
+            farg = subs_tvar(ftvs[1], fm.sig[i], _TestTvar{i})
             if !(targ<:farg)
                 println_verb("Reason fail: parametric constraints on args $(tm.sig[i]) and $(fm.sig[i]) on different TypeVar locations!")
                 return false
@@ -362,11 +400,11 @@ function isfitting(tmm::Method, fm::Method; verbose=false) # tm=trait-method, fm
 end
 
 # helpers for isfitting
-function subs_tvar{T<:_TestType}(tv::TypeVar, arg::DataType, TestT::Type{T})
+function subs_tvar{T<:_TestTvar}(tv::TypeVar, arg::DataType, TestT::Type{T})
     # Substitute `TestT` for a particular TypeVar `tv` in an argument `arg`.
     #
     # Example:
-    # Array{I<:Int64,N} -> Array{_TestType{23},N}
+    # Array{I<:Int64,N} -> Array{_TestTvar{23},N}
     if isleaftype(arg) || length(arg.parameters)==0 # concrete type or abstract type with no parameters
         return arg
     else # It's a parameterized type: do substitution on all parameters:
@@ -375,8 +413,8 @@ function subs_tvar{T<:_TestType}(tv::TypeVar, arg::DataType, TestT::Type{T})
         return typ{pa...}
     end
 end
-subs_tvar{T<:_TestType}(tv::TypeVar, arg::TypeVar, TestT::Type{T}) = tv===arg ? TestT : arg  # note === this it essential!
-subs_tvar{T<:_TestType}(tv::TypeVar, arg, TestT::Type{T}) = arg # for anything else
+subs_tvar{T<:_TestTvar}(tv::TypeVar, arg::TypeVar, TestT::Type{T}) = tv===arg ? TestT : arg  # note === this it essential!
+subs_tvar{T<:_TestTvar}(tv::TypeVar, arg, TestT::Type{T}) = arg # for anything else
 
 # find_tvar finds index of arguments in a function signature `sig` where a
 # particular TypeVar `tv` features. Example:
@@ -430,7 +468,7 @@ function issubtrait{T1<:Trait}(t1::Type{T1}, t2::Tuple)
         # the empty trait is the super-trait of all traits
         true
     else
-        error("")
+        throw(TraitException(""))
     end
 end
 

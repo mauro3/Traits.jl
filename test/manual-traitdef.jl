@@ -160,6 +160,7 @@ end
 @test !istrait(CTrAs{Int, String})
 
 # parametric methods
+####################
 
 # @traitdef Tr01{X} begin
 #     g01{T<:X}(T, T) -> T
@@ -238,3 +239,34 @@ end
 g03{I<:Integer}(::I, ::Vector{I}) = 1
 @test istrait(Tr03{Integer})
 @test istrait(Tr03{Int})
+
+
+# ## If I ever need to get to the trait parameters, something like this should work:
+# # @traitdef Tr04{X} begin
+# #     g04{T<:X}(T, Vector{T})
+# # end
+# immutable Tr04{X} <: Traits.Trait{()}
+#     methods::Traits.FDict
+#     constraints::Vector{Bool}
+#     assoctyps::Vector{Any}
+#     function Tr04()
+#         A1 = getassoc(X)
+#         new(Traits.FDict(
+#                          g04 => _g04{T<:X}(::T, ::Vector{T}, ::A1) = T()
+#                          ),
+#             Bool[],
+#             [A1]
+#             )
+#     end
+#     function Tr04(::Type{Traits._TestTraitPara})
+#         A1 = Traits._TestAssoc{:A1}
+#         new(Traits.FDict(
+#                          g04 => _g04{T<:X}(::T, ::Vector{T}, ::A1) = T()
+#                          ),
+#             Bool[],
+#             [A1]
+#             )
+#     end
+# end
+# getassoc{T<:Integer}(::Type{T}) = UInt
+# g04{I<:Integer}(::I, ::Vector{I}, ::Integer) = 1

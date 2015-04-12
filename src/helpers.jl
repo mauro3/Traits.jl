@@ -6,7 +6,8 @@ export deparameterize_type
      It is often useful to make an associated type with this to match
      against methods which do not specialize on the type parameters.
      """ ->
-deparameterize_type(A::Type) = eval(A.name.module, A.name.name)::DataType
+deparameterize_type(A::DataType) = eval(A.name.module, A.name.name)::DataType
+deparameterize_type(A::TypeConstructor) = error("TypeConstructor not supported by deparameterize_type.")
 
 # Internal helpers
 ##################
