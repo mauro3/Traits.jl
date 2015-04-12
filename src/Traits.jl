@@ -259,14 +259,6 @@ function isfitting(tmm::Method, fm::Method; verbose=false) # tm=trait-method, fm
     end
 
     
-    # No Vararg methods implement yet
-    if tm.va || fm.va
-        # runtests.jl flag: varag_not_supported_bug
-        #
-        # What do varargs mean?
-        println_verb("Vararg methods not currently supported.  Returning false.")
-        return false
-    end
     ## Check condition A:
     # If there are no type-vars then just compare the signatures:
     if tm.tvars==()
@@ -307,6 +299,16 @@ function isfitting(tmm::Method, fm::Method; verbose=false) # tm=trait-method, fm
         println_verb("Reason pass: length(tm.sig)==1")
         return true
     end
+
+    # # No Vararg methods with type constraints implement yet
+    # if tm.va || fm.va
+    #     # runtests.jl flag: varag_not_supported_bug
+    #     #
+    #     # What do varargs mean?
+    #     println_verb("Vararg methods not currently supported.  Returning false.")
+    #     return false
+    # end
+
 
     # Strategy: go through constraints on trait-method and check
     # whether they are fulfilled in function-method.

@@ -309,7 +309,33 @@ Base.getindex(::T3484675, i::Int) = i
 AssocIsBits{T3484675{Int,4.5,:a}}()
 @test istrait(AssocIsBits{T3484675{Int,4.5,:a}}) # errors because it is assumed that all
                                                  # parameters are TypeVars
+#####
+# Varags
+#####
+@traitdef TT31{X} begin
+    foo31(X, Int...)
+end
+foo31(::String, x::UInt...) = 1
+@test !istrait(TT31{String})
+foo31(::String) = 2 # to avoid ambiguity warnings
+foo31(::String, x::Int...) = 2
+@test istrait(TT31{String})
 
+@traitdef TT32{X} begin
+    foo32(X...)
+end
+foo32(::String) = 1
+@test !istrait(TT32{String})
+foo32(a::String...) = 2 # to avoid ambiguity warnings
+@test istrait(TT32{String})
+
+@traitdef TT33{X} begin
+    foo33{Y<:X}(X, Y...)
+end
+foo33(::String) = 1
+@test !istrait(TT33{String})
+foo33{T<:String}(::String, a::T...) = 2 
+@test istrait(TT33{String})
 
 ####
 # DataType constructors
@@ -334,40 +360,38 @@ end
 
 
 
-if !varag_not_supported_bug
-    @traitdef TT44{D} begin
-        # 
-        Array(Type{D},Any)
-    end
-    @test istrait(TT44{A4758})
-    @test istrait(TT44{A4759})
-    @test istrait(TT44{Dict{Int,Int}})
-    @test istrait(TT44{Set{Int}})
-    @test istrait(TT44{Int})
-    @test istrait(TT44{Array{Int,1}})
-
-
-    # This is the trait for datatypes with Array like constructors:
-    @traitdef TT46{Ar} begin
-        T = Type{eltype(Ar)}
-        Arnp = deparameterize_type(Ar)  # Array stripped of type parameters
-        
-        #Arnp(T, Int64) -> Ar
-        Arnp(T, Int...) -> Ar # see issue #8 & https://github.com/JuliaLang/julia/issues/10642
-        @constraints begin
-            length(Ar.parameters)>1 # need at least two parameters to be array-like, right?
-        end
-    end
-    @test !istrait(TT46{A4758})
-    if Traits.flag_check_return_types
-        @test !istrait(TT46{Dict{Int,Int}})
-    else
-        @test istrait(TT46{Dict{Int,Int}}, verbose=true) # this is a false positive
-    end
-    # @test istrait(TT46{Set{Int}}, verbose=true) this actually works, but not as expected and gives a deprecation warning
-    @test !istrait(TT46{Int})
-    @test istrait(TT46{Array{Int,1}}, verbose=true)
-    # @test istrait(TT46{Array{Int}}, verbose=true) # this does not pass currently because of https://github.com/JuliaLang/julia/issues/10642
-    @test istrait(TT46{Array}, verbose=true)
+@traitdef TT44{D} begin
+    Array(Type{D},Integer) # the standard array constructor, should be working for all Types
 end
+@test istrait(TT44{A4758})
+@test istrait(TT44{A4759})
+@test istrait(TT44{Dict{Int,Int}})
+@test istrait(TT44{Set{Int}})
+@test istrait(TT44{Int})
+@test istrait(TT44{Array{Int,1}})
+
+
+# This is the trait for datatypes with Array like constructors:
+@traitdef TT46{Ar} begin
+    T = Type{eltype(Ar)}
+    Arnp = deparameterize_type(Ar)  # Array stripped of type parameters
+    
+    #Arnp(T, Int64) -> Ar
+    Arnp(T, Int...) -> Ar # see issue #8 & https://github.com/JuliaLang/julia/issues/10642
+    @constraints begin
+        length(Ar.parameters)>1 # need at least two parameters to be array-like, right?
+    end
+end
+@test !istrait(TT46{A4758})
+if Traits.flag_check_return_types
+    @test !istrait(TT46{Dict{Int,Int}})
+else
+    @test istrait(TT46{Dict{Int,Int}}, verbose=true) # this is a false positive
+end
+# @test istrait(TT46{Set{Int}}, verbose=true) this actually works, but not as expected and gives a deprecation warning
+@test !istrait(TT46{Int})
+@test istrait(TT46{Array{Int,1}}, verbose=true)
+# @test istrait(TT46{Array{Int}}, verbose=true) # this does not pass currently because of https://github.com/JuliaLang/julia/issues/10642
+@test istrait(TT46{Array}, verbose=true)
+
 
