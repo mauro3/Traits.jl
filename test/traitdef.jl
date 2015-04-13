@@ -70,7 +70,7 @@ a,b,c = Traits.parsebody(td3.args[end])
     start(X)
 end
 
-## Testing trait definitions
+## Testing trait definitions in commontraits.jl
 @test istrait(Cmp{Int,Int})
 @test istrait(Cmp{Int,Float64})
 @test !istrait(Cmp{Int,String})
