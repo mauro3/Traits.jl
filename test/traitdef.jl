@@ -170,6 +170,7 @@ end
 @test !issubtrait(Tr21{Int}, Tr20{Float64})
 @test !issubtrait((Tr21{Int},), (Tr20{Float64},))
 
+####
 # Test functions parameterized on non-trait parameters.
 ###
 @traitdef Pr0{X} begin
@@ -204,20 +205,49 @@ fn77{Y<:Real}(a::Array,b::Y, c::Y) = a[1]
 fn77{Y<:Number}(a::Array,b::Y, c::Y) = a[1]
 @test istrait(Pr2{Array})
 
+#####
+# Trait functions parameterized on trait parameters
+####
 
 @traitdef Pr3{X} begin
     fn78{T<:X}(T,T)
 end
 fn78(b::Int, c::Int) = b
-if concrete_type_bug
-    @test !istrait(Pr3{Int})  # this should not fail!
-else
-    @test istrait(Pr3{Int})  # this should not fail!
-end
+@test istrait(Pr3{Int})
 fn78(b::Real, c::Real) = b
 @test !istrait(Pr3{Real})
 fn78{T}(b::T, c::T) = b
 @test istrait(Pr3{Real})
+@test istrait(Pr3{Any})
+
+@traitdef Pr04{X} begin
+    fnpr04{T<:X, S<:Integer}(T,T, S, S)
+end
+fnpr04(b::Int, c::Int, ::Int, ::Int) = b
+@test !istrait(Pr04{Int})
+fnpr04{I<:Integer}(b::Int, c::Int, ::I, ::I) = b
+@test istrait(Pr04{Int})
+
+
+@traitdef Pr05{X} begin
+    fnpr05{T<:X, S<:Integer}(Dict{T,T}, Dict{S,T})
+end
+fnpr05{T<:FloatingPoint, S<:Integer}(::Dict{T,T}, ::Dict{S,T}) = 1
+if !two_parameters_in_one_arg_bug
+    @test istrait(Pr05{Float64})
+else
+    @test !istrait(Pr05{Float64})
+end
+
+@traitdef Pr06{X} begin
+    fnpr06{T<:X, S<:Integer}(Dict{T,S}, Dict{S,T})
+end
+fnpr06{T<:FloatingPoint, S<:Integer}(::Dict{T,S}, ::Dict{S,T}) = 1
+if !two_parameters_in_one_arg_bug
+    @test istrait(Pr06{Float64})
+else
+    @test !istrait(Pr06{Float64})
+end
 
 # Test constraints
 ###

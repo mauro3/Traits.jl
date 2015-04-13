@@ -181,11 +181,7 @@ end
 
 
 g01(::Int, ::Int) = Int
-if concrete_type_bug
-    @test !istrait(Tr01{Int}) # == true as constraints Int isleaftype
-else
-    @test istrait(Tr01{Int}) # == true as constraints Int isleaftype
-end
+@test istrait(Tr01{Int}) # == true as constraints Int isleaftype
 @test !istrait(Tr01{Integer})
 g01{I<:Integer}(::I, ::I) = I
 @test istrait(Tr01{Integer}) # == true

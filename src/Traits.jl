@@ -341,8 +341,10 @@ function isfitting(tmm::Method, fm::Method; verbose=false) # tm=trait-method, fm
         end
         if length(ftvs)>1
             # TODO: this should be able to pass
-            throw(TraitException("""Not supported yet if two or more TypeVar appear in the same arguments.
-                  Example f{K,V}(::Dict{K,V}, ::Dict{V,K})"""))
+            println_verb("""Not supported yet if two or more TypeVar appear in the same arguments.
+                         Example f{K,V}(::Dict{K,V}, ::Dict{V,K})
+                         Returning false.""")
+            return false
         end
         
         # Check that they constrain the same thing in each argument.
