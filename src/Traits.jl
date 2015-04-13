@@ -82,12 +82,10 @@ type TraitException <: Exception
     msg::String
 end
 
-# A helper dummy types used in istrait below
+# Helper dummy types used in istrait below
 abstract _TestType{T}
 immutable _TestTvar{T}<:_TestType{T} end # used for TypeVar testing
-immutable _TestTraitPara{T}<:_TestType{T} end # used as dummy Trait parameters
-immutable _TestAssoc{T}<:_TestType{T} end # used as dummy Associated types
-Base.show{T<:_TestType}(io::IO, x::Type{T}) = print(io, string(x.parameters[1])*"_")
+#Base.show{T<:_TestType}(io::IO, x::Type{T}) = print(io, string(x.parameters[1])*"_")
 
 #########
 # istrait, one of the core functions
@@ -141,18 +139,14 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
         return false
     end
 
-    # check call signature of methods:
-
-    # Need a trick to check parameterized methods, see isfitting for details:
-    testtr = tr #make_testtrait(Tr)
-    # Loop over all generic functions in traitdef:
-    for ((gf,_gf), (tgf,_tgf)) in zip(tr.methods, testtr.methods)
+    # Check call signature of all methods:
+    for (gf,_gf) in tr.methods
         # Loop over all methods defined for each function in traitdef
-        for (i,(tm,ttm)) in enumerate(zip(methods(_gf),methods(_tgf))) 
+        for tm in methods(_gf)
             checks = false
             # Only loop over methods which have the right number of arguments:
             for fm in methods(gf, NTuple{length(tm.sig),Any}) 
-                if isfitting(tm, fm, ttm, verbose=verbose)
+                if isfitting(tm, fm, verbose=verbose)
                     checks = true
                     break
                 end
@@ -206,15 +200,6 @@ function istrait(Trs::Tuple; verbose=false)
 end
 
 ## Helpers for istrait
-
-@doc """make_testtrait makes a trait containing test types instead of
-     'real' types for the trait-parameters and the associated types.""" ->
-function make_testtrait{T<:Trait}(Tr::Type{T})
-    TTr = deparameterize_type(Tr)
-    TestTypes = [_TestTraitPara{TTr.parameters[i].name} for i=1:length(TTr.parameters) ]
-    testtr = TTr{TestTypes...}(_TestTraitPara) # note the _TestTraitPara argument
-end
-
 immutable FakeMethod
     sig::(Any...,)
     tvars::(Any...,)
@@ -239,7 +224,7 @@ end
      {T<:Integer}(T, T, Integer) <<: {T<:Integer}(T, T, T)
      -> false as parametric constraints are not equal
      """ ->
-function isfitting(tmm::Method, fm::Method, testtm::Method; verbose=false) # tm=trait-method, fm=function-method
+function isfitting(tmm::Method, fm::Method; verbose=false) # tm=trait-method, fm=function-method
     println_verb = verbose ? println : x->x
 
     # Make a "copy" of tmm as it may get updated:
@@ -316,25 +301,11 @@ function isfitting(tmm::Method, fm::Method, testtm::Method; verbose=false) # tm=
         return true
     end
 
-    # # No Vararg methods with type constraints implement yet
-    # if tm.va || fm.va
-    #     # runtests.jl flag: varag_not_supported_bug
-    #     #
-    #     # What do varargs mean?
-    #     println_verb("Vararg methods not currently supported.  Returning false.")
-    #     return false
-    # end
-
-
     # Strategy: go through constraints on trait-method and check
     # whether they are fulfilled in function-method.
     tmtvars = isa(tm.tvars,Tuple) ? tm.tvars : (tm.tvars,)
     tvars = isa(tm.tvars,TypeVar) ? (tm.tvars,) : tm.tvars
-    # However, if one of the tm.tvars is a leaftype, then relax
-    # requirement on fm.tvars to be of the same specific type.  This
-    # is done using testtm.
-    testtvars = isa(testtm.tvars,TypeVar) ? (testtm.tvars,) : testtm.tvars
-    for (i,tv) in enumerate(tvars)
+    for tv in tvars
         # find all occurrences in the signature
         locs = find_tvar(tm.sig, tv)
         if !any(locs)
@@ -351,23 +322,16 @@ function isfitting(tmm::Method, fm::Method, testtm::Method; verbose=false) # tm=
         end
 
         if length(ftvs)==0
-            @show tv, locs
             ## This should pass, because the trait-parameter is a leaftype:
             # @traitdef Tr01{X} begin
             #     g01{T<:X}(T, T) -> T
             # end
             # g01(::Int, ::Int) = Int
             # @assert istrait(Tr01{Int}, verbose=true)
-
-            # find X
-            @show isleaftype(tv.ub)
             if isleaftype(tv.ub)
-                @show ltype = tv.ub
-                # Now check if the method definition of fm
-                # has the same leaftypes in the same location.
-                @show fm.sig[locs]
-                @show mapreduce(x -> x==ltype, &, true, fm.sig[locs])
-                if mapreduce(x -> x==ltype, &, true, fm.sig[locs])
+                # Check if the method definition of fm has the same
+                # leaftypes in the same location.
+                if mapreduce(x -> x==tv.ub, &, true, fm.sig[locs])
                     println_verb("Reason pass: parametric constraints only on leaftypes.")
                     return true
                 end
