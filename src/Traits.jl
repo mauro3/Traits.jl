@@ -113,7 +113,11 @@ istraittype(x::Tuple) = mapreduce(istraittype, &, x)
      `istrait( (Tr1{Int, Float64}, Tr2{Int}) )`
      """ ->
 function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
-    println_verb = verbose ? println : x->x
+    if verbose
+        println_verb(x) = println("Checking $Tr: " * x)
+    else
+        println_verb = x->x
+    end
 
     if !hasparameters(Tr)
         throw(TraitException("Trait $Tr has no type parameters."))
@@ -141,6 +145,7 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
 
     # Check call signature of all methods:
     for (gf,_gf) in tr.methods
+        println_verb("Checking function $gf")
         # Loop over all methods defined for each function in traitdef
         for tm in methods(_gf)
             checks = false
@@ -162,7 +167,7 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
     # check return-type.  Specifed return type tret and return-type of
     # the methods frets should fret<:tret.  This is backwards to
     # argument types...
-        if flag_check_return_types
+    if flag_check_return_types
         for (gf,_gf) in tr.methods
             for tm in methods(_gf) # loop over all methods defined for each function in traitdef
                 @show tret_typ = Base.return_types(_gf, tm.sig) # trait-defined return type
@@ -267,10 +272,22 @@ function isfitting(tmm::Method, fm::Method; verbose=false) # tm=trait-method, fm
             # one argument, then return false.
             fmtvars = isa(fm.tvars,TypeVar) ? (fm.tvars,) : fm.tvars
             for ftv in fmtvars
-                if sum(find_tvar(fm.sig, ftv))>1
-                    println_verb("Reason fail: no tvars-constraints in trait-method but in function-method.")
+                @show typs = tm.sig[find_tvar(fm.sig, ftv)]
+                if length(typs)==0
+                    println_verb("Reason fail: this method is not callable because: static parameter does not occur in signature.")
                     return false
                 end
+                    
+                if length(typs)>1 && !( all(map(isleaftype, typs)) && all(map(x -> x==typs[1], typs)) )
+#                if !( all(map(isleaftype, typs)) && all(map(x -> x==typs[1], typs)) )
+                    println_verb("Reason fail: tvars-constraints in function-method are on non-leaftypes in traitmethod.")
+                    return false
+                end                    
+                
+                # if sum(find_tvar(fm.sig, ftv))>1
+                #     println_verb("Reason fail: no tvars-constraints in trait-method but in function-method.")
+                #     return false
+                # end
             end
         end
         println_verb("Reason fail/pass: no tvars in trait-method. Result: $(tm.sig<:fm.sig)")

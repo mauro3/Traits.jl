@@ -241,6 +241,14 @@ end
 fnpr06{T<:FloatingPoint, S<:Integer}(::Dict{T,S}, ::Dict{S,T}) = 1
 @test istrait(Pr06{Float64})
 
+
+@traitdef Pr07{X} begin
+    fnpr07(X, X, Integer)
+end
+fnpr07{T<:Integer}(::T, ::T, ::Integer) = 1
+@test !istrait(Pr07{Integer})
+@test istrait(Pr07{Int})
+
 # Test constraints
 ###
 @traitdef Cr20{X} begin
