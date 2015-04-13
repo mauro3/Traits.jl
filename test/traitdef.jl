@@ -2,9 +2,15 @@
 td = :(@traitdef Cr20{X} begin
     length(X)
 end)
-a,b = Traits.parsebody(td.args[end])
-@test a==Expr(:dict, :(length=>((X,),Any)))
+a,b,c = Traits.parsebody(td.args[end])
+# a is not hard to test because of the random gensym
+@test a.head==:call
+@test a.args[1]==:(Traits.FDict)
+@test a.args[2].head==:(=>)
+@test a.args[2].args[1] == :length
+@test a.args[2].args[2].args[2] == :(Any())
 @test b==:(Bool[])
+@test c.args[1]==:(assoctyps = Any[])
 
 td0 = :(@traitdef Cr20{X} begin
     length(X)
@@ -14,7 +20,6 @@ td0 = :(@traitdef Cr20{X} begin
     end
 end)
 a,b = Traits.parsebody(td0.args[end])
-@test a==Expr(:dict, :(length=>((X,),Any)))
 @test b==:(Bool[(string(X.name))[1] == 'I'])
 
 td1 = :(@traitdef Cr20{X} begin
@@ -25,7 +30,6 @@ td1 = :(@traitdef Cr20{X} begin
     end
 end)
 a,b = Traits.parsebody(td1.args[end])
-@test a==Expr(:dict, :(length=>((X,),Int)))
 @test b==:(Bool[(string(X.name))[1] == 'I'])
 
 td2 = :(@traitdef Cr20{X,Y} begin
@@ -38,9 +42,6 @@ td2 = :(@traitdef Cr20{X,Y} begin
     end
 end)
 a,b,c = Traits.parsebody(td2.args[end])
-@test a==Expr(:dict, :((+) => ((X,Y),(Int,Float64))),
-                     :((-) => ((X,Y),Int)),
-              :((/) => ((X,Y),Int)))
 @test b==:(Bool[(string(X.name))[1] == 'I'])
 @test c.head==:block
 
@@ -48,20 +49,19 @@ td3 = :(@traitdef Cr20{X,Y} begin
     fn(X) -> Type{X}
 end)
 a,b,c = Traits.parsebody(td3.args[end])
-@test a==Expr(:dict, :((fn) => ((X,),Type{X})))
 
-td4 = :(@traitdef Cr20{X} begin
-    fn{Y<:II}(X,Y) -> Type{X}
-    fn76{K<:FloatingPoint, I<:Integer}(X, Vector{I}, Vector{K}) -> I
-end)
-a,b,c = Traits.parsebody(td4.args[end])
-v = :(TypeVar(symbol("Y"),II))
-t = :(TypeVar(symbol("I"),Integer))
-k = :(TypeVar(symbol("K"),FloatingPoint))
+# td4 = :(@traitdef Cr20{X} begin
+#     fn{Y<:II}(X,Y) -> Type{X}
+#     fn76{K<:FloatingPoint, I<:Integer}(X, Vector{I}, Vector{K}) -> I
+# end)
+# a,b,c = Traits.parsebody(td4.args[end])
+# v = :(TypeVar(symbol("Y"),II))
+# t = :(TypeVar(symbol("I"),Integer))
+# k = :(TypeVar(symbol("K"),FloatingPoint))
 
-@test a==Expr(:dict, :(fn=>((X,$v),Type{X})),
-                     :(fn76=>((X,Vector{$t},Vector{$k}),$t))
-              )
+# @test a==Expr(:dict, :(fn=>((X,$v),Type{X})),
+#                      :(fn76=>((X,Vector{$t},Vector{$k}),$t))
+#               )
 
 
 ## test making traits
@@ -76,15 +76,15 @@ end
 @test !istrait(Cmp{Int,String})
 
 
-coll = [Vector{Int}, Dict{Int,Int}, Set{Int}]
+coll = [Vector, Vector{Int}, Dict{Int}, Dict{Int,Int}, Set{Int}]
 iter = [Traits.GenerateTypeVars{:upcase},  Int] #todo: add String,
 if method_exists_bug1
-    assoc = [] #todo add again: Dict{Int,Int}] # , ObjectIdDict]
+    dicts = [] #todo add again: Dict{Int,Int}] # , ObjectIdDict]
 else
-    assoc = [Array{Int,2}, Dict{Int,Int}, StepRange{Int,Int}]
+    dicts = [Dict{Int}, Dict{Int,Int}] # Dict does not work, ObjectIdDict does not fulfill the trait
 end
 index = [Array{Int,2}, StepRange{Int,Int}]
-
+c =1
 for c in coll
     @test istrait(Collection{c}, verbose=true)
     @test istrait(Iter{c}, verbose=true)
@@ -98,7 +98,7 @@ for c in iter
     @test istrait(Iter{c}, verbose=true)
 end
 
-for c in assoc
+for c in dicts
     @test istrait(Assoc{c}, verbose=true)
 end
 
@@ -119,6 +119,12 @@ for a1 in arith
 end
 
 ## test trait definition
+@traitdef FF{X} begin
+    f948576()
+end
+@test !istrait(FF{Int})
+f948576() = 1
+@test istrait(FF{Int})
 
 @traitdef Tr20{X} begin
     length(X) -> Bool
@@ -157,19 +163,15 @@ end
 @test issubtrait(Tr13, Tr20)
 
 @test issubtrait((Tr21,), (Tr20,))
-@test issubtrait((Tr21,Tr11), (Tr20,Tr10))
+@test  issubtrait((Tr21,Tr11), (Tr20,Tr10))
+@test !issubtrait((Tr21,Tr11), (Tr10,Tr20)) # todo: this should be true, as order shouldn't matter
 @test issubtrait((Tr11,Tr21), (Tr10,Tr20))
-@test !issubtrait((Tr21,Tr11), (Tr10,Tr20)) # todo: this should be true, I think
 
 @test !issubtrait(Tr21{Int}, Tr20{Float64})
 @test !issubtrait((Tr21{Int},), (Tr20{Float64},))
 
-#--> need to be able to do this in terms of type variables.
-
-# test functions parameterized on non-trait parameters.  This isn't currently working:
-# https://github.com/mauro3/Traits.jl/issues/2
-# https://github.com/JuliaLang/julia/issues/9043
-
+# Test functions parameterized on non-trait parameters.
+###
 @traitdef Pr0{X} begin
     fn75{Y <: Integer}(X, Y) -> Y
 end
@@ -181,9 +183,6 @@ else
 end
 @test !istrait(Pr0{Int8})
 
-fn75(x::UInt8, y::Int8) = y+x
-@test !istrait(Pr0{UInt8})  # this works, not because only for y::Int8 not for all Integers
-
 @traitdef Pr1{X}  begin
     fn76{I<:Integer}(X, Vector{I}) -> I
 end
@@ -193,20 +192,35 @@ if method_exists_bug2
 else
     @test istrait(Pr1{UInt8})
 end
-@test !istrait(Pr1{UInt8})
 
 @traitdef Pr2{X} begin
     fn77{Y<:Number}(X,Y,Y) -> Y
 #    fn77{Y}(X)
 end
 fn77(a::Array,b::Int, c::Float64) = a[1]
-if method_exists_bug2
-    @test !istrait(Pr2{Array})
-else
-    @test istrait(Pr2{Array})
-end
-# test constraints
+@test !istrait(Pr2{Array})
+fn77{Y<:Real}(a::Array,b::Y, c::Y) = a[1]
+@test !istrait(Pr2{Array})
+fn77{Y<:Number}(a::Array,b::Y, c::Y) = a[1]
+@test istrait(Pr2{Array})
 
+
+@traitdef Pr3{X} begin
+    fn78{X}(X,X)
+end
+fn78(b::Int, c::Int) = b
+if concrete_type_bug
+    @test !istrait(Pr3{Int})  # this should not fail!
+else
+    @test istrait(Pr3{Int})  # this should not fail!
+end
+fn78(b::Real, c::Real) = b
+@test !istrait(Pr3{Real})
+fn78{T}(b::T, c::T) = b
+@test istrait(Pr3{Real})
+
+# Test constraints
+###
 @traitdef Cr20{X} begin
     length(X) -> Any
     
@@ -214,8 +228,6 @@ end
         string(X.name)[1]=='I'
     end
 end
-
-@test Cr20{Int}().methods==Dict(length => ((Int,),Any))
 
 @test !istrait(Cr20{Float32})
 @test istrait(Cr20{Int})
@@ -309,32 +321,53 @@ AssocIsBits{T3484675{Int,4.5,:a}}()
     D() -> D
 end
 type A4758 end
+type A4759
+    a
+end
 
 @test istrait(TT45{A4758})
+@test !istrait(TT45{A4759})
 @test istrait(TT45{Dict{Int,Int}})
 @test istrait(TT45{Set{Int}})
 @test !istrait(TT45{Int})
 @test !istrait(TT45{Array{Int,1}})
 
-# This is the trait for datatypes with Array like constructors:
-@traitdef TT46{Ar} begin
-    T = Type{eltype(Ar)}
-    Arnp = deparameterize_type(Ar)  # Array stripped of type parameters
-    
-    #Arnp(T, Int64) -> Ar
-    Arnp(T, Int...) -> Ar # see issue #8 & https://github.com/JuliaLang/julia/issues/10642
-    @constraints begin
-        length(Ar.parameters)>1 # need at least two parameters to be array-like, right?
+
+
+if !varag_not_supported_bug
+    @traitdef TT44{D} begin
+        # 
+        Array(Type{D},Any)
     end
+    @test istrait(TT44{A4758})
+    @test istrait(TT44{A4759})
+    @test istrait(TT44{Dict{Int,Int}})
+    @test istrait(TT44{Set{Int}})
+    @test istrait(TT44{Int})
+    @test istrait(TT44{Array{Int,1}})
+
+
+    # This is the trait for datatypes with Array like constructors:
+    @traitdef TT46{Ar} begin
+        T = Type{eltype(Ar)}
+        Arnp = deparameterize_type(Ar)  # Array stripped of type parameters
+        
+        #Arnp(T, Int64) -> Ar
+        Arnp(T, Int...) -> Ar # see issue #8 & https://github.com/JuliaLang/julia/issues/10642
+        @constraints begin
+            length(Ar.parameters)>1 # need at least two parameters to be array-like, right?
+        end
+    end
+    @test !istrait(TT46{A4758})
+    if Traits.flag_check_return_types
+        @test !istrait(TT46{Dict{Int,Int}})
+    else
+        @test istrait(TT46{Dict{Int,Int}}, verbose=true) # this is a false positive
+    end
+    # @test istrait(TT46{Set{Int}}, verbose=true) this actually works, but not as expected and gives a deprecation warning
+    @test !istrait(TT46{Int})
+    @test istrait(TT46{Array{Int,1}}, verbose=true)
+    # @test istrait(TT46{Array{Int}}, verbose=true) # this does not pass currently because of https://github.com/JuliaLang/julia/issues/10642
+    @test istrait(TT46{Array}, verbose=true)
 end
-@test !istrait(TT46{A4758})
-if Traits.flag_check_return_types
-    @test !istrait(TT46{Dict{Int,Int}})
-else
-    @test istrait(TT46{Dict{Int,Int}}, verbose=true) # this is a false positive
-end
-# @test istrait(TT46{Set{Int}}, verbose=true) this actually works, but not as expected and gives a deprecation warning
-@test !istrait(TT46{Int})
-@test istrait(TT46{Array{Int,1}}, verbose=true)
-# @test istrait(TT46{Array{Int}}, verbose=true) # this does not pass currently because of https://github.com/JuliaLang/julia/issues/10642
-@test istrait(TT46{Array}, verbose=true)
+

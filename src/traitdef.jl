@@ -6,6 +6,7 @@
 #
 # It looks like
 # @traitdef Cmp{X,Y} <: Eq{X,Y} begin
+#     T = eltype(X) # associated type
 #     isless(x,y) -> Bool
 #     @constraints begin
 #         X==Y
@@ -95,7 +96,7 @@ function parsebody(body::Expr)
     isassoc(ex::Expr) = ex.head==:(=) # associated types
     isconstraints(ex::Expr) = ex.head==:macrocall # constraints
     
-    outfns = Expr(:dict)
+    outfns = :(Traits.FDict())
     constr = :(Bool[])
     assoc = quote end
     for ln in Lines(body)
@@ -132,23 +133,33 @@ function parseconstraints!(constr, block)
 end
 
 function parsefnstypes!(outfns, ln)
+    # parse one line containing a function definition
     function parsefn(def)
         # Parse to get function signature.
         # parses f(X,Y), f{X <:T}(X,Y) and X+Y
-        tvars = Any[]
-        if isa(def.args[1], Symbol) # f(X,Y)
+        # into f and _f(...)
+
+        #        getsymbol = gensym
+        getsymbol(fn) = symbol("__"*string(fn))
+        
+        _fn = deepcopy(def)
+        if isa(def.args[1], Symbol) # f(X,Y) or X+Y
             fn = def.args[1]
+            _fn.args[1] = getsymbol(fn)
         elseif def.args[1].head==:curly # f{X}(X,Y)
             fn = def.args[1].args[1]
-            # get
-            tvars = def.args[1].args[2:end]
+            _fn.args[1].args[1] = getsymbol(fn)
         else
             throw(TraitException(
-                             "Something went wrong parsing the trait definition body with line:\n$ln"))
+                  "Something went wrong parsing the trait function definition:\n$fn"))
         end
-        argtype = :()
-        append!(argtype.args, def.args[2:end])
-        return fn, argtype, tvars
+        # transform X->::X
+        for i=2:length(_fn.args)
+            @show _fn.args[i]
+            _fn.args[i] = :(::$(_fn.args[i]))
+        end
+        @show fn, _fn
+        return fn, _fn
     end
     function parseret!(rettype, ln)
         # parse to get return types
@@ -156,11 +167,10 @@ function parsefnstypes!(outfns, ln)
             ln = ln.args[end]
         end
         tmp = rettype.args
-        rettype.args = Any[]
-        push!(rettype.args, ln.args[end])
+        rettype.args = Any[] # per-pend
+        push!(rettype.args, :($(ln.args[end])())) # e.g. Bool(), the () is for return_types to work
         append!(rettype.args, tmp)
     end
-
     
     rettype = :()
     tuplereturn = false
@@ -168,13 +178,15 @@ function parsefnstypes!(outfns, ln)
         tuplereturn = true
         # several ret-types:
         # f1(X,Y) -> X,Y
-        append!(rettype.args, ln.args[2:end])
+        for r in ln.args[2:end]
+            push!(rettype.args, :($r()))
+        end
         ln = ln.args[1]
     end
     
     if ln.head==:(->) # f1(X,Y) -> x
         parseret!(rettype, ln)
-        fn, argtype, tvars = parsefn(ln.args[1])
+        fn, _fn = parsefn(ln.args[1])
     elseif ln.head==:call # either f1(X,Y) or X + Y -> Z
         if isa(ln.args[end], Expr) && ln.args[end].head==:(->) # X + Y -> Z
             def = Expr(:call)
@@ -187,37 +199,22 @@ function parsefnstypes!(outfns, ln)
             parseret!(rettype, ln)
         else # f1(X,Y)
             def = ln
-            rettype =  :(Any,)
+            rettype =  :(Any(),)
         end
-        fn, argtype, tvars = parsefn(def)
+        fn, _fn = parsefn(def)
     else
         throw(TraitException(
                              "Something went wrong parsing the trait definition body with line:\n$ln"))
     end
-    # replace types with constraints by TypeVars
-    tmp = Any[]
-    for t in tvars
-        if isa(t,Symbol)
-            #error("Having a ")
-            push!(tmp,t)
-        else
-            push!(tmp,t.args[1])
-        end
-    end
-    #    trans = Dict(zip([t.args[1] for t in tvars], tvars))  # this will error if there is a type-var without constraints!
-    trans = Dict(zip(tmp,tvars))
-    translate!(argtype.args, trans)
-    tvar2tvar!(argtype.args)
-    subt2tvar!(rettype.args)
-    translate!(rettype.args, trans)
-    tvar2tvar!(rettype.args)
 
     # if return is not a tuple, ditch the tuple
     if !tuplereturn
         rettype = rettype.args[1]
     end
 
-    push!(outfns.args, :($fn => ($argtype, $rettype)))
+    # make _fn
+    _fn = :($_fn = $rettype)
+    push!(outfns.args, :($fn => $_fn))
 end
 
 # 3) piece it together
@@ -274,7 +271,7 @@ macro traitdef(head, body)
     # make sure a generic function of all associated types exisits
     
     traitbody = quote
-        methods::Dict{Union(Function,DataType), Tuple}
+        methods::Traits.FDict
         constraints::Vector{Bool}
         assoctyps::Vector{Any}
         function $((name))()

@@ -72,9 +72,9 @@ length(tmp)==length(implfns) || error("Duplicate method definition(s)")
 # check right number of defs
 length(D2{T1,T2}().methods)==length(implfns) || error("Not right number of method definitions")
 # check that the signature of fns agrees with D2{T1,T2}().methods
-for (fn,sig) in D2{T1,T2}().methods
+for (fn,_fn) in D2{T1,T2}().methods
     # for now just check length
-    if length(sig)!=length(get_fnsig(implfns[fn])) 
+    if length(_fn.env.defs.sig)!=length(get_fnsig(implfns[fn])) 
         error("""Method definition:
                  $fn  $sig
                  does not match implementation:
