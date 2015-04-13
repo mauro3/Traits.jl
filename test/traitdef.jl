@@ -233,21 +233,13 @@ fnpr04{I<:Integer}(b::Int, c::Int, ::I, ::I) = b
     fnpr05{T<:X, S<:Integer}(Dict{T,T}, Dict{S,T})
 end
 fnpr05{T<:FloatingPoint, S<:Integer}(::Dict{T,T}, ::Dict{S,T}) = 1
-if !two_parameters_in_one_arg_bug
-    @test istrait(Pr05{Float64})
-else
-    @test !istrait(Pr05{Float64})
-end
+@test istrait(Pr05{Float64})
 
 @traitdef Pr06{X} begin
     fnpr06{T<:X, S<:Integer}(Dict{T,S}, Dict{S,T})
 end
 fnpr06{T<:FloatingPoint, S<:Integer}(::Dict{T,S}, ::Dict{S,T}) = 1
-if !two_parameters_in_one_arg_bug
-    @test istrait(Pr06{Float64})
-else
-    @test !istrait(Pr06{Float64})
-end
+@test istrait(Pr06{Float64})
 
 # Test constraints
 ###

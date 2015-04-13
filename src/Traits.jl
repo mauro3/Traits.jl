@@ -339,25 +339,22 @@ function isfitting(tmm::Method, fm::Method; verbose=false) # tm=trait-method, fm
             println_verb("Reason fail: parametric constraints on function method not as severe as on trait-method.")
             return false
         end
-        if length(ftvs)>1
-            # TODO: this should be able to pass
-            println_verb("""Not supported yet if two or more TypeVar appear in the same arguments.
-                         Example f{K,V}(::Dict{K,V}, ::Dict{V,K})
-                         Returning false.""")
-            return false
-        end
         
         # Check that they constrain the same thing in each argument.
         # E.g. this should fail: {K,V}(::Dict{K,V}, T) <<: {T}(::Dict{V,K}, T).
         # Do this by substituting a concrete type into the respective
         # TypeVars and check that arg(tv')<:arg(ftv')
-        for i in find(locs)
-            targ = subs_tvar(tv,      tm.sig[i], _TestTvar{i})
-            farg = subs_tvar(ftvs[1], fm.sig[i], _TestTvar{i})
-            if !(targ<:farg)
-                println_verb("Reason fail: parametric constraints on args $(tm.sig[i]) and $(fm.sig[i]) on different TypeVar locations!")
-                return false
+        checks = false
+        for ft in ftvs
+            for i in find(locs)
+                targ = subs_tvar(tv,      tm.sig[i], _TestTvar{i})
+                farg = subs_tvar(ft, fm.sig[i], _TestTvar{i})
+                checks = checks || (targ<:farg)
             end
+        end
+        if !checks
+            println_verb("Reason fail: parametric constraints on args $(tm.sig[i]) and $(fm.sig[i]) on different TypeVar locations!")
+            return false
         end
     end
 
@@ -395,12 +392,12 @@ function find_tvar(sig::Tuple, tv)
     return out
 end
 find_tvar(sig::TypeVar, tv) = sig===tv ? [true] : [false]   # note ===, this it essential!
-function find_tvar(sig::DataType, tv)
-    isleaftype(sig) && return [false]
-    ns = length(sig.parameters)
+function find_tvar(arg::DataType, tv)
+    isleaftype(arg) && return [false]
+    ns = length(arg.parameters)
     out = false
     for i=1:ns
-        out = out || any(find_tvar(sig.parameters[i], tv))
+        out = out || any(find_tvar(arg.parameters[i], tv))
     end
     return [out]
 end

@@ -8,7 +8,6 @@ method_exists_bug2 = false # see https://github.com/JuliaLang/julia/issues/9043 
 function_types_bug1 = true # set to false if function types get implemented in Julia
 # Traits.jl issues:
 dispatch_bug1 = true # in traitdispatch.jl
-two_parameters_in_one_arg_bug = true
 
 # src/Traits.jl tests
 type A1 end
