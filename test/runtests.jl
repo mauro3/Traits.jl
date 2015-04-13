@@ -9,6 +9,9 @@ function_types_bug1 = true # set to false if function types get implemented in J
 # Traits.jl issues:
 dispatch_bug1 = true # in traitdispatch.jl
 
+# how much output to print
+verbose=false
+
 # src/Traits.jl tests
 type A1 end
 type A2 end

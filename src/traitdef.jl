@@ -155,10 +155,8 @@ function parsefnstypes!(outfns, ln)
         end
         # transform X->::X
         for i=2:length(_fn.args)
-            @show _fn.args[i]
             _fn.args[i] = :(::$(_fn.args[i]))
         end
-        @show fn, _fn
         return fn, _fn
     end
     function parseret!(rettype, ln)

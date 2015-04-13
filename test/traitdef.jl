@@ -86,35 +86,33 @@ end
 index = [Array{Int,2}, StepRange{Int,Int}]
 c =1
 for c in coll
-    @test istrait(Collection{c}, verbose=true)
-    @test istrait(Iter{c}, verbose=true)
-    @test istrait(IterColl{c}, verbose=true)
+    @test istrait(Collection{c}, verbose=verbose)
+    @test istrait(Iter{c}, verbose=verbose)
+    @test istrait(IterColl{c}, verbose=verbose)
 end
-println("""After fix of https://github.com/JuliaLang/julia/issues/9135
-        uncomment following line again and in commontraits.jl""")
-# @test !istrait(Indexable{Set})
+@test !istrait(Indexable{Set})
 
 for c in iter
-    @test istrait(Iter{c}, verbose=true)
+    @test istrait(Iter{c}, verbose=verbose)
 end
 
 for c in dicts
-    @test istrait(Assoc{c}, verbose=true)
+    @test istrait(Assoc{c}, verbose=verbose)
 end
 
 for c in index
-    @test istrait(Indexable{c}, verbose=true)
+    @test istrait(Indexable{c}, verbose=verbose)
 end
 
-@test istrait(Iter{Array}, verbose=true)
-@test istrait(Iter{ASCIIString}, verbose=true)
-@test istrait(Iter{Int}, verbose=true)
+@test istrait(Iter{Array}, verbose=verbose)
+@test istrait(Iter{ASCIIString}, verbose=verbose)
+@test istrait(Iter{Int}, verbose=verbose)
 @test !istrait(Iter{Nothing})
 
 arith = [Int, Float64, Rational{Int}]
 for a1 in arith
     for a2 in arith
-        @test istrait(Arith{a1,a2}, verbose=true)
+        @test istrait(Arith{a1,a2}, verbose=verbose)
     end
 end
 
@@ -416,12 +414,12 @@ end
 if Traits.flag_check_return_types
     @test !istrait(TT46{Dict{Int,Int}})
 else
-    @test istrait(TT46{Dict{Int,Int}}, verbose=true) # this is a false positive
+    @test istrait(TT46{Dict{Int,Int}}, verbose=verbose) # this is a false positive
 end
-# @test istrait(TT46{Set{Int}}, verbose=true) this actually works, but not as expected and gives a deprecation warning
+# @test istrait(TT46{Set{Int}}, verbose=verbose) this actually works, but not as expected and gives a deprecation warning
 @test !istrait(TT46{Int})
-@test istrait(TT46{Array{Int,1}}, verbose=true)
-# @test istrait(TT46{Array{Int}}, verbose=true) # this does not pass currently because of https://github.com/JuliaLang/julia/issues/10642
-@test istrait(TT46{Array}, verbose=true)
+@test istrait(TT46{Array{Int,1}}, verbose=verbose)
+# @test istrait(TT46{Array{Int}}, verbose=verbose) # this does not pass currently because of https://github.com/JuliaLang/julia/issues/10642
+@test istrait(TT46{Array}, verbose=verbose)
 
 

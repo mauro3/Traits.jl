@@ -170,12 +170,15 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
     if flag_check_return_types
         for (gf,_gf) in tr.methods
             for tm in methods(_gf) # loop over all methods defined for each function in traitdef
-                @show tret_typ = Base.return_types(_gf, tm.sig) # trait-defined return type
-                if length(tret_typ)!=1
+                tret_typ = Base.return_types(_gf, tm.sig) # trait-defined return type
+                if length(tret_typ)==0
+                    continue # this means the signature contains None which is not compatible with return types
+                    # TODO: introduce a specical type signalling that no return type was given.
+                elseif length(tret_typ)>1
                     throw(TraitException("Querying the return type of the trait-method $tm did not return exactly one return type: $tret_typ"))
                 end
                 tret_typ = tret_typ[1]
-                @show fret_typ = Base.return_types(gf, tm.sig)
+                fret_typ = Base.return_types(gf, tm.sig)
                 # at least one of the return types need to be a subtype of tret_typ
                 checks = false
                 for fr in fret_typ
@@ -289,7 +292,6 @@ function isfitting(tmm::Method, fm::Method; verbose=false) # tm=trait-method, fm
     # If !(tm.sig<:fm.sig) then tm<<:fm is false
     # but the converse is not true:
     if !(tm.sig<:fm.sig)
-        @show typeof(tm.sig[1])
         println_verb("""Reason fail: !(tm.sig<:fm.sig)
                      tm.sig = $(tm.sig)
                      fm.sig = $(fm.sig)""")

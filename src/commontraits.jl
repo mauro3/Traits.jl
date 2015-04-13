@@ -44,9 +44,8 @@ end
 @traitdef Indexable{X} <:Collection{X} begin
     El = eltype(X)
     
-    # TODO issue https://github.com/JuliaLang/julia/issues/9135:
-    #getindex(X, All)
-    #setindex!(X, El, All)
+    getindex(X, None)  # when using None no return types can be used...
+    setindex!(X, El, None)
     
     length(X) -> Integer
     # automatically provided:

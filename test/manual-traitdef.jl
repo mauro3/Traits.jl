@@ -34,7 +34,7 @@ end
 @test traitgetsuper(Tr3{A1,A2})==(Tr1{A1},Tr2{A1,A2})
 
 # any type is part of a unconstrained trait:
-@test istrait(Tr1{Int}, verbose=true)
+@test istrait(Tr1{Int}, verbose=verbose)
 @test istrait(Tr2{DataType,Int})
 @test istrait(Tr3{String,DataType})
 @test_throws TraitException istrait(Tr3{:a,7})  # maybe this should error?
@@ -55,7 +55,7 @@ immutable D1{X1} <: Traits.Trait{()}
     end
 end
 
-@test istrait(D1{Int}, verbose=true)
+@test istrait(D1{Int}, verbose=verbose)
 @test !istrait(D1{String})
 
 immutable D2{X1,X2} <: Traits.Trait{(D1{X1}, D1{X2})}

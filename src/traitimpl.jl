@@ -122,7 +122,8 @@ macro traitimpl(head, body)
     trait = eval_curmod(trait_expr)
 
     ## Check supertraits are implemented:
-    if !(istrait(traitgetsuper(trait); verbose=true))
+    if !istrait(traitgetsuper(trait))
+        istrait(traitgetsuper(trait); verbose=true)
         throw(TraitException("""Not all supertraits of $trait are implemented.
              Implement them first."""))
     end
@@ -138,6 +139,6 @@ macro traitimpl(head, body)
     end
     
     ## Assert that the implementation went smoothly
-    push!(out.args, :(@assert istrait($trait_expr, verbose=true)))
+    push!(out.args, :(istrait($trait_expr) ? nothing :  @assert istrait($trait_expr, verbose=true)))
     return esc(out)
 end
