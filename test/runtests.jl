@@ -5,6 +5,8 @@ using Traits
 # Julia issues:
 method_exists_bug1 = false # see https://github.com/JuliaLang/julia/issues/8959
 method_exists_bug2 = false # see https://github.com/JuliaLang/julia/issues/9043 and https://github.com/mauro3/Traits.jl/issues/2
+# these two are not relevant anymore as method_exists is not used anymore
+
 function_types_bug1 = true # set to false if function types get implemented in Julia
 # Traits.jl issues:
 dispatch_bug1 = true # in traitdispatch.jl

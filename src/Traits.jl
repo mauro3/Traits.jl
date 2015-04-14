@@ -171,6 +171,8 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
         end
     end
 
+    # TODO: only check return-types for methods which passed call-signature checks.
+    
     # check return-type.  Specifed return type tret and return-type of
     # the methods frets should fret<:tret.  This is backwards to
     # argument types checking above.

@@ -280,8 +280,9 @@ fnpr12{T<:Integer}(::T, ::Vector{T}, ::Integer) = 1
 
 check_return_types(true)
 
+####
 # Test constraints
-###
+####
 @traitdef Cr20{X} begin
     length(X) -> Any
     
