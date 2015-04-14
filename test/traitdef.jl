@@ -86,6 +86,7 @@ end
 index = [Array{Int,2}, StepRange{Int,Int}]
 c =1
 for c in coll
+#    @show Collection{c}() # heisenbug protection
     @test istrait(Collection{c}, verbose=verbose)
     @test istrait(Iter{c}, verbose=verbose)
     @test istrait(IterColl{c}, verbose=verbose)
@@ -206,7 +207,7 @@ fn77{Y<:Number}(a::Array,b::Y, c::Y) = a[1]
 #####
 # Trait functions parameterized on trait parameters
 ####
-
+check_return_types(false)
 @traitdef Pr3{X} begin
     fn78{T<:X}(T,T)
 end
@@ -246,6 +247,38 @@ end
 fnpr07{T<:Integer}(::T, ::T, ::Integer) = 1
 @test !istrait(Pr07{Integer})
 @test istrait(Pr07{Int})
+
+# function parameters only one of the methods
+@traitdef Pr08{X} begin
+    fnpr08(X, Vector{X}, Integer)
+end
+fnpr08{T<:Integer}(::T, ::Vector{T}, ::Integer) = 1
+@test !istrait(Pr08{Integer})
+@test istrait(Pr08{Int})
+
+@traitdef Pr10{X} begin
+    fnpr10{T<:X}(T, Vector{T}, Integer)
+end
+fnpr10(::Int, ::Vector{Int}, ::Integer) = 1
+@test !istrait(Pr10{Integer})
+@test istrait(Pr10{Int})
+
+@traitdef Pr11{X} begin
+    fnpr11(Int, Vector{UInt}, X)
+end
+fnpr11{T<:Integer}(::T, ::Vector{T}, ::Integer) = 1
+@test !istrait(Pr11{Integer})
+@test !istrait(Pr11{Int})
+@test !istrait(Pr11{UInt})
+
+@traitdef Pr12{X} begin
+    fnpr12(Int, Vector{UInt}, X)
+end
+fnpr12{T<:Integer}(::T, ::Vector{T}, ::Integer) = 1
+@test !istrait(Pr12{Integer})
+@test !istrait(Pr12{Int})
+
+check_return_types(true)
 
 # Test constraints
 ###
@@ -288,6 +321,7 @@ end
 ######
 # istrait
 #####
+check_return_types(false)
 f12(x::Int) = 1
 @traitdef UU{X} begin
     f12(X)
@@ -305,7 +339,7 @@ end
 @test !istrait(UU13{Any})
 @test istrait(UU13{Integer})
 @test istrait(UU13{Int8})
-
+check_return_types(true)
 #####
 # Associated types
 ####
@@ -389,7 +423,7 @@ end
 
 
 @traitdef TT44{D} begin
-    Array(Type{D},Integer) # the standard array constructor, should be working for all Types
+    Array(Type{D},Integer) -> Array # the standard array constructor, should be working for all Types
 end
 @test istrait(TT44{A4758})
 @test istrait(TT44{A4759})
@@ -404,8 +438,8 @@ end
     T = Type{eltype(Ar)}
     Arnp = deparameterize_type(Ar)  # Array stripped of type parameters
     
-    #Arnp(T, Int64) -> Ar
-    Arnp(T, Int...) -> Ar # see issue #8 & https://github.com/JuliaLang/julia/issues/10642
+    Arnp(T, Int64) -> Ar
+    Arnp(T, Int...) -> Ar
     @constraints begin
         length(Ar.parameters)>1 # need at least two parameters to be array-like, right?
     end

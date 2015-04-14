@@ -8,7 +8,7 @@ module Traits
      - they are structural types: i.e. they needn't be declared explicitly
         """ -> current_module()
 
-export istrait, istraittype, issubtrait,
+export istrait, istraittype, issubtrait, check_return_types,
        traitgetsuper, traitgetpara, traitmethods, 
        @traitdef, @traitimpl, @traitfn, TraitException, All
 
@@ -29,11 +29,17 @@ include("helpers.jl")
 # TODO: update to use functions.
 if isdefined(Main, :Traits_check_return_types)
     println("Traits.jl: not using return types of @traitdef functions")
-    flag_check_return_types = Main.Traits_check_return_types
+    const flag_check_return_types = Main.Traits_check_return_types
 else
-    flag_check_return_types = true
+    const flag_check_return_types = true
 end
 @doc "Flag to select whether return types in @traitdef's are checked" flag_check_return_types
+
+@doc "Toggles return type checking.  Will issue warning because of const declaration, ignore:"->
+function check_return_types(flg::Bool)
+    global flag_check_return_types
+    flag_check_return_types = flg
+end
 
 #######
 # Types
@@ -114,7 +120,7 @@ istraittype(x::Tuple) = mapreduce(istraittype, &, x)
      """ ->
 function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
     if verbose
-        println_verb(x) = println("Checking $Tr: " * x)
+        println_verb(x) = println("**** Checking $(deparameterize_type(Tr)): " * x)
     else
         println_verb = x->x
     end
@@ -145,9 +151,10 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
 
     # Check call signature of all methods:
     for (gf,_gf) in tr.methods
-        println_verb("Checking function $gf")
+        println_verb("*** Checking function $gf")
         # Loop over all methods defined for each function in traitdef
         for tm in methods(_gf)
+            println_verb("** Checking method $tm")
             checks = false
             # Only loop over methods which have the right number of arguments:
             for fm in methods(gf, NTuple{length(tm.sig),Any}) 
@@ -157,8 +164,8 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
                 end
             end
             if !checks # if check==false no fitting method was found
-                println_verb("""No method of the generic function/call-overloaded $gf matched the 
-                             trait specification: $tm""")
+                println_verb("""No method of the generic function/call-overloaded `$gf` matched the 
+                             trait specification: `$tm`""")
                 return false
             end
         end
@@ -166,16 +173,20 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
 
     # check return-type.  Specifed return type tret and return-type of
     # the methods frets should fret<:tret.  This is backwards to
-    # argument types...
+    # argument types checking above.
     if flag_check_return_types
         for (gf,_gf) in tr.methods
+            println_verb("*** Checking return types of function $gf")
             for tm in methods(_gf) # loop over all methods defined for each function in traitdef
+                println_verb("** Checking return types of method $tm")
                 tret_typ = Base.return_types(_gf, tm.sig) # trait-defined return type
                 if length(tret_typ)==0
                     continue # this means the signature contains None which is not compatible with return types
-                    # TODO: introduce a specical type signalling that no return type was given.
+                    # TODO: introduce a special type signaling that no return type was given.
                 elseif length(tret_typ)>1
-                    throw(TraitException("Querying the return type of the trait-method $tm did not return exactly one return type: $tret_typ"))
+                    if !allequal(tret_typ) # Ok if all return types are the same.
+                        throw(TraitException("Querying the return type of the trait-method $tm did not return exactly one return type: $tret_typ"))
+                    end
                 end
                 tret_typ = tret_typ[1]
                 fret_typ = Base.return_types(gf, tm.sig)
@@ -191,6 +202,7 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
                                  $tret_typ
                                  List of found return types:
                                  $fret_typ
+                                 Returning false.
                                  """)
                     return false
                 end
@@ -213,17 +225,25 @@ immutable FakeMethod
     tvars::(Any...,)
     va::Bool
 end
-@doc """isfitting checks whether a method `tm` specified in the trait definition 
-     is fulfilled by a method `fm` of the corresponding generic function.  The
-     core function called by istraits.
+@doc """isfitting checks whether the signature of a method `tm`
+     specified in the trait definition is fulfilled by one method `fm`
+     of the corresponding generic function.  This is the core function
+     which is called by istraits.
 
      Checks that tm.sig<:fm.sig and that the parametric constraints on
-     fm and tm are equal.  Lets call this relation tm<<:fm.
+     fm and tm are equal where applicable.  Lets call this relation tm<<:fm.
 
-     So, summarizing, for a trait-signature to be satisfied (fitting) the following
-     condition need to hold:
-     A) `tsig<:sig` for just the types themselves (sans parametric constraints)
-     B) The parametric constraints on `sig` and `tsig` need to be equal.
+     So, summarizing, for a trait-signature to be satisfied (fitting)
+     the following condition need to hold:
+
+     A) `tsig<:sig` for just the types themselves (sans parametric
+         constraints)
+
+     B) The parametric constraints parameters on `sig` and `tsig` need
+        to feature in the same argument positions.  Except when the
+        corresponding function parameter is constraint by a concrete
+        type: then make sure that all the occurrences are the same
+        concrete type.
 
      Examples, left trait-method, right implementation-method:
      {T<:Real, S}(a::T, b::Array{T,1}, c::S, d::S) <<: {T<:Number, S}(a::T, b::AbstractArray{T,1}, c::S, d::S)
@@ -232,19 +252,25 @@ end
      {T<:Integer}(T, T, Integer) <<: {T<:Integer}(T, T, T)
      -> false as parametric constraints are not equal
      """ ->
-function isfitting(tmm::Method, fm::Method; verbose=false) # tm=trait-method, fm=function-method
+function isfitting(tmm::Method, fmm::Method; verbose=false) # tm=trait-method, fm=function-method
     println_verb = verbose ? println : x->x
 
-    # Make a "copy" of tmm as it may get updated:
-    tm = FakeMethod(tmm.sig, tmm.tvars, tmm.va)
+    # Make a "copy" of tmm & fmm as it may get updated:
+    tm = FakeMethod(tmm.sig, isa(tmm.tvars,Tuple) ? tmm.tvars : (tmm.tvars,), tmm.va)
+    fm = FakeMethod(fmm.sig, isa(fmm.tvars,Tuple) ? fmm.tvars : (fmm.tvars,), fmm.va)
+    # Note the `? : ` is needed because of https://github.com/JuliaLang/julia/issues/10811
+
+    # Replace type parameters which are constraint by a concrete type
+    # (because Vector{TypeVar(:V, Int)}<:Vector{Int}==false but we need ==true)
+    tm = replace_concrete_tvars(tm)
+    fm = replace_concrete_tvars(fm)    
 
     # Special casing for call-overloading. 
-    if fm.func.code.name==:call && tmm.func.code.name!=:call # true if only fm is call-overloaded
+    if fmm.func.code.name==:call && tmm.func.code.name!=:call # true if only fm is call-overloaded
         # prepend ::Type{...} to signature
         tm = FakeMethod(tuple(fm.sig[1], tm.sig...), tm.tvars, tm.va)
         # check whether there are method parameters too:
-        fmtvars = isa(fm.tvars,TypeVar) ? (fm.tvars,) : fm.tvars # make sure it's a tuple of TypeVars
-        for ftv in fmtvars
+        for ftv in fm.tvars
             flocs = find_tvar(fm.sig, ftv)
             if flocs[1] # yep, has a constraint like call{T}(::Type{Array{T}},...)
                 if sum(flocs)==1
@@ -265,28 +291,12 @@ function isfitting(tmm::Method, fm::Method; verbose=false) # tm=trait-method, fm
             error("This is not possible")
         end
     end
-
     
     ## Check condition A:
-    # If there are no type-vars then just compare the signatures:
-    if tm.tvars==()
-        if !(fm.tvars==())
-            # If there are parameter constraints affecting more than
-            # one argument, then return false.
-            fmtvars = isa(fm.tvars,TypeVar) ? (fm.tvars,) : fm.tvars
-            for ftv in fmtvars
-                typs = tm.sig[find_tvar(fm.sig, ftv)]
-                if length(typs)==0
-                    println_verb("Reason fail: this method is not callable because: static parameter does not occur in signature.")
-                    return false
-                end
-                if length(typs)>1 && !all(map(isleaftype, typs))
-                    println_verb("Reason fail: tvars-constraints in function-method are on non-leaftypes in traitmethod.")
-                    return false
-                end                    
-            end
-        end
-        println_verb("Reason fail/pass: no tvars in trait-method. Result: $(tm.sig<:fm.sig)")
+    # If there are no function parameters then just compare the
+    # signatures.
+    if tm.tvars==() && fm.tvars==()
+        println_verb("Reason fail/pass: no tvars in trait-method only checking signature. Result: $(tm.sig<:fm.sig)")
         return tm.sig<:fm.sig
     end
     # If !(tm.sig<:fm.sig) then tm<<:fm is false
@@ -300,7 +310,7 @@ function isfitting(tmm::Method, fm::Method; verbose=false) # tm=trait-method, fm
     # False if there are not the same number of arguments: (I don't
     # think this test is necessary as it is tested above.)
     if length(tm.sig)!=length(fm.sig)!
-        println_verb("Reason fail: wrong length")
+        println_verb("Reason fail: not same argument length.")
         return false
     end
     # Getting to here means that that condition (A) is fulfilled.
@@ -313,20 +323,47 @@ function isfitting(tmm::Method, fm::Method; verbose=false) # tm=trait-method, fm
         return true
     end
 
+    # First special case if tm.tvars==() && !(fm.tvars==())
+    if tm.tvars==()
+        fm.tvars==() && error("Execution shouldn't get here as this should have been checked above!")
+        for (i,ftv) in enumerate(fm.tvars)
+            # If all the types in tm.sig, which correspond to a
+            # parameter constraint argument of fm.sig, are the same then pass.
+            typs = tm.sig[find_tvar(fm.sig, ftv)]
+            if length(typs)==0
+                println_verb("Reason fail: this method $fmm is not callable because the static parameter does not occur in signature.")
+                return false
+            elseif length(typs)==1 # Necessarily the same
+                continue
+            else # length(typs)>1
+                if !all(map(isleaftype, typs)) # note isleaftype can have some issues with inner constructors
+                    println_verb("Reason fail: not all parametric-constraints in function-method $fmm are on leaftypes in traitmethod $tmm.")
+                    return false
+                else
+                    # Now check that all of the tm.sig-types have the same type at the parametric-constraint sites.
+                    if !allequal(find_correponding_type(tm.sig, fm.sig, ftv))
+                        println_verb("Reason fail: not all parametric-constraints in function-method $fmm correspond to the same type in traitmethod $tmm.")
+                        return false
+                    end
+                end
+            end
+        end
+        println_verb("""Reason pass: All occurrences of the parametric-constraint in $fmm correspond to the
+                     same type in trait-method $tmm.""")
+        return true
+    end
+
     # Strategy: go through constraints on trait-method and check
     # whether they are fulfilled in function-method.
-    tmtvars = isa(tm.tvars,Tuple) ? tm.tvars : (tm.tvars,)
-    tvars = isa(tm.tvars,TypeVar) ? (tm.tvars,) : tm.tvars
-    for tv in tvars
+    for tv in tm.tvars
         # find all occurrences in the signature
         locs = find_tvar(tm.sig, tv)
         if !any(locs)
-            throw(TraitException("The type variable should feature in at least on location."))
+            throw(TraitException("The parametric-constraint of trait-method $tmm has to feature in at least one argument of the signature."))
         end
         # Find the tvar in fm which corresponds to tv. 
         ftvs = Any[]
-        fmtvars = isa(fm.tvars,TypeVar) ? (fm.tvars,) : fm.tvars # make sure it's a tuple of TypeVar
-        for ftv in fmtvars
+        for ftv in fm.tvars
             flocs = find_tvar(fm.sig, ftv)
             if all(flocs[find(locs)])
                 push!(ftvs,ftv)
@@ -340,7 +377,7 @@ function isfitting(tmm::Method, fm::Method; verbose=false) # tm=trait-method, fm
             # end
             # g01(::Int, ::Int) = Int
             # @assert istrait(Tr01{Int}, verbose=true)
-            if isleaftype(tv.ub)
+            if isleaftype(tv.ub) # note isleaftype can have some issues with inner constructors
                 # Check if the method definition of fm has the same
                 # leaftypes in the same location.
                 if mapreduce(x -> x==tv.ub, &, true, fm.sig[locs])
@@ -375,7 +412,7 @@ function isfitting(tmm::Method, fm::Method; verbose=false) # tm=trait-method, fm
 end
 
 # helpers for isfitting
-function subs_tvar{T<:_TestTvar}(tv::TypeVar, arg::DataType, TestT::Type{T})
+function subs_tvar(tv::TypeVar, arg::DataType, TestT::DataType)
     # Substitute `TestT` for a particular TypeVar `tv` in an argument `arg`.
     #
     # Example:
@@ -388,8 +425,59 @@ function subs_tvar{T<:_TestTvar}(tv::TypeVar, arg::DataType, TestT::Type{T})
         return typ{pa...}
     end
 end
-subs_tvar{T<:_TestTvar}(tv::TypeVar, arg::TypeVar, TestT::Type{T}) = tv===arg ? TestT : arg  # note === this it essential!
-subs_tvar{T<:_TestTvar}(tv::TypeVar, arg, TestT::Type{T}) = arg # for anything else
+subs_tvar(tv::TypeVar, arg::TypeVar, TestT::DataType) = tv===arg ? TestT : arg  # note === this it essential!
+subs_tvar(tv::TypeVar, arg, TestT::DataType) = arg # for anything else
+
+function replace_concrete_tvars(m::FakeMethod)
+    # Example:
+    # FakeMethod((T<:Int64,Array{T<:Int64,1},Integer),(T<:Int64,),false)
+    # ->
+    # FakeMethod((Int64,   Array{Int64,1},   Integer),()         ,false)
+    newtv = []
+    newsig = Any[m.sig...] # without the Any I get seg-faults and
+                           # other strange erros! 
+    for tv in m.tvars
+        if !isleaftype(tv.ub)
+            push!(newtv, tv)
+        else
+            newsig = Any[subs_tvar(tv, arg, tv.ub) for arg in newsig]
+        end
+    end
+    FakeMethod(tuple(newsig...), tuple(newtv...), m.va)
+end
+
+# Finds the types in tmsig which correspond to TypeVar ftv in fmsig
+function find_correponding_type(tmsig::Tuple, fmsig::Tuple, ftv::TypeVar)
+    out = Any[]
+    for (ta,fa) in zip(tmsig,fmsig)
+        if isa(fa, TypeVar)
+            fa===ftv && push!(out, ta)
+        elseif isa(fa, DataType) || isa(fa, Tuple)
+            append!(out, find_correponding_type(ta,fa,ftv))
+        else
+            @show ta, fa
+            error("Not implemented")
+        end
+    end
+    return out
+end
+function find_correponding_type(ta::DataType, fa::DataType, ftv::TypeVar)
+    # gets here if fa is not a TypeVar
+    out = Any[]
+    if !( deparameterize_type(ta)<:deparameterize_type(fa)) # ||
+        # length(ta.parameters)!=length(fa.parameters)  # don't check for length.  If not the same length, assume that the first parameters are corresponding...
+        push!(out, _TestType{:no_match})  # this will lead to a no-match in isfitting
+        return out
+    end
+    for (tp,fp) in zip(ta.parameters,fa.parameters)
+        if isa(fp, TypeVar)
+            fp===ftv && push!(out, tp)
+        elseif isa(fp, DataType) || isa(fa, Tuple)
+            append!(out, find_correponding_type(tp,fp,ftv))
+        end
+    end
+    return out
+end
 
 # find_tvar finds index of arguments in a function signature `sig` where a
 # particular TypeVar `tv` features. Example:

@@ -139,7 +139,6 @@ function parsefnstypes!(outfns, ln)
         # parses f(X,Y), f{X <:T}(X,Y) and X+Y
         # into f and _f(...)
 
-        #        getsymbol = gensym
         getsymbol(fn) = symbol("__"*string(fn))
         
         _fn = deepcopy(def)
