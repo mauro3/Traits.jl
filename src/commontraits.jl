@@ -16,8 +16,8 @@ end
 
 @traitdef Iter{X}  begin
     # type-functions based on return_type:
-    State = Base.return_types(start, (X,))[1]  # this is circular but that is ok, as trait needs to be implemented.
-    Item =  Base.return_types(next, (X,State))[1][1]
+    State = Base.return_types(start, (X,))[1]
+    Item =  Base.return_types(next, (X,State))[1][1] # use eltype instead
     
     # interface functions
     start(X) -> State
@@ -44,9 +44,8 @@ end
 @traitdef Indexable{X} <:Collection{X} begin
     El = eltype(X)
     
-    # TODO issue https://github.com/JuliaLang/julia/issues/9135:
-    #getindex(X, All)
-    #setindex!(X, El, All)
+    getindex(X, None)  # when using None no return types can be used...
+    setindex!(X, El, None)
     
     length(X) -> Integer
     # automatically provided:
@@ -56,19 +55,19 @@ end
 
 @traitdef Assoc{X} <: Indexable{X} begin
     K,V = eltype(X) 
-    
+
     # note, ObjectId dict is not part of this interface
-    haskey(X, All)
-    get(X, All, All)
-    get(Function, X, All)
-    get!(X, All, All)
-    get!(Function, X, All)
-    getkey(X, All, All)
-    delete!(X, All) -> X
-    pop!(X, All)
-    pop!(X, All, All)
-    merge(X, All...) -> X
-    merge!(X, All...)
+    haskey(X, Any)
+    get(X, Any, Any)
+    get(Function, X, Any)
+    get!(X, Any, Any)
+    get!(Function, X, Any)
+    getkey(X, Any, Any)
+    delete!(X, Any) -> X
+    pop!(X, Any)
+    pop!(X, Any, Any)
+    # merge(X, Any...) -> X
+    # merge!(X, Any...)
     # provieds
     # keys(X) -> Base.KeyIterator
     # values(X) -> Base.ValueIterator

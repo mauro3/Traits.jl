@@ -11,3 +11,8 @@ function Base.func_for_method(m::Method, tt, env)
     end
 end
 println("  endof ok-warning.")
+
+
+# eltype for dicts
+Base.eltype{K}(::Type{Associative{K}}) = (K,Any)
+Base.eltype(::Type{Associative}) = (Any,Any)

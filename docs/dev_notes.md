@@ -1,6 +1,35 @@
 Development notes
 =================
 
+Planned work
+------------
+
+- [ ] Making it easy to specify traits for datatype, see issue #1
+- [ ] improve dispatch of traitfn, see issue #5
+
+To ponder
+---------
+
+-   For many "traits" in Julia, only a few functions need to be
+    implemented to provide many more.  For example for comparison only
+    `isless` and `==` need to be implemented to automatically get `>`,
+    `<`, `>=`, `<=`.  It would be nice to somehow specify or query those
+    automatic functions.
+
+-   Are there better ways for trait-dispatch?
+
+-   Sometimes it would be good to get at type parameters, for instance
+    for Arrays and the like:
+    ```julia
+    @traitdef Indexable{X{Y}} begin
+        getindex(X, Any) -> Y
+        setindex!(X, Y, Any) -> X
+    end
+    ```
+    This problem is similar to triangular dispatch and may be solved
+    by: https://github.com/JuliaLang/julia/issues/6984#issuecomment-49751358
+
+
 Road blocks
 -----------
 

@@ -1,35 +1,33 @@
 using Traits
-using Base.Test
-
-# check some traits implemented in src/commontraits.jl
-@assert istrait(Cmp{Int,Float64}) 
-@assert istrait(Cmp{Int,String})==false
+# Check Cmp-trait (comparison) which is implemented in Traits.jl/src/commontraits.jl
+@assert istrait(Cmp{Int,Float64})        # Int and Float64 can be compared
+@assert istrait(Cmp{Int,String})==false  # Int and String cannot be compared
 
 # make a new trait and add a type to it:
 @traitdef MyTr{X,Y} begin
-    foobar(X,Y) -> Bool
+    foobar(X,Y) -> Bool # All type-tuples for which there is a method foo
+                        # with that signature belong to MyTr 
 end
 type A
     a::Int
 end
-foobar(a::A, b::A) = a.a==b.a
-@assert istrait(MyTr{A,A})  # true
+@assert istrait(MyTr{A,A})==false  # foobar not implement yet
+foobar(a::A, b::A) = a.a==b.a      # implement it
+@assert istrait(MyTr{A,A})         # voila!
 @assert istrait(MyTr{Int,Int})==false
 
 # make a function which dispatches on traits:
 @traitfn ft1{X,Y; Cmp{X,Y}}(x::X,y::Y)  = x>y ? 5 : 6
 @traitfn ft1{X,Y; MyTr{X,Y}}(x::X,y::Y) = foobar(x,y) ? -99 : -999
 
-ft1(4,5)  # 6
-ft1(A(5), A(6)) # -999
+ft1(4,5)        # ==6    i.e. dispatches to first definition
+ft1(A(5), A(6)) # ==-999 i.e. dispatches to second definition
 
-# # dispatch on traits has its pitfalls:
-# @traitfn ft1{X,Y; Arith{X,Y}}(x::X,y::Y) = x+y
-
-# # now it's impossible to decide which method of ft1 to pick
-# @test_throws TraitException ft1(4,5)
-
-@test_throws TraitException ft1("asdf", 5)
+try
+    ft1("asdf", 5)
+catch err
+    println(err)
+end
 foobar(a::String, b::Int) = length(a)==b
 ft1("asdf", 5)
 
@@ -56,5 +54,5 @@ bar(a::B2, b::B2) = a.a==b.a
                                         # here for Julia to infer the
                                         # return type
 
-@test gt1(B1(1), B1(1))=="MyTr"
-@test gt1(B2(1), B2(1))=="MyTr2" 
+@assert gt1(B1(1), B1(1))=="MyTr"
+@assert gt1(B2(1), B2(1))=="MyTr2" 

@@ -26,57 +26,67 @@ mentioned in (1).  But Julia does not support (2) or (3) yet.  (2) is
 fairly easy to implement.  However, dispatch on a "contract" is not
 easily possible, but Tim Holy recently came up with
 [a trick](https://github.com/JuliaLang/julia/issues/2345#issuecomment-54537633).
-The cool thing about that trick is that the code for a trait-dispatch
-function should be identical to a duck-typed function, i.e. there is
-no loss in performance.
+The cool thing about that trick is that the generated machine-code for
+a trait-dispatch function should be identical to a duck-typed
+function, i.e. there is no loss in performance.
 
 `Traits.jl` adds those kind of traits to Julia, using Tim's trick
-combined with stagedfunctions.  See also the Julia-issue
+combined with stagedfunctions and extensive facilities to define
+traits.  See also the Julia-issue
 [#6975](https://github.com/JuliaLang/julia/issues/6975) concerning
 interfaces/traits.
 
-Example:
+Example `examples/ex1.jl`:
 ```julia
 using Traits
-# Check Cmp-trait (comparison) which is implemented in src/commontraits.jl
-@assert istrait(Cmp{Int,Float64}) 
-@assert istrait(Cmp{Int,String})==false
+# Check Cmp-trait (comparison) which is implemented in Traits.jl/src/commontraits.jl
+@assert istrait(Cmp{Int,Float64})        # Int and Float64 can be compared
+@assert istrait(Cmp{Int,String})==false  # Int and String cannot be compared
 
 # make a new trait and add a type to it:
 @traitdef MyTr{X,Y} begin
-    foobar(X,Y) -> Bool
+    foobar(X,Y) -> Bool # All type-tuples for which there is a method foo
+                        # with that signature belong to MyTr 
 end
 type A
     a::Int
 end
-foobar(a::A, b::A) = a.a==b.a
-@assert istrait(MyTr{A,A})  # true
+@assert istrait(MyTr{A,A})==false  # foobar not implement yet
+foobar(a::A, b::A) = a.a==b.a      # implement it
+@assert istrait(MyTr{A,A})         # voila!
 @assert istrait(MyTr{Int,Int})==false
 
 # make a function which dispatches on traits:
 @traitfn ft1{X,Y; Cmp{X,Y}}(x::X,y::Y)  = x>y ? 5 : 6
 @traitfn ft1{X,Y; MyTr{X,Y}}(x::X,y::Y) = foobar(x,y) ? -99 : -999
 
-ft1(4,5)  # 6
-ft1(A(5), A(6)) # -999
+ft1(4,5)        # ==6    i.e. dispatches to first definition
+ft1(A(5), A(6)) # ==-999 i.e. dispatches to second definition
 
 ft1("asdf", 6)
 # -> ERROR: TraitException("No matching trait found for function ft1")
 ```
 
-This is an experimental package and I will not try to keep backwards
-compatibility as I move on.  But please give it a try in your code and
-give feedback.  I will try to document the new features in [NEWS](NEWS.md).
+# Package status
+
+New features are documented in [NEWS](NEWS.md) as they are added.  I
+keep some notes, musings and plans in [dev_notes.md](docs/dev_notes.md).
+
+This is a fairly experimental package and I will not try to keep
+backwards compatibility as I move on.  Please try it out and give me
+feedback, issues or pull requests!
 
 # Syntax
-(source in `examples/ex2.jl`)
+The source of below examples is in `examples/ex2.jl`.  Most of the
+important functions are documented and will respond to `?` in the REPL.
 
-Trait definition:
+Trait definition (for details see [traitdef.md](docs/traitdef.md)):
 ```julia
 using Traits
 # simple
 @traitdef Tr1{X} begin
-    fun1(X) -> Number
+    fun1(X) -> Number   # this means a method with signature fun1(::X)
+                        # returning a Number
 end
 @traitdef Tr2{X,Y} begin
     fun2(X,Y) -> Number
@@ -101,13 +111,12 @@ end
 end
 ```
 Note that return-type checking is quite experimental.  It can be
-turned off by defining `Main.Traits_check_return_types=false` before
-`using Traits`.
+turned off with `check_return_types(false)`.
 
 
-Trait implementation:
+Trait implementation and checking with `istrait`:
 ```julia
-# manual, i.e. just define the functions
+# manual definiton, i.e. just define the functions
 fun1(x::Int) = 5x
 @assert istrait(Tr1{Int})
 
@@ -159,19 +168,17 @@ catch e
 end
 ```
 
-Trait functions & dispatch:
+Trait functions & dispatch (for details see [traitfns.md](docs/traitfns.md)):
 ```julia
-@traitfn tf1{X, Y; Tr1{X}, Tr1{Y}}(a::X, b::Y) = fun1(a) + fun1(b)
-@traitfn tf1{X, Y; Tr2{X,Y}}(a::X, b::Y) = fun2(a,b)
+@traitfn tf1{X, Y; Tr1{X}, Tr1{Y}}(a::X, b::Y) = fun1(a) + fun1(b)             # I
+@traitfn tf1{X, Y; Tr1{X}, Tr1{Y}}(a::X, b::Y, c::Int) = fun1(a) + fun1(b) + c # II
+@traitfn tf1{X, Y; Tr2{X,Y}}(a::X, b::Y) = fun2(a,b)                           # III
 # Note that all the type-parameters are in the {} and that all
 # arguments need a type parameter (a limitation of the
-# macro-parser). Bad examples are:
+# macro-parser). This doesn't work:
 #
 # julia> @traitfn ttt1{X, Y; Tr1{X}, Tr1{Y}}(a::X, b::Y, c) = fun1(a) + fun1(b) + c
 # ERROR: type Symbol has no field args
-#
-# julia> @traitfn ttt1{X, Y; Tr1{X}, Tr1{Y}}(a::X, b::Y, c::Int) = fun1(a) + fun1(b) + c
-# ERROR: X3 not defined
 #
 # But this works:
 #
@@ -180,24 +187,31 @@ Trait functions & dispatch:
 
  
 # tf1 now dispatches on traits
-tf1(5.,6.) # -> 77  (Float64 is part of Tr1 but not Tr2)
+@assert tf1(5.,6.)==77. # -> 77 ; dispatches to I because istrait(Tr1{Float64})
+                        #         but not istrait(Tr2{Float64,Float64})
+@assert tf1(5.,6.,77)==154. # -> 154. ; dispatches to II because of the extra argument
 
 # Errors because of dispatch ambiguity:
 try
-    tf1(5,6)  # Int is part of Tr1{Int} and Tr2{Int, Int}
+    tf1(5,6)  # istrait(Tr1{Int}) and istrait(Tr2{Int,Int}) are both true!
 catch e
     println(e)
 end
 
-# adding a type to Tr1 will make it work with tf1:
+# Implementing Tr1 for a type will make it work with tf1:
 type MyType
     a::Int
+end
+try
+    tf1(MyType(8), 9) # not implemented yet
+catch e
+    println(e)
 end
 @traitimpl Tr1{MyType} begin
     fun1(x::MyType) = x.a+9
 end
 
-tf1(MyType(8), 9) # -> 62
+@assert tf1(MyType(8), 9)==62 # -> 62 ; dispatches to I
 ```
 
 # Generated code
@@ -221,7 +235,7 @@ top:
 ```
 
 However, for more complicated functions code is not quite the same,
-see `test/traitdispatch.jl`.
+see `test/perf/perf.jl`.
 
 # Inner workings
 
@@ -248,12 +262,12 @@ In Julia dispatch works on types, to extend this to traits I use
 His trick uses a function to check whether its input types satisfy
 certain conditions (only dependent on their type) and returns one type
 or another depending on the outcome.  That check-function is then used
-for dispatch in another function.  Example of Tim's trick:
+for dispatch in another function.  Example of Tim's trick (`examples/ex_tims_traits.jl`):
 ```julia
 type Trait1 end
 type Trait2 end
 type Trait3 end
-# now define function
+# now define function f which should dispatch on those traits
 f(x,y) = _f(x,y, checkfn(x,y))
 _f(x,y,::Type{Trait1}) = x+y
 _f(x,y,::Type{Trait2}) = x-y
@@ -265,12 +279,12 @@ checkfn(::Int, ::Int) = Trait1
 checkfn(::Int, ::FloatingPoint) = Trait2
 checkfn(::FloatingPoint, ::FloatingPoint) = Trait3
 # use
-f(3,4)  # 7
-f(3,4.) # -1.0
-f(3.,4.) # 12.0
+@assert f(3,4)==7      # Trait1
+@assert f(3,4.)==-1.0  # Trait2
+@assert f(3.,4.)==12.0 # Trait3
 # add another type-tuple to Trait3
 checkfn(::String, ::String) = Trait3
-f("Lorem ", "Ipsum") # "Lorem Ipsum"
+@assert f("Lorem ", "Ipsum")=="Lorem Ipsum"
 ```
 
 What does this add compared to what we had before with usual dispatch?
@@ -333,30 +347,6 @@ Dispatch, happening in `Traits.traitdispatch` is quite simple taking
 trait-hierarchies into account.  Although, note that it is easily
 possible to have unsolvable ambiguities with trait-dispatch as traits
 do not have a strict hierarchy like types.
-
-# To ponder
-
--   For many "traits" in Julia, only a few functions need to be
-    implemented to provide many more.  For example for comparison only
-    `isless` and `==` need to be implemented to automatically get `>`,
-    `<`, `>=`, `<=`.  It would be nice to somehow specify or query those
-    automatic functions.
-
--   Are there better ways for trait-dispatch?
-
--   Sometimes it would be good to get at type parameters, for instance
-    for Arrays and the like:
-    ```julia
-    @traitdef Indexable{X{Y}} begin
-        getindex(X, Any) -> Y
-        setindex!(X, Y, Any) -> X
-    end
-    ```
-    This problem is similar to triangular dispatch and may be solved
-    by: https://github.com/JuliaLang/julia/issues/6984#issuecomment-49751358
-
-# Issues
-
 
 # Other trait implementations
 

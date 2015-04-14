@@ -1,6 +1,15 @@
 Feature updates for Traits.jl
 =============================
 
+14 April 2015
+-------------
+
+Major overhaul of `istrait` function.  Now it uses custom-programmed
+checks instead of `method_exists`.  This allows parameterized methods
+to be used both in the `@traitdef` and in the trait implementation.
+This may have pushed Traits.jl into usable terrain.  Closes issues #2
+and #8.
+
 30 March 2015
 -------------
 
