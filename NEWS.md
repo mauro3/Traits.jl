@@ -1,6 +1,14 @@
 Feature updates for Traits.jl
 =============================
 
+17 April 2015
+-------------
+
+The merge of
+[PR #10380](https://github.com/JuliaLang/julia/pull/10380) will
+necessitate quite some work.  Until things have settled a bit, Traits
+is staying on Julia commit 58cef56f523.
+
 14 April 2015
 -------------
 
