@@ -160,11 +160,7 @@ function makefncall(fname, sig)
     # Makes an Expr to call function fname:
     # f1, (x::X, r::R) -> f1(x, r)
     # (i.e. strips the extraneous type-assertions)
-    sig = strip_typeasserts(sig)
-    outfn = Expr(:call)
-    push!(outfn.args, fname)
-    append!(outfn.args, sig)
-    return outfn
+    return :( $fname( $(strip_typeasserts(sig)...) ) )
 end
 function get_concrete_type_symb(typs)
     # Returns the most general type satisfying typs as a list of symbols:
@@ -184,12 +180,12 @@ end
 function get_concrete_type_Typetuple(typs)
     # Returns the most general type satisfying typs as a tuple of
     # actual types:
-    # [:(X<:Int), :Y] -> (Int, Any)
+    # [:(X<:Int), :Y] -> Tuple{Int, Any}
     out = get_concrete_type_symb(typs)
     for i in 1:length(out)
         out[i] = Type{eval_curmod(out[i])}
     end
-    return tuple(out...)
+    return Tuple{out...}
 end
 
 function make_Type_sig(typs)
@@ -336,9 +332,9 @@ macro traitfn(fndef)
     f = :($f = $body)
     
     ## make function containing the logic: trait_f
-    #### tf(::Type{(Traits...,)}, x, y)
+    #### tf(::Type{Tuple{Traits...}}, x, y)
     # 1) make the traits-type 
-    trait_typ = Expr(:tuple)
+    trait_typ = :(Tuple{})
     append!(trait_typ.args, fn.traits)
     trait_typ = :(::Type{$trait_typ})
     args = Any[trait_typ, fn.sig...]
@@ -350,7 +346,11 @@ macro traitfn(fndef)
     ## Make function storing the trait-types
     #### tf(Traits._TraitStorage, sig...)
     # This function will return all defined Trait-tuples for a certain
-    # signature.
+    # signature. Example:
+    #
+    # julia> yt1(Traits._TraitStorage, Int, Int)
+    # (Any[ Tuple{Traits.Arith{Int64,Int64}} ], Any[:( Tuple{Arith{X1,X2}} )], Any[:X1,:X2])
+
     
     ## 1) Get the existing traits out of the trait_type_f:
     #    These can be retrieved with the call:
@@ -366,7 +366,7 @@ macro traitfn(fndef)
     end
     
     ## 2) update old_traittypes with the new ones
-    newtrait = Expr(:tuple, fnt.traits...)
+    newtrait = :( Tuple{$(fnt.traits...)} )
     if !(newtrait in traittypes)
         push!(traittypes, newtrait)
     end
@@ -395,7 +395,7 @@ macro traitfn(fndef)
         traittypes = $(makefncall(fn.name, args))[1]
         traittyp = Traits.traitdispatch(traittypes, $(fn.name))
         # construct function from traittyp
-        out = :(())
+        out = :(Tuple{})
         for s in traittyp
             push!(out.args, s)
         end
@@ -418,13 +418,10 @@ end
 # Helper functions
 ##########
 
-issub_Typetuple{T,S}(a::Type{Type{T}}, b::Type{Type{S}}) = T<:(S...)
-issub_Typetuple(x,y) = false
-
-function traitmethods(f::Function, nsig=(Any...); print=false)
+function traitmethods(f::Function, nsig=Tuple{Vararg{Any}}; print=false)
     out = Any[]
-    for m in methods(f, tuple(Any, nsig...))
-        if issub_Typetuple(m.sig[1], Type{Traits.Trait})
+    for m in methods(f, Tuple{Any, nsig...})
+        if isa(m.sig[1], Type) && m.sig[1].parameters[1]<:Tuple{Vararg{Traits.Trait}}
             push!(out, m)
         end
     end

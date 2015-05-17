@@ -1,6 +1,7 @@
 # tests
 using Base.Test
 using Traits
+check_return_types(true) # should test both true & false
 ## BUG flags: set to false once fixed to activate tests
 # Julia issues:
 method_exists_bug1 = false # see https://github.com/JuliaLang/julia/issues/8959
@@ -29,25 +30,30 @@ f8576{T}(a::Array, b::T) = T
 other_T = f8576.env.defs.tvars
 @test Traits.subs_tvar(other_T, Array, Traits._TestTvar{1})==Array # f8576.env.defs.tvars looks like T but is different!
 
-@test Traits.find_tvar( (Array, ), T)==[true]
-@test Traits.find_tvar( (Array, ), other_T)==[false]
-@test Traits.find_tvar( (Int, Array, ), T)==[false,true]
+@test Traits.find_tvar( Int, T)==Int[]
+@test Traits.find_tvar( T, T)==[1]
+@test Traits.find_tvar( Array, T)==[1]
+@test Traits.find_tvar( Tuple{Array}, T)==[1]
+@test Traits.find_tvar( Tuple{Array}, other_T)==Int[]
+@test Traits.find_tvar( Tuple{Int, Array}, T)==[2]
+@test Traits.find_tvar( Tuple{Int, Tuple{Array,Array}}, T)==[2]
 
 @test Traits.find_correponding_type(Array{Int,2}, Array{I,2}, I)==Any[Int]
-@test Traits.find_correponding_type((Array{Int,2}, Float64, (UInt8, UInt16)),
-                                    (Array{I,2},   I,       (String, I))    , I) == Any[Int, Float64, Traits._TestType{:no_match}, UInt16]
-@test Traits.find_correponding_type((Array{Int,2}, Float64, (UInt8, UInt16)),
-                                    (Array{I,2},   I,       (UInt8, I))     , I) == Any[Int, Float64, UInt16]
+@test Traits.find_correponding_type(Tuple{Array{Int,2}, Float64, Tuple{UInt8, UInt16}},
+                                    Tuple{Array{I,2},   I,       Tuple{String, I}}    , I) == Any[Int, Float64, Traits._TestType{:no_match}, UInt16]
+@test Traits.find_correponding_type(Tuple{Array{Int,2}, Float64, Tuple{UInt8, UInt16}},
+                                    Tuple{Array{I,2},   I,       Tuple{UInt8, I}}     , I) == Any[Int, Float64, UInt16]
 
 
-# manual implementations
+# # # manual implementations
 include("manual-traitdef.jl")
 include("manual-traitimpl.jl")
 include("manual-traitdispatch.jl")
 
-# test Traits.jl
-#include("helpers.jl")
+# # test Traits.jl
+# #include("helpers.jl")
 include("traitdef.jl")
+include("traitimpl.jl")
 include("traitfns.jl")
 include("traitdispatch-manual-vs-auto.jl")
 include("traitdispatch.jl")

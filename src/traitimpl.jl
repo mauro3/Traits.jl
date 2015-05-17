@@ -13,6 +13,7 @@
 # end
 #
 # ToDo:
+# - implement parametric methods
 # - more checks?
 
 function get_fname(ex::Expr)
@@ -38,6 +39,8 @@ function get_fsig(ex::Expr)
 end
 
 function check_macro_body(bodyargs, implfs, trait)
+    # TODO: this check is broken
+    
     # check that there are no double defs
     length(trait().methods)==length(implfs) || error("Duplicate method definition(s)")
     # check right number of defs
@@ -56,6 +59,7 @@ function check_macro_body(bodyargs, implfs, trait)
 end
 
 function parse_body(body::Expr)
+    # TODO try and remove eval:
     implfs = Dict()
     for ln in Lines(body)
         if !isdefined(get_fname_only(ln))
@@ -119,21 +123,22 @@ end
 macro traitimpl(head, body)
     ## Parse macro header
     name, paras, trait_expr = parsecurly(head)
-    trait = eval_curmod(trait_expr)
 
-    ## Check supertraits are implemented:
-    if !istrait(traitgetsuper(trait))
-        istrait(traitgetsuper(trait); verbose=true)
-        throw(TraitException("""Not all supertraits of $trait are implemented.
-             Implement them first."""))
-    end
     ## Parse macro body 
     implfs = parse_body(body)
     #check_macro_body(body.args, implfs, trait) # doesn't work with associated types
+
+    out = quote
+        ## Check supertraits are implemented:
+        if !istrait(traitgetsuper($trait_expr))
+            istrait(traitgetsuper($trait_expr); verbose=true)
+            throw(TraitException("""Not all supertraits of $($trait_expr) are implemented.
+                                 Implement them first."""))
+        end
+    end
     ## Make methods
-    out = quote end
     for (fn, fndef) in implfs
-        modname = module_name(Base.function_module(fn, (Any...)))
+        modname = module_name(Base.function_module(fn, Tuple{Vararg{Any}}))
         prefix_module!(fndef, modname)
         push!(out.args,fndef)
     end

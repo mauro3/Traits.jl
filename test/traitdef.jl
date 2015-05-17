@@ -81,7 +81,7 @@ iter = [Traits.GenerateTypeVars{:upcase},  Int] #todo: add String,
 if method_exists_bug1
     dicts = [] #todo add again: Dict{Int,Int}] # , ObjectIdDict]
 else
-    dicts = [Dict{Int}, Dict{Int,Int}] # Dict does not work, ObjectIdDict does not fulfill the trait
+    dicts = [Dict{Int,Int}] # Dict and Dict{Int} does not work, ObjectIdDict does not fulfill the trait
 end
 index = [Array{Int,2}, StepRange{Int,Int}]
 c =1
@@ -111,6 +111,7 @@ end
 @test !istrait(Iter{Nothing})
 
 arith = [Int, Float64, Rational{Int}]
+a1,a2 = 1,1
 for a1 in arith
     for a2 in arith
         @test istrait(Arith{a1,a2}, verbose=verbose)
@@ -149,9 +150,9 @@ end
    ==(X,Y) -> Bool
 end
 
-@test traitgetsuper(Tr20)==()
-@test traitgetsuper(Tr21)==(Tr20,)
-@test traitgetsuper(Tr13)==(Tr11, Tr20, Tr21)
+@test traitgetsuper(Tr20)==Tuple{}
+@test traitgetsuper(Tr21)==Tuple{Tr20}
+@test traitgetsuper(Tr13)==Tuple{Tr11, Tr20, Tr21}
 
 @test issubtrait(Tr21, Tr20)
 @test issubtrait(Tr211, Tr20)
@@ -161,13 +162,13 @@ end
 @test issubtrait(Tr13, Tr21)
 @test issubtrait(Tr13, Tr20)
 
-@test issubtrait((Tr21,), (Tr20,))
-@test  issubtrait((Tr21,Tr11), (Tr20,Tr10))
-@test !issubtrait((Tr21,Tr11), (Tr10,Tr20)) # todo: this should be true, as order shouldn't matter
-@test issubtrait((Tr11,Tr21), (Tr10,Tr20))
+@test issubtrait(Tuple{Tr21}, Tuple{Tr20})
+@test  issubtrait(Tuple{Tr21,Tr11}, Tuple{Tr20,Tr10})
+@test !issubtrait(Tuple{Tr21,Tr11}, Tuple{Tr10,Tr20}) # todo: this should be true, as order shouldn't matter
+@test issubtrait(Tuple{Tr11,Tr21}, Tuple{Tr10,Tr20})
 
 @test !issubtrait(Tr21{Int}, Tr20{Float64})
-@test !issubtrait((Tr21{Int},), (Tr20{Float64},))
+@test !issubtrait(Tuple{Tr21{Int}}, Tuple{Tr20{Float64}})
 
 ####
 # Test functions parameterized on non-trait parameters.
@@ -207,7 +208,6 @@ fn77{Y<:Number}(a::Array,b::Y, c::Y) = a[1]
 #####
 # Trait functions parameterized on trait parameters
 ####
-check_return_types(false)
 @traitdef Pr3{X} begin
     fn78{T<:X}(T,T)
 end
@@ -244,8 +244,8 @@ fnpr06{T<:FloatingPoint, S<:Integer}(::Dict{T,S}, ::Dict{S,T}) = 1
 @traitdef Pr07{X} begin
     fnpr07(X, X, Integer)
 end
-fnpr07{T<:Integer}(::T, ::T, ::Integer) = 1
-@test !istrait(Pr07{Integer})
+fnpr07{T<:Integer}(::T, ::T, ::Integer) = 1  
+@test !istrait(Pr07{Integer}) # not trait because fnpr07(Int8, UInt8, ...) is not callable
 @test istrait(Pr07{Int})
 
 # function parameters only one of the methods
@@ -277,8 +277,6 @@ end
 fnpr12{T<:Integer}(::T, ::Vector{T}, ::Integer) = 1
 @test !istrait(Pr12{Integer})
 @test !istrait(Pr12{Int})
-
-check_return_types(true)
 
 ####
 # Test constraints
@@ -397,7 +395,7 @@ foo32(a::String...) = 2 # to avoid ambiguity warnings
 end
 foo33(::String) = 1
 @test !istrait(TT33{String})
-foo33{T<:String}(::String, a::T...) = 2 
+foo33{T<:String}(::String, a::T...) = 2
 @test istrait(TT33{String})
 
 ####
@@ -419,9 +417,7 @@ end
 @test istrait(TT45{Dict{Int,Int}})
 @test istrait(TT45{Set{Int}})
 @test !istrait(TT45{Int})
-@test !istrait(TT45{Array{Int,1}})
-
-
+@test istrait(TT45{Array{Int,1}})
 
 @traitdef TT44{D} begin
     Array(Type{D},Integer) -> Array # the standard array constructor, should be working for all Types
@@ -446,11 +442,7 @@ end
     end
 end
 @test !istrait(TT46{A4758})
-if Traits.flag_check_return_types
-    @test !istrait(TT46{Dict{Int,Int}})
-else
-    @test istrait(TT46{Dict{Int,Int}}, verbose=verbose) # this is a false positive
-end
+@test !istrait(TT46{Dict{Int,Int}})
 # @test istrait(TT46{Set{Int}}, verbose=verbose) this actually works, but not as expected and gives a deprecation warning
 @test !istrait(TT46{Int})
 @test istrait(TT46{Array{Int,1}}, verbose=verbose)

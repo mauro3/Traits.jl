@@ -38,7 +38,7 @@ end
 end
 
 @traitdef IterColl{X} <: Collection{X} begin # iterable collection
-    empty!(X) -> X
+    empty!(X) # -> X # ToDo: fix after updating return types
 end
 
 @traitdef Indexable{X} <:Collection{X} begin
@@ -75,7 +75,7 @@ end
 
 @traitdef Arith{X,Y} begin
     Z = promote_type(X,Y)
-    D = (X,Y)<:(Integer, Integer) ? Float64 : Z
+    D = Tuple{X,Y}<:Tuple{Integer, Integer} ? Float64 : Z
 
      # note, promote_type is defined for (Type{Any},Type{Any}), so no
      # need to include it here:

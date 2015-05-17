@@ -22,23 +22,22 @@ function parsecurly(def::Expr)
     paras = Symbol[]
     append!(paras,def.args[2:end])
     trait = def
-    return name, paras, trait, :(())
+    return name, paras, trait, :(Tuple{})
 end
 function parsecomp(def::Expr)
     # parses :(Cmp{x,y} <: Eq{x,y})
-    # into:  :Cmp, [:x,:y], :(Cmp{x,y}), :((Eq{x,y},))
+    # into:  :Cmp, [:x,:y], :(Cmp{x,y}), :(Tuple{Eq{x,y}})
     if  def.args[2]!=:<:
         error("not a <:")
     end
     name, paras, trait = parsecurly(def.args[1])
-    supertraits = :()
-    push!(supertraits.args, def.args[3])
+    supertraits = :(Tuple{$(def.args[3])})
     return name, paras, trait, supertraits
 end
 
 function parsetuple(def::Expr)
     # parses :(Cmp{x,y} <: Eq{x,y}, Sz{x}, Uz{y})
-    # into   :Cmp, [:x,:y], :(Cmp{x,y}), :((Eq{x,y},Sz{x},Uz{y}))
+    # into   :Cmp, [:x,:y], :(Cmp{x,y}), :(Tuple{Eq{x,y},Sz{x},Uz{y}})
     name, paras, trait, supertraits = parsecomp(def.args[1])
     append!(supertraits.args, def.args[2:end])
     return name, paras, trait, supertraits
@@ -49,11 +48,11 @@ function parsetraithead(def::Expr)
     # :(Cmp{X,Y} <: Eq{X,Y}, Tr1{X})
     # into
     # trait = :(Cmp{X,Y}
-    # supertraits = :(Eq{X,Y}, Tr1{X})
+    # supertraits = :(Tuple{Eq{X,Y}, Tr1{X}})
     # paras = [:X,:Y]
     # 
     # Returns:
-    # :(immutable Cmp{X,Y} <: Trait{(Eq{X,Y}, Tr1{X})} end)
+    # :(immutable Cmp{X,Y} <: Trait{Tuple{Eq{X,Y}, Tr1{X}}} end)
     
     if def.head==:tuple # contains several parents
         name, paras, trait, supertraits = parsetuple(def)
@@ -65,7 +64,7 @@ function parsetraithead(def::Expr)
         error("Interface specification error")
     end
     # check supertraits<:Traits
-    for i =1:length(supertraits.args)
+    for i =2:length(supertraits.args)
         st = supertraits.args[i].args[1]
         eval_curmod(:(@assert istraittype($st)))
     end

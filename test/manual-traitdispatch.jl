@@ -16,18 +16,18 @@ f2{X,Y<:FloatingPoint}(x::X, y::Y) = f2(x, y, f2(TraitType(), x,y) )
 # so that it doesn't occupy f2(x::Any, y::Any)
 
 # the logic is:
-@inline f2{X,Y<:Integer}(x::X, y::Y, ::Type{(D1{Y}, D4{X,Y})}) = x + sin(y)
-@inline f2{S,T<:Integer}(s::S, t::T, ::Type{(D1{S}, D1{T})}) = sin(s) - sin(t)
-@inline f2{X,Y<:FloatingPoint}(x::X, y::Y, ::Type{(D1{X}, D1{Y})}) = cos(x) - cos(y)
+@inline f2{X,Y<:Integer}(x::X, y::Y, ::Type{ Tuple{D1{Y}, D4{X,Y}} }) = x + sin(y)
+@inline f2{S,T<:Integer}(s::S, t::T, ::Type{ Tuple{D1{S}, D1{T}} }) = sin(s) - sin(t)
+@inline f2{X,Y<:FloatingPoint}(x::X, y::Y, ::Type{ Tuple{D1{X}, D1{Y}} }) = cos(x) - cos(y)
 
 # the trait dispatch.  Here I rename all the arguments and type parameters.
 
 function f2{X1,X2<:FloatingPoint}(::TraitType, ::Type{X1}, ::Type{X2})
     # This method serves as a storage for the trait-types of a certain
     # normal-type signature.
-    [(D1{X1}, D1{X2})], Any[:(D1{X1}, D1{X2})]
+    [ Tuple{D1{X1}, D1{X2}} ], Any[:(Tuple{D1{X1}, D1{X2}})]
 end
-stagedfunction f2{X1,X2<:FloatingPoint}(::TraitType, x1::X1, x2::X2)
+@generated function f2{X1,X2<:FloatingPoint}(::TraitType, x1::X1, x2::X2)
     traittypes = f2(TraitType(), x1, x2)[1]
 
     poss = Any[] # list of satisfied trait-types
@@ -42,7 +42,7 @@ stagedfunction f2{X1,X2<:FloatingPoint}(::TraitType, x1::X1, x2::X2)
         throw(Traits.TraitException("Several matching traits found for function f2"))
     end
     # construct function from poss[1]
-    out = :(())
+    out = :(Tuple{})
     for s in poss[1]
         push!(out.args, :($s))
     end
@@ -51,9 +51,9 @@ end
 
 
 function f2{X1,X2<:Integer}(::TraitType, ::Type{X1}, ::Type{X2})
-    [(D1{X2}, D4{X1,X2}), (D1{X1}, D1{X2})], Any[:(D1{X2}, D4{X1,X2}), :(D1{X1}, D1{X2})]
+    [Tuple{D1{X2}, D4{X1,X2}}, Tuple{D1{X1}, D1{X2}} ], Any[:(Tuple{D1{X2}, D4{X1,X2}}), :(Tuple{D1{X1}, D1{X2}})]
 end
-stagedfunction f2{X1,X2<:Integer}(::TraitType, x1::X1, x2::X2)
+@generated function f2{X1,X2<:Integer}(::TraitType, x1::X1, x2::X2)
     traittypes = f2(TraitType(), x1, x2)[1]
 
     poss = Any[]
@@ -68,7 +68,7 @@ stagedfunction f2{X1,X2<:Integer}(::TraitType, x1::X1, x2::X2)
         throw(Traits.TraitException("Several matching traits found for function f2"))
     end
 
-    out = :(())
+    out = :(Tuple{})
     for s in poss[1]
         push!(out.args, :($s))
     end
@@ -121,18 +121,18 @@ f1{X,Y<:FloatingPoint}(x::X, y::Y) = _trait_f1(x, y, _trait_type_f1(x,y) )
 # so that it doesn't occupy f1(x::Any, y::Any)
 
 # the logic is:
-@inline _trait_f1{X,Y<:Integer}(x::X, y::Y, ::Type{(D1{Y}, D4{X,Y})}) = x + sin(y)
-@inline _trait_f1{S,T<:Integer}(s::S, t::T, ::Type{(D1{S}, D1{T})}) = sin(s) - sin(t)
-@inline _trait_f1{X,Y<:FloatingPoint}(x::X, y::Y, ::Type{(D1{X}, D1{Y})}) = cos(x) - cos(y)
+@inline _trait_f1{X,Y<:Integer}(x::X, y::Y, ::Type{ Tuple{D1{Y}, D4{X,Y}} }) = x + sin(y)
+@inline _trait_f1{S,T<:Integer}(s::S, t::T, ::Type{ Tuple{D1{S}, D1{T}} }) = sin(s) - sin(t)
+@inline _trait_f1{X,Y<:FloatingPoint}(x::X, y::Y, ::Type{ Tuple{D1{X}, D1{Y}} }) = cos(x) - cos(y)
 
 # the trait dispatch.  Here I rename all the arguments and type parameters.
 
 function _trait_type_f1{X1,X2<:FloatingPoint}(::Type{X1}, ::Type{X2})
     # This method serves as a storage for the trait-types of a certain
     # normal-type signature.
-    [(D1{X1}, D1{X2})], Any[:(D1{X1}, D1{X2})]
+    [Tuple{D1{X1}, D1{X2}}], Any[:(Tuple{D1{X1}, D1{X2}})]
 end
-stagedfunction _trait_type_f1{X1,X2<:FloatingPoint}(x1::X1, x2::X2)
+@generated function _trait_type_f1{X1,X2<:FloatingPoint}(x1::X1, x2::X2)
     traittypes = _trait_type_f1(x1, x2)[1]
 
     poss = Any[] # list of satisfied trait-types
@@ -147,7 +147,7 @@ stagedfunction _trait_type_f1{X1,X2<:FloatingPoint}(x1::X1, x2::X2)
         throw(Traits.TraitException("Several matching traits found for function f1"))
     end
     # construct function from poss[1]
-    out = :(())
+    out = :(Tuple{})
     for s in poss[1]
         push!(out.args, :($s))
     end
@@ -156,9 +156,9 @@ end
 
 
 function _trait_type_f1{X1,X2<:Integer}(::Type{X1}, ::Type{X2})
-    [(D1{X2}, D4{X1,X2}), (D1{X1}, D1{X2})], Any[:(D1{X2}, D4{X1,X2}), :(D1{X1}, D1{X2})]
+    [Tuple{D1{X2}, D4{X1,X2}}, Tuple{D1{X1}, D1{X2}}], Any[:(Tuple{D1{X2}, D4{X1,X2}}), :(Tuple{D1{X1}, D1{X2}})]
 end
-stagedfunction _trait_type_f1{X1,X2<:Integer}(x1::X1, x2::X2)
+@generated function _trait_type_f1{X1,X2<:Integer}(x1::X1, x2::X2)
     traittypes = _trait_type_f1(x1, x2)[1]
 
     poss = Any[]
@@ -173,7 +173,7 @@ stagedfunction _trait_type_f1{X1,X2<:Integer}(x1::X1, x2::X2)
         throw(Traits.TraitException("Several matching traits found for function f1"))
     end
 
-    out = :(())
+    out = :(Tuple{})
     for s in poss[1]
         push!(out.args, :($s))
     end

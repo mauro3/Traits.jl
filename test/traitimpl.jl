@@ -42,7 +42,7 @@ for ln in enumerate(body.args)
 end
 
 implfs = Traits.parse_body(body)
-@test Traits.check_macro_body(body.args, implfs, trait)
+#@test Traits.check_macro_body(body.args, implfs, trait)
 
 # check @traitimpl
 type A110

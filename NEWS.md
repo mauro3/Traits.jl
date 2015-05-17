@@ -1,6 +1,12 @@
 Feature updates for Traits.jl
 =============================
 
+19 May 2015
+-----------
+
+Updated to post-tupocalypse Julia
+([#10380](https://github.com/JuliaLang/julia/pull/10380))
+
 17 April 2015
 -------------
 
