@@ -277,6 +277,7 @@ function isfitting(tmm::Method, fmm::Method; verbose=false) # tm=trait-method, f
         tm = FakeMethod(Tuple{fm.sig[1], tm.sig...}, tm.tvars, tm.va)
         # check whether there are method parameters too:
         for ftv in fm.tvars
+            @show "here", fmm, fm, fm.sig, ftv
             flocs = find_tvar(fm.sig, ftv)
             if flocs[1]==1 # yep, has a constraint like call{T}(::Type{Array{T}},...)
                 if length(flocs)==1
@@ -494,30 +495,24 @@ end
 #
 # find_tvar( Tuple{T, Int, Array{T}} -> [1,3]
 
-# TODO issue https://github.com/JuliaLang/julia/issues/11327#issuecomment-103159360
-# this error-ed on test @test istrait(TT33{String}) on commit 565a4d4c27d59452f
-# function find_tvar{T<:Tuple}(sig::Type{T}, tv)
-#     ns = length(sig)
-#     out = Int[]
-#     for i = 1:ns
-#         @show sig[i], tv
-#         if length(find_tvar(sig[i], tv))>0
-#             push!(out,i)
-#         end
-#     end
-#     return out
-# end
+# There was some oddness here related to https://github.com/JuliaLang/julia/issues/10930
+# Hopefully this has passed!
+function find_tvar{T<:Tuple}(sig::Type{T}, tv)
+    ns = length(sig)
+    out = Int[]
+    for i = 1:ns
+        if length(find_tvar(sig[i], tv))>0
+            push!(out,i)
+        end
+    end
+    return out
+end
 find_tvar(sig::TypeVar, tv) = sig===tv ? [1] : Int[]  # note ===, this is essential!
 function find_tvar(arg::DataType, tv)
-    if arg<:Tuple # TODO issue https://github.com/JuliaLang/julia/issues/11327#issuecomment-103159360
-        ns = length(arg)
-        out = Int[]
-        for i = 1:ns
-            if length(find_tvar(arg[i], tv))>0
-                push!(out,i)
-            end
-        end
-        return out
+    if arg<:Tuple
+        @show arg, typeof(arg), tv
+        error("Dispatch error!")
+        
     end
     ns = length(arg.parameters)
     for i=1:ns
@@ -528,6 +523,7 @@ function find_tvar(arg::DataType, tv)
     return Int[]
 end
 find_tvar(arg, tv) = false
+
 
 ######################
 # Sub and supertraits:
