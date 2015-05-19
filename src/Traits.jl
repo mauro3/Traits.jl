@@ -258,7 +258,7 @@ end
      -> false as parametric constraints are not equal
      """ ->
 function isfitting(tmm::Method, fmm::Method; verbose=false) # tm=trait-method, fm=function-method
-    println_verb = verbose ? println : x->x
+    println_verb = verbose ? println : x->x # TODO maybe move this function out
 
     # Make a "copy" of tmm & fmm as it may get updated:
     ttvs = isa(tmm.tvars, SimpleVector) ? tmm.tvars : Base.svec(tmm.tvars)
@@ -494,7 +494,7 @@ end
 #
 # find_tvar( Tuple{T, Int, Array{T}} -> [1,3]
 
-# TODO issue https://github.com/JuliaLang/julia/issues/11327#issuecomment-103159360
+# TODO issue https://github.com/JuliaLang/julia/issues/11355 and https://github.com/mauro3/Traits.jl/pull/13
 # this error-ed on test @test istrait(TT33{String}) on commit 565a4d4c27d59452f
 # function find_tvar{T<:Tuple}(sig::Type{T}, tv)
 #     ns = length(sig)
@@ -527,7 +527,7 @@ function find_tvar(arg::DataType, tv)
     end
     return Int[]
 end
-find_tvar(arg, tv) = false
+find_tvar(arg, tv) = Int[]
 
 ######################
 # Sub and supertraits:
