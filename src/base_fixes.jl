@@ -2,7 +2,7 @@
 
 # https://github.com/JuliaLang/julia/issues/10178#issuecomment-74136186
 println("  This warning is ok:")
-function Base.func_for_method(m::Method, tt, env)
+function Core.Inference.func_for_method(m::Method, tt, env)
     if !m.isstaged
         return m.func.code
     else
