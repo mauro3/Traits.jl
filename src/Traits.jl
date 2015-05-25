@@ -493,32 +493,18 @@ end
 # particular TypeVar `tv` features. Example:
 #
 # find_tvar( Tuple{T, Int, Array{T}} -> [1,3]
-
-# TODO issue https://github.com/JuliaLang/julia/issues/11355 and https://github.com/mauro3/Traits.jl/pull/13
-# this error-ed on test @test istrait(TT33{String}) on commit 565a4d4c27d59452f
-# function find_tvar{T<:Tuple}(sig::Type{T}, tv)
-#     ns = length(sig)
-#     out = Int[]
-#     for i = 1:ns
-#         @show sig[i], tv
-#         if length(find_tvar(sig[i], tv))>0
-#             push!(out,i)
-#         end
-#     end
-#     return out
-# end
+function find_tvar{T<:Tuple}(sig::Type{T}, tv)
+    ns = length(sig)
+    out = Int[]
+    for i = 1:ns
+        if length(find_tvar(sig[i], tv))>0
+            push!(out,i)
+        end
+    end
+    return out
+end
 find_tvar(sig::TypeVar, tv) = sig===tv ? [1] : Int[]  # note ===, this is essential!
 function find_tvar(arg::DataType, tv)
-    if arg<:Tuple # TODO issue https://github.com/JuliaLang/julia/issues/11327#issuecomment-103159360
-        ns = length(arg)
-        out = Int[]
-        for i = 1:ns
-            if length(find_tvar(arg[i], tv))>0
-                push!(out,i)
-            end
-        end
-        return out
-    end
     ns = length(arg.parameters)
     for i=1:ns
         if length(find_tvar(arg.parameters[i], tv))>0
