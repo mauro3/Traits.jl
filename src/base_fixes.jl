@@ -1,4 +1,4 @@
-# patching issues in base
+23# patching issues in base
 
 # https://github.com/JuliaLang/julia/issues/10178#issuecomment-74136186
 println("  This warning is ok:")
@@ -17,7 +17,7 @@ println("  endof ok-warning.")
 Base.eltype{K}(::Type{Associative{K}}) = (K,Any)
 Base.eltype(::Type{Associative}) = (Any,Any)
 
-# iterate over Tuple
+# iterate over Tuple. Remove after merge of https://github.com/JuliaLang/julia/pull/11547
 Base.length{T<:Tuple}(t::Type{T}) = length(t.parameters)
 Base.start{T<:Tuple}(::Type{T}) = 1
 Base.next{T<:Tuple}(t::Type{T}, state) = (t.parameters[state], state+1)

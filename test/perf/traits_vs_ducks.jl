@@ -36,13 +36,13 @@ function gg()
     out
 end
 
-
+gg()
 gc()
 t, m = @timeit gg()
 println("Duck-typed function:  time $(round(t,5))s, mem $(round(Int,m/1e6))MB")
 
+gt()
 gc()
-
 t, m = @timeit gt()
 println("Trait-typed function: time $(round(t,5))s, mem $(round(Int,m/1e6))MB")
 ## 
