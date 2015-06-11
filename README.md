@@ -332,7 +332,7 @@ implemented by `Tuple{Int,Float64}`.
 For the trait dispatch of a function, say `f1`, a generated-method is
 used (which also belongs to the generic function `f1`, so I needn't
 worry about scopes).  The first time the generated method is called
-with arguments of a specific type, it figures out to which trait or
+with arguments of a specific type, it figures out which trait or
 traits-tuple featuring in the method definitions of `f1` that type
 satisfies, and constructs a constant method returning that trait.
 This trait is then used for dispatch.  Time for an example!
@@ -354,7 +354,7 @@ f1{X,Y<:FloatingPoint}(x::X, y::Y) = f1(f1(_TraitDispatch,x, y), x, y)
 @inline f1{S,T<:Integer}(::Type{(D1{S}, D1{T})}, s::S, t::T) = sin(s) - sin(t)
 @inline f1{X,Y<:FloatingPoint}(::Type{(D1{X}, D1{Y})}, x::X, y::Y) = cos(x) - cos(y)
 
-# Trait dispatch happens in these staged functions
+# Trait dispatch happens in these generated functions
 @generated function f1{X1,X2<:Integer}(::Type{_TraitDispatch}, x1::X1, x2::X2)
     # Figure out which traits match (note this list is updated as more
     # trait-dispatched methods are added to f1)
@@ -375,10 +375,10 @@ end
 
 ```
 
-Dispatch, happening in `Traits.traitdispatch` is quite simple taking
-trait-hierarchies into account.  Although, note that it is easily
-possible to have unsolvable ambiguities with trait-dispatch as traits
-do not have a strict hierarchy like types.
+Dispatch, happening in the function `Traits.traitdispatch` is quite
+simple taking trait-hierarchies into account.  Although, note that it
+is easily possible to have unsolvable ambiguities with trait-dispatch
+as traits do not have a strict hierarchy like types.
 
 # Other trait implementations
 
