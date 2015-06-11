@@ -259,54 +259,81 @@ I manually coded what the macros do.
 
 In Julia dispatch works on types, to extend this to traits I use
 @timholy's [trick](https://github.com/JuliaLang/julia/issues/2345#issuecomment-54537633).
-His trick uses a function to check whether its input types satisfy
-certain conditions (only dependent on their type) and returns one type
-or another depending on the outcome.  That check-function is then used
+His trick uses a method to assign a trait to its arguments.  That trait-function is then used
 for dispatch in another function.  Example of Tim's trick (`examples/ex_tims_traits.jl`):
 ```julia
 type Trait1 end
 type Trait2 end
 type Trait3 end
-# now define function f which should dispatch on those traits
-f(x,y) = _f(x,y, checkfn(x,y))
+# Now define function f which should dispatch on those traits:
+f(x,y) = _f(x,y, traitfn(x,y))
+# Logic which dispatches on trait:
 _f(x,y,::Type{Trait1}) = x+y
 _f(x,y,::Type{Trait2}) = x-y
 _f(x,y,::Type{Trait3}) = x*y
-# default
-checkfn{T,S}(x::T,y::S) = error("Function f not implemented for type ($T,$S)")
-# add types-tuples to Trait1, Trait2 or Trait3:
-checkfn(::Int, ::Int) = Trait1
-checkfn(::Int, ::FloatingPoint) = Trait2
-checkfn(::FloatingPoint, ::FloatingPoint) = Trait3
+# Association of types with traits through method definitions:
+# Throw error as default 
+traitfn{T,S}(x::T,y::S) = error("Function f not implemented for type ($T,$S)")
+# Add types-tuples to Trait1, Trait2 or Trait3
+traitfn(::Int, ::Int) = Trait1
+traitfn(::Int, ::FloatingPoint) = Trait2
+traitfn(::FloatingPoint, ::FloatingPoint) = Trait3
 # use
 @assert f(3,4)==7      # Trait1
 @assert f(3,4.)==-1.0  # Trait2
 @assert f(3.,4.)==12.0 # Trait3
 # add another type-tuple to Trait3
-checkfn(::String, ::String) = Trait3
+traitfn(::String, ::String) = Trait3
 @assert f("Lorem ", "Ipsum")=="Lorem Ipsum"
 ```
 
 What does this add compared to what we had before with usual dispatch?
 When a new type, say `A`, is created it can made to work with the
 function `f` without needing to re-define `f` for that particular
-type.  Instead all that is needed is to add it to the `checkfn`, and
-choosing the exact behavior of `f` by the type `checkfn` returns:
+type.  Instead all that is needed is to add it to the `traitfn`, and
+choosing the exact behavior of `f` by the type `traitfn` returns:
 ```julia
-checkfn(::A, ::Int) = Trait1()
-checkfn(::Int, ::A) = Trait1() 
+traitfn(::A, ::Int) = Trait1()
+traitfn(::Int, ::A) = Trait1() 
 ```
 
-Therefore `checkfn` is in effect a function that groups type-tuples
-into different "Traits" (via method definitions) and returns the
+Therefore `traitfn` is in effect a function that groups type-tuples
+into different *Traits* (via method definitions) and returns the
 appropriate type when called (which is then used inside `f` for
-dispatch).
+dispatch).  However, the limitation of this approach is that `traitfn`
+is married to `f` as can be seen from trying to reuse it for another
+function `g` which wants to dispatch in different traits:
+```julia
+g(x,y) = _g(x,y, traitfn(x,y))
+# Logic which dispatches on trait:
+_g(x,y,::Type{Trait1}) = 2x+2y
+_g(x,y,::Type{Trait4}) = 2x-2y  # g doesn't care about Trait2&3 but about 4
+# however Trait4 should also be implemented by {Int, FloatingPoint} just
+# like Trait2!
+traitfn(::Int, ::FloatingPoint) = Trait4 # this will overwrite the
+                                         # Trait2 definition above!
+g(5, 6.) # doesn't work
+```
 
-To implement traits in a generic fashion, I automated the definitions
-of the `checkfn` functions using staged-functions.  Therefore the
-staged part of `checkfn` figures out to what trait or traits-tuple a
-type-tuple belongs to and creates a constant method for that type-tuple.
-This is essentially doing dispatch on traits.
+This limitation can be overcome having a different `traitfn` for each
+function which uses trait dispatch.  However, it becomes rather tricky
+to remember to update all different `traitfn`s if a type tuple is
+added to a certain trait!  This problem is solved in Traits.jl by
+de-coupling the *trait definition* from the *trait dispatch* helper
+function, both of which was done by the `traitfn` above.
+
+Whether a trait is defined is checked by the `istrait` function
+(completely independent of any functions doing trait-dispatch).  For
+instance `istrait(Tr1{Int,Float64})` will check whether `Tr1` is
+implemented by `Tuple{Int,Float64}`.
+
+
+For the trait dispatch of a function, say `f1`, I use a
+generated-method (which also belongs to the generic function `f1`, so
+I needn't worry about scopes).  It figures out to what trait or
+traits-tuple used in the method definitions of `f1` a type-tuple
+belongs to and creates a constant method for that type-tuple.  This is
+essentially doing dispatch on traits.
 
 So for methods definition like so
 ```julia
@@ -320,13 +347,15 @@ f1{X,Y<:Integer}(x::X, y::Y)       = f1(f1(_TraitDispatch,x, y), x, y)
 f1{S,T<:Integer}(s::S, t::T)       = f1(f1(_TraitDispatch,s, t), s, t)
 f1{X,Y<:FloatingPoint}(x::X, y::Y) = f1(f1(_TraitDispatch,x, y), x, y)
 
-# the logic is:
+# The logic for different traits is:
 @inline f1{X,Y<:Integer}(::Type{(D1{Y}, D4{X,Y})}, x::X, y::Y) = x + sin(y)
 @inline f1{S,T<:Integer}(::Type{(D1{S}, D1{T})}, s::S, t::T) = sin(s) - sin(t)
 @inline f1{X,Y<:FloatingPoint}(::Type{(D1{X}, D1{Y})}, x::X, y::Y) = cos(x) - cos(y)
 
-stagedfunction f1{X1,X2<:Integer}(::Type{_TraitDispatch}, x1::X1, x2::X2)
-    # figure out which traits match:
+# Trait dispatch happens in these staged functions
+@generated function f1{X1,X2<:Integer}(::Type{_TraitDispatch}, x1::X1, x2::X2)
+    # Figure out which traits match (note this list is updated as more
+    # trait-dispatched methods are added to f1)
     traittypes = [(D1{X2}, D4{X1,X2}), (D1{X1}, D1{X2})]
 
     traittyp = Traits.traitdispatch(traittypes, $(fn.name))
@@ -337,7 +366,8 @@ stagedfunction f1{X1,X2<:Integer}(::Type{_TraitDispatch}, x1::X1, x2::X2)
     end
     return out
 end
-stagedfunction f1{X1,X2<:FloatingPoint}(::Type{_TraitDispatch}, x1::X1, x2::X2)
+# For each type signature there is a trait-dispatch function
+@generated function f1{X1,X2<:FloatingPoint}(::Type{_TraitDispatch}, x1::X1, x2::X2)
 ...
 end
 
