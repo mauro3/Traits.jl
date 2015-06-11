@@ -259,7 +259,7 @@ I manually coded what the macros do.
 
 In Julia dispatch works on types, to extend this to traits I use
 @timholy's [trick](https://github.com/JuliaLang/julia/issues/2345#issuecomment-54537633).
-His trick uses a method to assign a trait to its arguments.  That trait-function is then used
+His trick uses a method to assign its arguments to a trait.  That trait-function is then used
 for dispatch in another function.  Example of Tim's trick (`examples/ex_tims_traits.jl`):
 ```julia
 type Trait1 end
@@ -308,8 +308,9 @@ g(x,y) = _g(x,y, traitfn(x,y))
 # Logic which dispatches on trait:
 _g(x,y,::Type{Trait1}) = 2x+2y
 _g(x,y,::Type{Trait4}) = 2x-2y  # g doesn't care about Trait2&3 but about 4
-# however Trait4 should also be implemented by {Int, FloatingPoint} just
-# like Trait2!
+
+# However, say Trait4 should also be implemented by {Int, FloatingPoint} just
+# like Trait2:
 traitfn(::Int, ::FloatingPoint) = Trait4 # this will overwrite the
                                          # Trait2 definition above!
 g(5, 6.) # doesn't work
@@ -317,10 +318,10 @@ g(5, 6.) # doesn't work
 
 This limitation can be overcome having a different `traitfn` for each
 function which uses trait dispatch.  However, it becomes rather tricky
-to remember to update all different `traitfn`s if a type tuple is
+to remember to update all different `traitfn`s if a type-tuple is
 added to a certain trait!  This problem is solved in Traits.jl by
 de-coupling the *trait definition* from the *trait dispatch* helper
-function, both of which was done by the `traitfn` above.
+function, both of which was done above by the `traitfn`.
 
 Whether a trait is defined is checked by the `istrait` function
 (completely independent of any functions doing trait-dispatch).  For
@@ -328,14 +329,15 @@ instance `istrait(Tr1{Int,Float64})` will check whether `Tr1` is
 implemented by `Tuple{Int,Float64}`.
 
 
-For the trait dispatch of a function, say `f1`, I use a
-generated-method (which also belongs to the generic function `f1`, so
-I needn't worry about scopes).  It figures out to what trait or
-traits-tuple used in the method definitions of `f1` a type-tuple
-belongs to and creates a constant method for that type-tuple.  This is
-essentially doing dispatch on traits.
+For the trait dispatch of a function, say `f1`, a generated-method is
+used (which also belongs to the generic function `f1`, so I needn't
+worry about scopes).  The first time the generated method is called
+with arguments of a specific type, it figures out to which trait or
+traits-tuple featuring in the method definitions of `f1` that type
+satisfies, and constructs a constant method returning that trait.
+This trait is then used for dispatch.  Time for an example!
 
-So for methods definition like so
+For methods definition like so
 ```julia
 @traitfn f1{X,Y<:Integer; D1{Y}, D4{X,Y}}(x::X,y::Y) = x + sin(y)
 @traitfn f1{S,T<:Integer; D1{S}, D1{T}  }(s::S,t::T) = sin(s) - sin(t)
