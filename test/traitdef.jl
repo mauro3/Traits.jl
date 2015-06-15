@@ -446,7 +446,15 @@ end
 # @test istrait(TT46{Set{Int}}, verbose=verbose) this actually works, but not as expected and gives a deprecation warning
 @test !istrait(TT46{Int})
 @test istrait(TT46{Array{Int,1}}, verbose=verbose)
-# @test istrait(TT46{Array{Int}}, verbose=verbose) # this does not pass currently because of https://github.com/JuliaLang/julia/issues/10642
+
+# TODO: This does not pass currently because of:
+## julia> f() = Array{Int}()
+## f (generic function with 1 method)
+#
+## julia> Base.return_types(f, ())
+## 1-element Array{Any,1}:
+##  Array{Int64,0}
+# @test istrait(TT46{Array{Int}}, verbose=verbose)
 @test istrait(TT46{Array}, verbose=verbose)
 
 
