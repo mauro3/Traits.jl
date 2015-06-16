@@ -16,12 +16,6 @@ if !(VERSION>v"0.4-")
     error("Traits.jl needs Julia version 0.4.-")
 end
 
-## patches for bugs in base
-include("base_fixes.jl")
-
-## common helper functions
-include("helpers.jl")
-
 #######
 # Flags
 #######
@@ -51,10 +45,13 @@ end
 abstract Trait{SUPER}
 
 # Type of methods field of concrete traits:
-typealias FDict Dict{Union(Function,DataType),Function}
+typealias FDict Dict{Union{Function, DataType},Function}
 
 # A concrete trait type has the form 
 ## Tr{X,Y,Z} <: Trait{ Tuple{ST1{X,Y},ST2{Z}} }
+#
+# Note that using an ordinary tuple as parameter is not possible as
+# isbits( (ST1{X,Y},ST2{Z}) )==false.
 # 
 # immutable Tr1{X1} <: Traits.Trait{ Tuple{} }
 #     methods::FDict
@@ -77,7 +74,7 @@ immutable _TraitStorage end
 #      @traitdef.  This is a bit awkward:
 
 #      - method_exists(f, s) returns true if there is a method of f with
-#        signature sig such that s<:sig.  Thus All<->Union()
+#        signature sig such that s<:sig.  Thus All<->Union{}
 #      - Base.return_types works the other way around, there All<->Any
 
 #      See also https://github.com/JuliaLang/julia/issues/8974"""->
@@ -91,7 +88,7 @@ end
 # Helper dummy types used in istrait below
 abstract _TestType{T}
 immutable _TestTvar{T}<:_TestType{T} end # used for TypeVar testing
-#Base.show{T<:_TestType}(io::IO, x::Type{T}) = print(io, string(x.parameters[1])*"_")
+#Base.show{T<:_TestType}(io::IO, x::Type{T}) = print(io, string(getpara(x,1)*"_")
 
 #########
 # istrait, one of the core functions
@@ -103,7 +100,7 @@ immutable _TestTvar{T}<:_TestType{T} end # used for TypeVar testing
 istraittype(x) = false
 istraittype{T<:Trait}(x::Type{T}) = true
 function istraittype{T<:Tuple}(xs::Type{T})
-    for x in xs
+    for x in getpara(xs)
         istraittype(x) || return false
     end
     return true
@@ -162,7 +159,7 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
             println_verb("** Checking method $tm")
             checks = false
             # Only loop over methods which have the right number of arguments:
-            for fm in methods(gf, NTuple{length(tm.sig),Any}) 
+            for fm in methods(gf, NTuple{nargs(tm),Any}) 
                 if isfitting(tm, fm, verbose=verbose)
                     checks = true
                     break
@@ -218,7 +215,7 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
 end
 # check a tuple of traits against a signature
 function istrait{T<:Tuple}(Trs::Type{T}; verbose=false)
-    for Tr in Trs
+    for Tr in getpara(Trs)
         istrait(Tr; verbose=verbose) || return false
     end
     return true
@@ -270,11 +267,11 @@ function isfitting(tmm::Method, fmm::Method; verbose=false) # tm=trait-method, f
     # (because Vector{TypeVar(:V, Int)}<:Vector{Int}==false but we need ==true)
     tm = replace_concrete_tvars(tm)
     fm = replace_concrete_tvars(fm)
-
+    
     # Special casing call-overloading:
     if fmm.func.code.name==:call && tmm.func.code.name!=:call # true if only fm is call-overloaded
         # prepend ::Type{...} to signature
-        tm = FakeMethod(Tuple{fm.sig[1], tm.sig...}, tm.tvars, tm.va)
+        tm = FakeMethod(Tuple{getpara(fm.sig,1), getpara(tm.sig)...}, tm.tvars, tm.va)
         # check whether there are method parameters too:
         for ftv in fm.tvars
             flocs = find_tvar(fm.sig, ftv)
@@ -292,7 +289,7 @@ function isfitting(tmm::Method, fmm::Method; verbose=false) # tm=trait-method, f
         # # There is a strange bug which is prevented by this never
         # # executing @show.  I'll try and investigate this in branch
         # # m3/heisenbug
-        # if length(tm.sig)==-10
+        # if nargs(tm)==-10
         #     @show tm
         #     error("This is not possible")
         # end
@@ -317,8 +314,8 @@ function isfitting(tmm::Method, fmm::Method; verbose=false) # tm=trait-method, f
 
     # False if there are not the same number of arguments: (I don't
     # think this test is necessary as it is tested above.)
-    if length(tm.sig)!=length(fm.sig)!
-        println_verb("Reason fail: not same argument length.")
+    if nargs(tm)!=nargs(fm)!
+        println_verb("Reason fail: not same number of arguments.")
         return false
     end
     # Getting to here means that that condition (A) is fulfilled.
@@ -326,8 +323,8 @@ function isfitting(tmm::Method, fmm::Method; verbose=false) # tm=trait-method, f
     ## Check condition B:
     # If there is only one argument then we're done as parametric
     # constraints play no role:
-    if length(tm.sig)==1
-        println_verb("Reason pass: length(tm.sig)==1")
+    if nargs(tm)==1
+        println_verb("Reason pass: nargs(tm)==1")
         return true
     end
 
@@ -337,7 +334,7 @@ function isfitting(tmm::Method, fmm::Method; verbose=false) # tm=trait-method, f
         for (i,ftv) in enumerate(fm.tvars)
             # If all the types in tm.sig, which correspond to a
             # parameter constraint argument of fm.sig, are the same then pass.
-            typs = Tuple{tm.sig.parameters[find_tvar(fm.sig, ftv)]...}
+            typs = getpara(tm.sig, find_tvar(fm.sig, ftv))
             if length(typs)==0
                 println_verb("Reason fail: this method $fmm is not callable because the static parameter does not occur in signature.")
                 return false
@@ -370,6 +367,7 @@ function isfitting(tmm::Method, fmm::Method; verbose=false) # tm=trait-method, f
             throw(TraitException("""The parametric-constraint of trait-method $tmm has to feature 
                                  in at least one argument of the signature."""))
         end
+
         # Find the tvar in fm which corresponds to tv. 
         ftvs = Any[]
         for ftv in fm.tvars
@@ -405,8 +403,8 @@ function isfitting(tmm::Method, fmm::Method; verbose=false) # tm=trait-method, f
         checks = false
         for ft in ftvs
             for i in find(locs)
-                targ = subs_tvar(tv, tm.sig[i], _TestTvar{i})
-                farg = subs_tvar(ft, fm.sig[i], _TestTvar{i})
+                targ = subs_tvar(tv, getpara(tm.sig,i), _TestTvar{i})
+                farg = subs_tvar(ft, getpara(fm.sig,i), _TestTvar{i})
                 checks = checks || (targ<:farg)
             end
         end
@@ -426,10 +424,10 @@ function subs_tvar(tv::TypeVar, arg::DataType, TestT::DataType)
     #
     # Example:
     # Array{I<:Int64,N} -> Array{_TestTvar{23},N}
-    if isleaftype(arg) || length(arg.parameters)==0 # concrete type or abstract type with no parameters
+    if isleaftype(arg) || length(getpara(arg))==0 # concrete type or abstract type with no parameters
         return arg
     else # It's a parameterized type: do substitution on all parameters:
-        pa = [ subs_tvar(tv, arg.parameters[i], TestT) for i=1:length(arg.parameters) ]
+        pa = [ subs_tvar(tv, getpara(arg, i), TestT) for i=1:length(getpara(arg)) ]
         typ = deparameterize_type(arg)
         return typ{pa...}
     end
@@ -443,8 +441,7 @@ function replace_concrete_tvars(m::FakeMethod)
     # ->
     # FakeMethod(Tuple{Int64,   Array{Int64,1},   Integer},svec()         ,false)
     newtv = []
-    newsig = Any[m.sig.parameters...] # WTF: need the .parameters... here even though
-                                      #      I added the start, next & done methods to Type{Tuple}
+    newsig = Any[getpara(m.sig)...]
     for tv in m.tvars
         if !isleaftype(tv.ub)
             push!(newtv, tv)
@@ -459,7 +456,7 @@ end
 # Finds the types in tmsig which correspond to TypeVar ftv in fmsig
 function find_correponding_type(tmsig::Tuple, fmsig::Tuple, ftv::TypeVar)
     out = Any[]
-    for (ta,fa) in zip(tmsig,fmsig)
+    for (ta,fa) in zip(getpara(tmsig),getpara(fmsig))
         if isa(fa, TypeVar)
             fa===ftv && push!(out, ta)
         elseif isa(fa, DataType) || isa(fa, Tuple)
@@ -479,7 +476,7 @@ function find_correponding_type(ta::DataType, fa::DataType, ftv::TypeVar)
         push!(out, _TestType{:no_match})  # this will lead to a no-match in isfitting
         return out
     end
-    for (tp,fp) in zip(ta.parameters,fa.parameters)
+    for (tp,fp) in zip(getpara(ta),getpara(fa))
         if isa(fp, TypeVar)
             fp===ftv && push!(out, tp)
         elseif isa(fp, DataType) || isa(fa, Tuple)
@@ -494,10 +491,13 @@ end
 #
 # find_tvar( Tuple{T, Int, Array{T}} -> [1,3]
 function find_tvar{T<:Tuple}(sig::Type{T}, tv)
-    ns = length(sig)
+    if sig===Tuple
+        return Int[]
+    end
+    ns = length(getpara(sig))
     out = Int[]
     for i = 1:ns
-        if length(find_tvar(sig[i], tv))>0
+        if length(find_tvar(getpara(sig,i), tv))>0
             push!(out,i)
         end
     end
@@ -505,9 +505,9 @@ function find_tvar{T<:Tuple}(sig::Type{T}, tv)
 end
 find_tvar(sig::TypeVar, tv) = sig===tv ? [1] : Int[]  # note ===, this is essential!
 function find_tvar(arg::DataType, tv)
-    ns = length(arg.parameters)
+    ns = length(getpara(arg))
     for i=1:ns
-        if length(find_tvar(arg.parameters[i], tv))>0
+        if length(find_tvar(getpara(arg,i), tv))>0
             return [1]
         end
     end
@@ -519,8 +519,8 @@ find_tvar(arg, tv) = Int[]
 # Sub and supertraits:
 ######################
 @doc """Returns the super traits""" ->
-traitgetsuper{T<:Trait}(t::Type{T}) =  t.super.parameters[1]
-traitgetpara{T<:Trait}(t::Type{T}) =  Tuple{t.parameters...}
+traitgetsuper{T<:Trait}(t::Type{T}) =  getpara(super(t),1)
+traitgetpara{T<:Trait}(t::Type{T}) =  Tuple{getpara(t)...}
 
 @doc """Checks whether a trait, or a tuple of them, is a subtrait of
      the second argument.""" ->
@@ -528,10 +528,10 @@ function issubtrait{T1<:Trait,T2<:Trait}(t1::Type{T1}, t2::Type{T2})
     if t1==t2
         return true
     end
-    if t2 in traitgetsuper(t1)
+    if t2 in getpara(traitgetsuper(t1))
         return true
     end
-    for t in traitgetsuper(t1)
+    for t in getpara(traitgetsuper(t1))
         issubtrait(t, t2) && return true
     end
     return false
@@ -539,7 +539,7 @@ end
 
 # TODO: think about how to handle tuple traits and empty traits
 function issubtrait{T1<:Trait, Tu<:Tuple}(t1::Type{T1}, t2::Type{Tu})
-    if t2==()
+    if t2==Tuple{}
         # the empty trait is the super-trait of all traits
         true
     else
@@ -550,15 +550,21 @@ end
 # traits in a tuple have no order, really, this should reflected.
 # Maybe use a set instead?  Subtrait if it is a subset?
 function issubtrait{T1<:Tuple, T2<:Tuple}(t1::Type{T1}, t2::Type{T2})
-    if length(t1)!=length(t2)
+    if length(getpara(t1))!=length(getpara(t2))
         return false
     end
     checks = true
-    for (p1,p2) in zip(t1, t2)
+    for (p1,p2) in zip(getpara(t1), getpara(t2))
         checks = checks && issubtrait(p1,p2)
     end
     return checks
 end
+
+## patches for bugs in base
+include("base_fixes.jl")
+
+## common helper functions
+include("helpers.jl")
 
 ## Trait definition
 include("traitdef.jl")

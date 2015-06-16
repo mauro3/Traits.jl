@@ -17,7 +17,7 @@ end
 @traitdef Iter{X}  begin
     # type-functions based on return_type:
     State = Base.return_types(start, (X,))[1]
-    Item =  Base.return_types(next, (X,State))[1][1] # use eltype instead
+    Item =  getpara(Base.return_types(next, (X,State))[1],1) # TODO use eltype instead
     
     # interface functions
     start(X) -> State
@@ -54,7 +54,7 @@ end
 end
 
 @traitdef Assoc{X} <: Indexable{X} begin
-    K,V = eltype(X) 
+    K,V = getpara(eltype(X))
 
     # note, ObjectId dict is not part of this interface
     haskey(X, Any)

@@ -345,7 +345,7 @@ check_return_types(true)
 @traitdef Iter2{X} begin
     # type-functions based on return_type:
     State = Base.return_types(start, (X,))[1]  # this is circular but that is ok, as trait needs to be implemented.
-    Item =  Base.return_types(next, (X,State))[1][1]
+    Item =  getpara(Base.return_types(next, (X,State))[1],1)
     
     # interface functions
     start(X) -> State
@@ -360,9 +360,9 @@ end
 # isbits associated types, issue #9
 
 @traitdef AssocIsBits{X} begin
-    T = X.parameters[1]  # a type
-    N = X.parameters[2]  # a isbits
-    S = X.parameters[3]  # a symbol
+    T = getpara(X,1)  # a type
+    N = getpara(X,2)  # a isbits
+    S = getpara(X,3)  # a symbol
     getindex(X, Int) -> T
 end
 type T3484675{T,N,S} end
@@ -438,7 +438,7 @@ end
     Arnp(T, Int64) -> Ar
     Arnp(T, Int...) -> Ar
     @constraints begin
-        length(Ar.parameters)>1 # need at least two parameters to be array-like, right?
+        length(getpara(Ar))>1 # need at least two parameters to be array-like, right?
     end
 end
 @test !istrait(TT46{A4758})

@@ -43,7 +43,7 @@ end
     end
     # construct function from poss[1]
     out = :(Tuple{})
-    for s in poss[1]
+    for s in getpara(poss[1])
         push!(out.args, :($s))
     end
     return out
@@ -69,7 +69,7 @@ end
     end
 
     out = :(Tuple{})
-    for s in poss[1]
+    for s in getpara(poss[1])
         push!(out.args, :($s))
     end
     return out
@@ -148,7 +148,7 @@ end
     end
     # construct function from poss[1]
     out = :(Tuple{})
-    for s in poss[1]
+    for s in getpara(poss[1])
         push!(out.args, :($s))
     end
     return out
@@ -174,7 +174,7 @@ end
     end
 
     out = :(Tuple{})
-    for s in poss[1]
+    for s in getpara(poss[1])
         push!(out.args, :($s))
     end
     return out

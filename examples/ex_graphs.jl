@@ -63,8 +63,8 @@ end
 # bidirectional_incidence_list
 
 #update vertex_type and edge_type to work on Type{}
-Graphs.vertex_type{T<:AbstractGraph}(g::Type{T}) = g.parameters[1]
-Graphs.edge_type{T<:AbstractGraph}(g::Type{T}) = g.parameters[2]
+Graphs.vertex_type{T<:AbstractGraph}(g::Type{T}) = getpara(g,1)
+Graphs.edge_type{T<:AbstractGraph}(g::Type{T}) = getpara(g,2)
 
 # Definitions from Graphs.jl/test/edgelist.jl
 pairs = [(1,2), (1,3), (2,3), (2,4), (3,5), (4,5), (2,5)]

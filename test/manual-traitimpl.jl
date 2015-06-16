@@ -74,7 +74,7 @@ length(D2{T1,T2}().methods)==length(implfns) || error("Not right number of metho
 # check that the signature of fns agrees with D2{T1,T2}().methods
 for (fn,_fn) in D2{T1,T2}().methods
     # for now just check length
-    if length(_fn.env.defs.sig)!=length(get_fnsig(implfns[fn])) 
+    if length(getpara(_fn.env.defs.sig))!=length(get_fnsig(implfns[fn])) 
         error("""Method definition:
                  $fn  $sig
                  does not match implementation:

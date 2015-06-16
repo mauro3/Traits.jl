@@ -12,7 +12,11 @@ deparameterize_type(A::TypeConstructor) = error("TypeConstructor not supported b
 
 # Internal helpers
 ##################
-function eval_curmod(expr::Union(Symbol,Expr,QuoteNode))
+
+@doc "Return number of arguments of method signature" ->
+nargs(m::Union{Method, FakeMethod}) = length(getpara(m.sig))
+
+function eval_curmod(expr::Union{Symbol, Expr, QuoteNode})
     # evaluates a symbol or expression in the current module.
     # I.e. the one where the macro definition is.
     return eval(current_module(),expr)
@@ -87,11 +91,11 @@ function tvar2tvar!(exs::Vector{Any})
 end
 
 # check whether a type is parameterized
-isparameterized(t::DataType) = length(t.parameters)==0 ? false : true
+isparameterized(t::DataType) = length(getpara(t))==0 ? false : true
 
 function hasparameters(t::DataType)
     if isparameterized(t)
-        if all([map(typeof,t.parameters)...].==DataType)
+        if all([map(typeof,getpara(t))...].==DataType)
             return true  # i.e. return true for Dict{Int,Int}
         else
             return false # but not for Dict{Int}

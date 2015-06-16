@@ -1,6 +1,7 @@
 # tests
 using Base.Test
 using Traits
+using TupleTypes: getpara
 check_return_types(true) # should test both true & false
 ## BUG flags: set to false once fixed to activate tests
 # Julia issues:
@@ -44,6 +45,17 @@ other_T = f8576.env.defs.tvars
 @test Traits.find_correponding_type(Tuple{Array{Int,2}, Float64, Tuple{UInt8, UInt16}},
                                     Tuple{Array{I,2},   I,       Tuple{UInt8, I}}     , I) == Any[Int, Float64, UInt16]
 
+
+IJK = TypeVar(:IJK, Integer, true)
+@test Traits.find_tvar(Tuple{IJK,IJK},IJK)==[1,2]
+
+# this is a brittle test:
+m=collect(methods(call, (Type{Dict}, Tuple, Tuple)))[2]
+Traits.find_tvar(m.sig, m.tvars)
+
+f8746{T}(::Dict{T}, ::Tuple) = 1
+m = first(methods(f8746))
+Traits.find_tvar(m.sig, m.tvars)
 
 # # # manual implementations
 include("manual-traitdef.jl")

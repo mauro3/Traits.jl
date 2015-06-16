@@ -180,10 +180,10 @@ immutable Tr01{X} <: Traits.Trait{Tuple{}}
 end
 
 
-g01(::Int, ::Int) = Int
+g01(::Int, ::Int) = 1
 @test istrait(Tr01{Int}) # == true as constraints Int isleaftype
 @test !istrait(Tr01{Integer})
-g01{I<:Integer}(::I, ::I) = I
+g01{I<:Integer}(::I, ::I) = I()
 @test istrait(Tr01{Integer}) # == true
 
 # @traitdef Tr02{X} begin

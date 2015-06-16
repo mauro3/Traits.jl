@@ -8,7 +8,7 @@
 # @traitfn f1{S,T<:Integer; D1{S}, D1{T}  }(s::S,t::T) = sin(s) - sin(t)
 # @traitfn f1{X,Y<:FloatingPoint; D1{X}, D1{Y}  }(x::X,y::Y) = cos(x) - cos(y)
 
-typealias FName Union(Symbol,Expr)
+typealias FName Union{Symbol, Expr}
 
 # generates: X1, X2,... or x1, x2.... (just symbols not actual TypeVar)
 type GenerateTypeVars{CASE}
@@ -251,8 +251,10 @@ function traitdispatch(traittypes, fname)
     # discriminate using subtraits
     if length(poss)>1
         topurge = []
-        for (i,p1) in enumerate(poss)
-            for p2 in poss
+        for (i,pp1) in enumerate(poss)
+            p1 = getpara(pp1)
+            for pp2 in poss
+                p2 = getpara(pp2)
                 if length(p1)==length(p2)
                     checks = true
                     for j=1:length(p1)
@@ -276,8 +278,8 @@ function traitdispatch(traittypes, fname)
         # This is not the end of the story but better...
         score = zeros(Int, length(poss))
         for (i,p1) in enumerate(poss)
-            for t in p1
-                score[i] += length(t.parameters)
+            for t in getpara(p1)
+                score[i] += length(getpara(t))
             end
         end
         poss = poss[find(maximum(score).==score)]
@@ -396,7 +398,7 @@ macro traitfn(fndef)
         traittyp = Traits.traitdispatch(traittypes, $(fn.name))
         # construct function from traittyp
         out = :(Tuple{})
-        for s in traittyp
+        for s in Traits.getpara(traittyp)
             push!(out.args, s)
         end
         return out
@@ -418,10 +420,11 @@ end
 # Helper functions
 ##########
 
-function traitmethods(f::Function, nsig=Tuple{Vararg{Any}}; print=false)
+function traitmethods(f::Function, nsig=nothing; print=false)
     out = Any[]
-    for m in methods(f, Tuple{Any, nsig...})
-        if isa(m.sig[1], Type) && m.sig[1].parameters[1]<:Tuple{Vararg{Traits.Trait}}
+    sig = nsig==nothing ? Tuple{Any, Vararg{Any} } : Tuple{Any, getpara(nsig)...}
+    for m in methods(f, sig)
+        if isa(getpara(m.sig,1), Type) && getpara(getpara(m.sig,1),1)<:Tuple{Vararg{Traits.Trait}}
             push!(out, m)
         end
     end

@@ -1,4 +1,7 @@
-23# patching issues in base
+# patching issues in base
+
+# To work with Tuple-types/types
+import TupleTypes: getpara
 
 # https://github.com/JuliaLang/julia/issues/10178#issuecomment-74136186
 println("  This warning is ok:")
@@ -16,13 +19,4 @@ println("  endof ok-warning.")
 # eltype for dicts
 Base.eltype{K}(::Type{Associative{K}}) = (K,Any)
 Base.eltype(::Type{Associative}) = (Any,Any)
-
-# iterate over Tuple. Remove after merge of https://github.com/JuliaLang/julia/pull/11547
-Base.length{T<:Tuple}(t::Type{T}) = length(t.parameters)
-Base.start{T<:Tuple}(::Type{T}) = 1
-Base.next{T<:Tuple}(t::Type{T}, state) = (t.parameters[state], state+1)
-Base.done{T<:Tuple}(t::Type{T}, state) = length(t)<state
-
-# indexing into Tuple
-Base.getindex{T<:Tuple}(t::Type{T}, i::Integer) = t.parameters[i]
 
