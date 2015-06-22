@@ -48,8 +48,8 @@ function compare_code_native(f1, f2, types, fraction_range=[-Inf,Inf])
         out
     end
     
-    df1 = prune_native(Base._dump_function(f1, types, true, false, true))
-    df2 = prune_native(Base._dump_function(f2, types, true, false, true))
+    df1 = prune_native(Base._dump_function(f1, types, true, false, true, false))
+    df2 = prune_native(Base._dump_function(f2, types, true, false, true, false))
     rel_diff = abs(length(df1)-length(df2))/length(df2)
     if !(fraction_range[1]<=rel_diff<=fraction_range[2])
         println("""Warning: length of code native of $(f1.env.name) and $(f2.env.name) differ by $rel_diff, 
