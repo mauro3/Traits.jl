@@ -45,8 +45,8 @@ immutable D1{X1} <: Traits.Trait{Tuple{}}
     assoctyps::Vector{Any}
     function D1()
         new(Traits.FDict(
-             sin => _sin(::X1, ::Float64) = nothing,
-             cos => _cos(::X1, ::Float64) = nothing
+             sin => _sin( ::Float64, ::X1) = nothing,
+             cos => _cos( ::Float64, ::X1) = nothing
              ),
             Bool[],
             []
@@ -63,8 +63,8 @@ immutable D2{X1,X2} <: Traits.Trait{Tuple{D1{X1}, D1{X2}}}
     assoctyps::Vector{Any}
     function D2()
         new(Traits.FDict(
-             (+) => _plus(::X1, ::X2, ::Any) = nothing,
-             (-) => _minus(::X1, ::X2, ::Any) = nothing
+             (+) => _plus( ::Any, ::X1, ::X2) = nothing,
+             (-) => _minus( ::Any, ::X1, ::X2) = nothing
              ),
             Bool[],
             []
@@ -81,8 +81,8 @@ immutable D3{X1} <: Traits.Trait{Tuple{}}
     assoctyps::Vector{Any}
     function D3()
         new(Traits.FDict(
-             getkey => _getkey(::X1,::Any, ::Any, ::Any) = nothing,
-             get!   => _get!(::X1, ::Any, ::Any, ::Any) = nothing
+             getkey => _getkey( ::Any, ::X1,::Any, ::Any) = nothing,
+             get!   => _get!( ::Any, ::X1, ::Any, ::Any) = nothing
              ),
             Bool[],
             []
@@ -96,8 +96,8 @@ immutable D4{X1,X2} <: Traits.Trait{Tuple{}} # like D2 but without supertraits
     assoctyps::Vector{Any}
     function D4()
         new(Traits.FDict(
-             (+) => _plus(::X1, ::X2, ::Any) = nothing,
-             (-) => _minus(::X1, ::X2, ::Any) = nothing
+             (+) => _plus( ::Any, ::X1, ::X2) = nothing,
+             (-) => _minus( ::Any, ::X1, ::X2) = nothing
              ),
             Bool[],
             []
@@ -120,7 +120,7 @@ immutable CTr1{X1,X2} <: Traits.Trait{Tuple{}}
     assoctyps::Vector{Any}
     function CTr1()
         new(Traits.FDict(
-             (+) => _plus(::X1, ::X2, ::Any) = nothing,
+             (+) => _plus( ::Any, ::X1, ::X2) = nothing,
              ),
             Bool[
                  X1==X2
@@ -144,8 +144,8 @@ immutable CTrAs{X1,X2} <: Traits.Trait{Tuple{}}
         D = Tuple{X1,X2}<:Tuple{Integer,Integer} ? Float64 : promote_type(X1, X2)
         assoctyps = Any[TypeVar(:R, R), TypeVar(:D, D)]
         new(Traits.FDict(
-                  (+) => _plus(::X1, ::X2, ::Any) = nothing,
-                  (-) => _minus(::X1, ::X2, ::Any) = nothing
+                  (+) => _plus( ::Any, ::X1, ::X2) = nothing,
+                  (-) => _minus( ::Any, ::X1, ::X2) = nothing
              ),
             Bool[],
             assoctyps
@@ -170,7 +170,7 @@ immutable Tr01{X} <: Traits.Trait{Tuple{}}
     assoctyps::Vector{Any}
     function Tr01()
         new(Traits.FDict(
-                         g01 => _g01{T<:X}(::T, ::T, ::Type{T}) = nothing
+                         g01 => _g01{T<:X}( ::Type{T}, ::T, ::T) = nothing
                          ),
             Bool[],
             []
@@ -194,7 +194,7 @@ immutable Tr02{X} <: Traits.Trait{Tuple{}}
     assoctyps::Vector{Any}
     function Tr02()
         new(Traits.FDict(
-                         g02 => _g02{T<:X}(::T, ::T, ::Type{T}) = nothing
+                         g02 => _g02{T<:X}( ::Type{T}, ::T, ::T) = nothing
                          ),
             Bool[],
             []
@@ -225,7 +225,7 @@ immutable Tr03{X} <: Traits.Trait{Tuple{}}
     assoctyps::Vector{Any}
     function Tr03()
         new(Traits.FDict(
-                         g03 => _g03{T<:X}(::T, ::Vector{T}, ::T) = nothing
+                         g03 => _g03{T<:X}( ::T, ::T, ::Vector{T}) = nothing
                          ),
             Bool[],
             []
@@ -249,7 +249,7 @@ g03{I<:Integer}(::I, ::Vector{I}) = 1
 #     function Tr04()
 #         A1 = getassoc(X)
 #         new(Traits.FDict(
-#                          g04 => _g04{T<:X}(::T, ::Vector{T}, ::A1, ::T) = nothing 
+#                          g04 => _g04{T<:X}( ::T, ::T, ::Vector{T}, ::A1) = nothing 
 #                          ),
 #             Bool[],
 #             [A1]
@@ -258,7 +258,7 @@ g03{I<:Integer}(::I, ::Vector{I}) = 1
 #     function Tr04(::Type{Traits._TestTraitPara})
 #         A1 = Traits._TestAssoc{:A1}
 #         new(Traits.FDict(
-#                          g04 => _g04{T<:X}(::T, ::Vector{T}, ::A1, ::T) = nothing
+#                          g04 => _g04{T<:X}( ::T, ::T, ::Vector{T}, ::A1) = nothing
 #                          ),
 #             Bool[],
 #             [A1]

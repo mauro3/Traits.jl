@@ -8,8 +8,8 @@ a,b,c = Traits.parsebody(td.args[end])
 @test a.args[1]==:(Traits.FDict)
 @test a.args[2].head==:(=>)
 @test a.args[2].args[1] == :length
-@test a.args[2].args[2].args[1].args[2] == :(::X)
-@test a.args[2].args[2].args[1].args[3] == :(::Any)
+@test a.args[2].args[2].args[1].args[2] == :(::Any)
+@test a.args[2].args[2].args[1].args[3] == :(::X)
 @test a.args[2].args[2].args[2] == :(nothing)
 @test b==:(Bool[])
 @test c.args[1]==:(assoctyps = Any[])
@@ -184,7 +184,11 @@ fn75{Y <: Integer}(x::UInt8, y::Y) = y+x
 ## 1-element Array{Any,1}:
 ##  Any
 # thus:
-@test !istrait(Pr0{UInt8})
+if return_types_bug1
+    @test !istrait(Pr0{UInt8})
+else
+    @test istrait(Pr0{UInt8})
+end
 @test !istrait(Pr0{Int8})
 
 @traitdef Pr1{X}  begin
@@ -206,7 +210,11 @@ fn77(a::Array,b::Int, c::Float64) = a[1]
 fn77{Y<:Real}(a::Array,b::Y, c::Y) = a[1]
 @test !istrait(Pr2{Array})
 fn77{Y<:Number}(a::Array,b::Y, c::Y) = a[1]
-@test istrait(Pr2{Array})
+if return_types_bug1
+    @test !istrait(Pr2{Array})
+else
+    @test istrait(Pr2{Array})
+end
 
 #####
 # Trait functions parameterized on trait parameters

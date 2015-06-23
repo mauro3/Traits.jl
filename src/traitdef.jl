@@ -211,7 +211,10 @@ function parsefnstypes!(outfns, ln)
     else
         rettype = :(::Tuple{$(rettype...)})
     end
+    tmp = _fn.args[2:end]
+    _fn.args = _fn.args[1:1]
     push!(_fn.args, rettype)
+    append!(_fn.args, tmp)
     # make _fn
     _fn = :($_fn = nothing)
     push!(outfns.args, :($fn => $_fn))
