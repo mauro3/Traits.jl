@@ -43,7 +43,7 @@ end
 
 ##################
 
-@traitfn ft3{X1,X2; Iter{X1}}(x::X1,y::X2) = (out=X2[]; for i in x; push!(out,i+y) end; out)
+@traitfn ft3{X1,X2; IsIterable{X1}}(x::X1,y::X2) = (out=X2[]; for i in x; push!(out,i+y) end; out)
 ff3{Y}(x,y::Y) = Y[i+y for i in x]
 
 @test ff3([1:10;],5)==ft3([1:10;],5)

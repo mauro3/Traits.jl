@@ -86,29 +86,29 @@ end
 index = [Array{Int,2}, StepRange{Int,Int}]
 c =1
 for c in coll
-#    @show Collection{c}() # heisenbug protection
-    @test istrait(Collection{c}, verbose=verbose)
-    @test istrait(Iter{c}, verbose=verbose)
-    @test istrait(IterColl{c}, verbose=verbose)
+#    @show IsCollection{c}() # heisenbug protection
+    @test istrait(IsCollection{c}, verbose=verbose)
+    @test istrait(IsIterable{c}, verbose=verbose)
+    @test istrait(IsIterColl{c}, verbose=verbose)
 end
-@test !istrait(Indexable{Set})
+@test !istrait(IsIndexable{Set})
 
 for c in iter
-    @test istrait(Iter{c}, verbose=verbose)
+    @test istrait(IsIterable{c}, verbose=verbose)
 end
 
 for c in dicts
-    @test istrait(Assoc{c}, verbose=verbose)
+    @test istrait(IsAssociative{c}, verbose=verbose)
 end
 
 for c in index
-    @test istrait(Indexable{c}, verbose=verbose)
+    @test istrait(IsIndexable{c}, verbose=verbose)
 end
 
-@test istrait(Iter{Array}, verbose=verbose)
-@test istrait(Iter{ASCIIString}, verbose=verbose)
-@test istrait(Iter{Int}, verbose=verbose)
-@test !istrait(Iter{Nothing})
+@test istrait(IsIterable{Array}, verbose=verbose)
+@test istrait(IsIterable{ASCIIString}, verbose=verbose)
+@test istrait(IsIterable{Int}, verbose=verbose)
+@test !istrait(IsIterable{Nothing})
 
 arith = [Int, Float64, Rational{Int}]
 a1,a2 = 1,1

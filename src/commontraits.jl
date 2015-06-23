@@ -1,7 +1,7 @@
 # Some rough definitions of some common traits/interfaces of the
 # standard library.  Note that most are single parameter traits.
 
-export Eq, Cmp, Iter, Collection, IterColl, Indexable, Assoc, Arith
+export Eq, Cmp, IsIterable, IsCollection, IsIterColl, IsIndexable, IsAssociative, Arith
 
 @traitdef Eq{X,Y} begin
     # note anything is part of Eq as ==(::Any,::Any) is defined
@@ -14,7 +14,7 @@ end
     # >, <, >=, <=
 end
 
-@traitdef Iter{X}  begin
+@traitdef IsIterable{X}  begin
     # type-functions based on return_type:
     State = Base.return_types(start, (X,))[1]
     Item =  Base.return_types(next, (X,State))[1][1] # use eltype instead
@@ -28,7 +28,7 @@ end
 end
 
 # general collections
-@traitdef Collection{X} <: Iter{X} begin
+@traitdef IsCollection{X} <: IsIterable{X} begin
     El = eltype(X)
     
     isempty(X) -> Bool
@@ -37,11 +37,11 @@ end
     eltype(Type{X}) -> Type{El}
 end
 
-@traitdef IterColl{X} <: Collection{X} begin # iterable collection
+@traitdef IsIterColl{X} <: IsCollection{X} begin # iterable collection
     empty!(X) # -> X # ToDo: fix after updating return types
 end
 
-@traitdef Indexable{X} <:Collection{X} begin
+@traitdef IsIndexable{X} <:IsCollection{X} begin
     El = eltype(X)
     
     getindex(X, None)  # when using None no return types can be used...
@@ -53,7 +53,7 @@ end
     # size(X,Integer) -> Integer
 end
 
-@traitdef Assoc{X} <: Indexable{X} begin
+@traitdef IsAssociative{X} <: IsIndexable{X} begin
     K,V = eltype(X) 
 
     # note, ObjectId dict is not part of this interface

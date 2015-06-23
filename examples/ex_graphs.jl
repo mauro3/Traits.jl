@@ -22,7 +22,7 @@ end
     
     @constraints begin
         # make sure that I is indeed iterable:
-        istrait(Iter{I})
+        istrait(IsIterable{I})
     end
 end
 
@@ -43,7 +43,7 @@ end
 
     @constraints begin
         # make sure that I is indeed iterable:
-        istrait(Iter{I})
+        istrait(IsIterable{I})
     end
 end
 
