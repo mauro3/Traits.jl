@@ -216,6 +216,7 @@ end
 g02{I<:Integer}(::I, ::I) = I
 @test istrait(Tr02{Int})
 
+
 # @traitdef Tr03{X} begin
 #     g03{T<:X}(T, Vector{T})
 # end

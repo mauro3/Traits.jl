@@ -14,6 +14,8 @@ function_types_bug1 = true # set to false if function types get implemented in J
 # Traits.jl issues:
 dispatch_bug1 = true # in traitdispatch.jl
 
+# strange Julia issue, see 76ec7fba3a88e
+
 # how much output to print
 verbose=false
 
@@ -61,4 +63,4 @@ include("traitdispatch-manual-vs-auto.jl")
 include("traitdispatch.jl")
 
 ## # Run the performance tests as well.
-## include("perf/perf.jl")
+include("perf/perf.jl")

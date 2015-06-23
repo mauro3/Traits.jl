@@ -164,23 +164,19 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
             checks = false
             # Only loop over methods which have the right number of arguments:
             for fm in methods(gf, NTuple{length(tm.sig),Any})
-                @show gf, tm.sig
-@show                res = isfitting(tmm, fm, verbose=verbose)
-                if res
+                if isfitting(tmm, fm, verbose=verbose)
                     checks = true
                     break
                 end
             end
-            @show checks
             if !checks # if check==false no fitting method was found
-                @show gf, tm
                 println_verb("""No method of the generic function/call-overloaded `$gf` matched the 
                              trait specification: `$tm`""")
                 return false
             end
         end
     end
-@show "ther3"
+
     # check return-type.  Specifed return type tret and return-type of
     # the methods frets should fret<:tret.  This is backwards to
     # argument types checking above.
@@ -274,17 +270,13 @@ end
      """ ->
 function isfitting(tmm::Method, fmm::Method; verbose=false) # tm=trait-method, fm=function-method
     println_verb = verbose ? println : x->x # TODO maybe move this function out
-@show "entering isfitting"
-        @show fmm
     tm = FakeMethod(tmm, ret=true)
     fm = FakeMethod(fmm)
-    @show fm
+
     # Replace type parameters which are constraint by a concrete type
     # (because Vector{TypeVar(:V, Int)}<:Vector{Int}==false but we need ==true)
     tm = replace_concrete_tvars(tm)
     fm = replace_concrete_tvars(fm)
-    @show "i1"
-    @show fm
 
     # Special casing call-overloading:
     if fmm.func.code.name==:call && tmm.func.code.name!=:call # true if only fm is call-overloaded
@@ -312,7 +304,7 @@ function isfitting(tmm::Method, fmm::Method; verbose=false) # tm=trait-method, f
         #     error("This is not possible")
         # end
     end
-    @show "i2"
+
     ## Check condition A:
     # If there are no function parameters then just compare the
     # signatures.
@@ -321,21 +313,16 @@ function isfitting(tmm::Method, fmm::Method; verbose=false) # tm=trait-method, f
         println_verb("Reason fail/pass: no tvars in trait-method only checking signature. Result: $out")
         return out
     end
-    @show "i3"
+
     # If !(tm.sig<:fm.sig) then tm<<:fm is false
     # but the converse is not true:
     if !(tm.sig<:fm.sig)
-        @show "i33"
-        @show tm.sig
-                @show 2
-        @show fm
-        @show 3
         println_verb("""Reason fail: !(tm.sig<:fm.sig)
                      tm.sig = $(tm.sig)
                      fm.sig = $(fm.sig)""")
         return false
     end
-    @show "i4"
+
     # False if there are not the same number of arguments: (I don't
     # think this test is necessary as it is tested above.)
     if length(tm.sig)!=length(fm.sig)!
@@ -343,7 +330,7 @@ function isfitting(tmm::Method, fmm::Method; verbose=false) # tm=trait-method, f
         return false
     end
     # Getting to here means that that condition (A) is fulfilled.
-    @show "i5"
+
     ## Check condition B:
     # If there is only one argument then we're done as parametric
     # constraints play no role:
@@ -370,9 +357,6 @@ function isfitting(tmm::Method, fmm::Method; verbose=false) # tm=trait-method, f
                     return false
                 else
                     # Now check that all of the tm.sig-types have the same type at the parametric-constraint sites.
-                    @show "ha"
-                    @show find_correponding_type(tm.sig, fm.sig, ftv)
-                    @show !allequal(find_correponding_type(tm.sig, fm.sig, ftv))
                     if !allequal(find_correponding_type(tm.sig, fm.sig, ftv))
                         println_verb("Reason fail: not all parametric-constraints in function-method $fmm correspond to the same type in traitmethod $tmm.")
                         return false
@@ -380,13 +364,12 @@ function isfitting(tmm::Method, fmm::Method; verbose=false) # tm=trait-method, f
                 end
             end
         end
-        @show "here"
+
         println_verb("""Reason pass: All occurrences of the parametric-constraint in $fmm correspond to the
-same type in trait-method $tmm.""")
-                @show "here2"
+                        same type in trait-method $tmm.""")
         return true
     end
-@show "here3"
+
     # Strategy: go through constraints on trait-method and check
     # whether they are fulfilled in function-method.
     for tv in tm.tvars

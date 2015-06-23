@@ -103,7 +103,7 @@ end
 for c in dicts
     @test istrait(IsAssociative{c}, verbose=verbose)
 end
-
+#
 for c in index
     @test istrait(IsIndexable{c}, verbose=verbose)
 end
@@ -378,6 +378,7 @@ end
 end
 type T3484675{T,N,S} end
 Base.getindex(::T3484675, i::Int) = i
+
 AssocIsBits{T3484675{Int,4.5,:a}}()
 @test istrait(AssocIsBits{T3484675{Int,4.5,:a}}) # errors because it is assumed that all
                                                  # parameters are TypeVars

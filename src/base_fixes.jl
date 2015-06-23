@@ -2,6 +2,9 @@
 
 export indextype
 
+# This just redefines isbits as is, because of a strange bug, see commit  76ec7fba3a88e
+Base.isbits(t::TypeConstructor) = false
+
 # https://github.com/JuliaLang/julia/issues/10178#issuecomment-74136186
 println("  This warning is ok:")
 function Core.Inference.func_for_method(m::Method, tt, env)
