@@ -159,7 +159,6 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
         println_verb("*** Checking function $gf")
         # Loop over all methods defined for each function in traitdef
         for tmm in methods(_gf)
-            @show tmm
             tm = FakeMethod(tmm, ret=true)
             println_verb("** Checking method $tm")
             checks = false
@@ -187,7 +186,7 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
             for tmm in methods(_gf) # loop over all methods defined for each function in traitdef
                 tm = FakeMethod(tmm, ret=true)
                 tm = replace_concrete_tvars(tm)
-                println_verb("** Checking return types of method $tm")
+                println_verb("** Checking return types of method $tmm")
                 tret_typ = tm.ret
                 fret_typ = Base.return_types(gf, tm.sig)
                 # at least one of the return types need to be a subtype of tret_typ
@@ -237,7 +236,6 @@ function FakeMethod(m::Method; ret=false)
         # last
         sig = Tuple{m.sig.parameters[1:end-1]...}
         ret = m.sig.parameters[end]
-        @show (sig, tvs, m.va, ret)
         return FakeMethod(sig, tvs, m.va, ret)
     else
         return FakeMethod(m.sig, tvs, m.va)

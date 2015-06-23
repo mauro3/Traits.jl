@@ -8,7 +8,9 @@ a,b,c = Traits.parsebody(td.args[end])
 @test a.args[1]==:(Traits.FDict)
 @test a.args[2].head==:(=>)
 @test a.args[2].args[1] == :length
-@test a.args[2].args[2].args[2] == :(Any())
+@test a.args[2].args[2].args[1].args[2] == :(::X)
+@test a.args[2].args[2].args[1].args[3] == :(::Any)
+@test a.args[2].args[2].args[2] == :(nothing)
 @test b==:(Bool[])
 @test c.args[1]==:(assoctyps = Any[])
 
@@ -76,7 +78,8 @@ end
 @test !istrait(Cmp{Int,String})
 
 
-coll = [Vector, Vector{Int}, Dict{Int}, Dict{Int,Int}, Set{Int}]
+#coll = [Vector, Vector{Int}, Dict{Int}, Dict{Int,Int}, Set{Int}]
+coll = [Vector{Int}, Dict{Int,Int}, Set{Int}]
 iter = [Traits.GenerateTypeVars{:upcase},  Int] #todo: add String,
 if method_exists_bug1
     dicts = [] #todo add again: Dict{Int,Int}] # , ObjectIdDict]
@@ -84,7 +87,7 @@ else
     dicts = [Dict{Int,Int}] # Dict and Dict{Int} does not work, ObjectIdDict does not fulfill the trait
 end
 index = [Array{Int,2}, StepRange{Int,Int}]
-c =1
+c=1
 for c in coll
 #    @show IsCollection{c}() # heisenbug protection
     @test istrait(IsCollection{c}, verbose=verbose)
@@ -177,11 +180,11 @@ end
     fn75{Y <: Integer}(X, Y) -> Y
 end
 fn75{Y <: Integer}(x::UInt8, y::Y) = y+x
-if method_exists_bug2
-    @test !istrait(Pr0{UInt8})
-else
-    @test istrait(Pr0{UInt8})
-end
+## julia> Base.return_types(fn75, (UInt8, TypeVar(:Y,Integer)))
+## 1-element Array{Any,1}:
+##  Any
+# thus:
+@test !istrait(Pr0{UInt8})
 @test !istrait(Pr0{Int8})
 
 @traitdef Pr1{X}  begin
@@ -195,7 +198,7 @@ else
 end
 
 @traitdef Pr2{X} begin
-    fn77{Y<:Number}(X,Y,Y) -> Y
+    fn77{Y<:Number}(X,Y,Y) -> Number
 #    fn77{Y}(X)
 end
 fn77(a::Array,b::Int, c::Float64) = a[1]

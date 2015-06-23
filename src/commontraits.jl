@@ -42,10 +42,11 @@ end
 end
 
 @traitdef IsIndexable{X} <:IsCollection{X} begin
-    El = eltype(X)
+    El = eltype(X) # note, for Associative this would be a tuple, which is wrong: see base_fixes.jl
+    I = indextype(X)
     
-    getindex(X, None)  # when using None no return types can be used...
-    setindex!(X, El, None)
+    getindex(X, I) -> El
+    setindex!(X, El, I)
     
     length(X) -> Integer
     # automatically provided:
@@ -54,7 +55,8 @@ end
 end
 
 @traitdef IsAssociative{X} <: IsIndexable{X} begin
-    K,V = eltype(X) 
+    V = eltype(X)
+    K = indextype(X)
 
     # note, ObjectId dict is not part of this interface
     haskey(X, Any)

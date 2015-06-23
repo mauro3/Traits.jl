@@ -1,5 +1,7 @@
 # patching issues in base
 
+export indextype
+
 # https://github.com/JuliaLang/julia/issues/10178#issuecomment-74136186
 println("  This warning is ok:")
 function Core.Inference.func_for_method(m::Method, tt, env)
@@ -10,12 +12,21 @@ function Core.Inference.func_for_method(m::Method, tt, env)
         return f.code
     end
 end
-println("  endof ok-warning.")
-
 
 # eltype for dicts
-Base.eltype{K}(::Type{Associative{K}}) = (K,Any)
-Base.eltype(::Type{Associative}) = (Any,Any)
+Base.eltype{K,V}(::Type{Associative{K,V}}) = V
+Base.eltype{K}(::Type{Associative{K}}) = Any
+Base.eltype(::Type{Associative}) = Any
+
+indextype{K}(::Type{Associative{K}}) = K
+indextype(::Type{Associative}) = Any
+indextype(::Type{Associative}) = Any
+indextype(t::DataType) = eltype(super(t))
+
+indextype(::Any) = Int # fall back...
+
+println("  endof ok-warning.")
+
 
 # iterate over Tuple. Remove after merge of https://github.com/JuliaLang/julia/pull/11547
 Base.length{T<:Tuple}(t::Type{T}) = length(t.parameters)

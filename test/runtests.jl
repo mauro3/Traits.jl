@@ -46,9 +46,9 @@ other_T = f8576.env.defs.tvars
 
 
 # # # manual implementations
-include("manual-traitdef.jl")
-include("manual-traitimpl.jl")
-include("manual-traitdispatch.jl")
+## include("manual-traitdef.jl")
+## include("manual-traitimpl.jl")
+## include("manual-traitdispatch.jl")
 
 # # test Traits.jl
 # #include("helpers.jl")
