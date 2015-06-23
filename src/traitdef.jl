@@ -88,8 +88,10 @@ function parsebody(body::Expr)
     # end
     #
     # into
-    # :([f1 => ((X,Y), (Int,Int)),
-    #    f2 => ((Y,),  (X,)) ] ),
+    #
+
+
+    
     # :(Bool[X==Y]),
     # :(...associated types...)
     isassoc(ex::Expr) = ex.head==:(=) # associated types
@@ -157,31 +159,32 @@ function parsefnstypes!(outfns, ln)
         end
         return fn, _fn
     end
-    function parseret!(rettype, ln)
+    function parseret(rettype, ln)
         # parse to get return types
         while ln.head!=:block
             ln = ln.args[end]
         end
-        tmp = rettype.args
-        rettype.args = Any[] # per-pend
-        push!(rettype.args, :($(ln.args[end])())) # e.g. Bool(), the () is for return_types to work
-        append!(rettype.args, tmp)
+        tmp = rettype
+        rettype = Any[] # per-pend
+        push!(rettype, ln.args[end])
+        append!(rettype, tmp)
+        return rettype
     end
     
-    rettype = :()
+    rettype = Any[]
     tuplereturn = false
     if ln.head==:tuple
         tuplereturn = true
         # several ret-types:
         # f1(X,Y) -> X,Y
         for r in ln.args[2:end]
-            push!(rettype.args, :($r()))
+            push!(rettype, r)
         end
         ln = ln.args[1]
     end
     
-    if ln.head==:(->) # f1(X,Y) -> x
-        parseret!(rettype, ln)
+    if ln.head==:(->) # f1(X,Y) -> X
+        rettype = parseret(rettype, ln)
         fn, _fn = parsefn(ln.args[1])
     elseif ln.head==:call # either f1(X,Y) or X + Y -> Z
         if isa(ln.args[end], Expr) && ln.args[end].head==:(->) # X + Y -> Z
@@ -192,24 +195,28 @@ function parsefnstypes!(outfns, ln)
             else
                 push!(def.args, ln.args[end].args[1])
             end
-            parseret!(rettype, ln)
+            rettype = parseret(rettype, ln)
         else # f1(X,Y)
             def = ln
-            rettype =  :(Any(),)
+            rettype =  Any[:(Any)]
         end
         fn, _fn = parsefn(def)
     else
         throw(TraitException(
                              "Something went wrong parsing the trait definition body with line:\n$ln"))
     end
-
     # if return is not a tuple, ditch the tuple
     if !tuplereturn
-        rettype = rettype.args[1]
+        rettype = :(::$(rettype[1]))
+    else
+        rettype = :(::Tuple{$(rettype...)})
     end
-
+    tmp = _fn.args[2:end]
+    _fn.args = _fn.args[1:1]
+    push!(_fn.args, rettype)
+    append!(_fn.args, tmp)
     # make _fn
-    _fn = :($_fn = $rettype)
+    _fn = :($_fn = nothing)
     push!(outfns.args, :($fn => $_fn))
 end
 

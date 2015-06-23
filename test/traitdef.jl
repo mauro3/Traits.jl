@@ -8,7 +8,9 @@ a,b,c = Traits.parsebody(td.args[end])
 @test a.args[1]==:(Traits.FDict)
 @test a.args[2].head==:(=>)
 @test a.args[2].args[1] == :length
-@test a.args[2].args[2].args[2] == :(Any())
+@test a.args[2].args[2].args[1].args[2] == :(::Any)
+@test a.args[2].args[2].args[1].args[3] == :(::X)
+@test a.args[2].args[2].args[2] == :(nothing)
 @test b==:(Bool[])
 @test c.args[1]==:(assoctyps = Any[])
 
@@ -76,7 +78,8 @@ end
 @test !istrait(Cmp{Int,String})
 
 
-coll = [Vector, Vector{Int}, Dict{Int}, Dict{Int,Int}, Set{Int}]
+#coll = [Vector, Vector{Int}, Dict{Int}, Dict{Int,Int}, Set{Int}]
+coll = [Vector{Int}, Dict{Int,Int}, Set{Int}]
 iter = [Traits.GenerateTypeVars{:upcase},  Int] #todo: add String,
 if method_exists_bug1
     dicts = [] #todo add again: Dict{Int,Int}] # , ObjectIdDict]
@@ -84,7 +87,7 @@ else
     dicts = [Dict{Int,Int}] # Dict and Dict{Int} does not work, ObjectIdDict does not fulfill the trait
 end
 index = [Array{Int,2}, StepRange{Int,Int}]
-c =1
+c=1
 for c in coll
 #    @show IsCollection{c}() # heisenbug protection
     @test istrait(IsCollection{c}, verbose=verbose)
@@ -100,7 +103,7 @@ end
 for c in dicts
     @test istrait(IsAssociative{c}, verbose=verbose)
 end
-
+#
 for c in index
     @test istrait(IsIndexable{c}, verbose=verbose)
 end
@@ -177,7 +180,11 @@ end
     fn75{Y <: Integer}(X, Y) -> Y
 end
 fn75{Y <: Integer}(x::UInt8, y::Y) = y+x
-if method_exists_bug2
+## julia> Base.return_types(fn75, (UInt8, TypeVar(:Y,Integer)))
+## 1-element Array{Any,1}:
+##  Any
+# thus:
+if return_types_bug1
     @test !istrait(Pr0{UInt8})
 else
     @test istrait(Pr0{UInt8})
@@ -195,7 +202,7 @@ else
 end
 
 @traitdef Pr2{X} begin
-    fn77{Y<:Number}(X,Y,Y) -> Y
+    fn77{Y<:Number}(X,Y,Y) -> Number
 #    fn77{Y}(X)
 end
 fn77(a::Array,b::Int, c::Float64) = a[1]
@@ -203,7 +210,11 @@ fn77(a::Array,b::Int, c::Float64) = a[1]
 fn77{Y<:Real}(a::Array,b::Y, c::Y) = a[1]
 @test !istrait(Pr2{Array})
 fn77{Y<:Number}(a::Array,b::Y, c::Y) = a[1]
-@test istrait(Pr2{Array})
+if return_types_bug1
+    @test !istrait(Pr2{Array})
+else
+    @test istrait(Pr2{Array})
+end
 
 #####
 # Trait functions parameterized on trait parameters
@@ -367,6 +378,7 @@ end
 end
 type T3484675{T,N,S} end
 Base.getindex(::T3484675, i::Int) = i
+
 AssocIsBits{T3484675{Int,4.5,:a}}()
 @test istrait(AssocIsBits{T3484675{Int,4.5,:a}}) # errors because it is assumed that all
                                                  # parameters are TypeVars

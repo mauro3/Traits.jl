@@ -158,12 +158,13 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
     for (gf,_gf) in tr.methods
         println_verb("*** Checking function $gf")
         # Loop over all methods defined for each function in traitdef
-        for tm in methods(_gf)
-            println_verb("** Checking method $tm")
+        for tmm in methods(_gf)
+            tm = FakeMethod(tmm, ret=true)
+            println_verb("** Checking method $tmm")
             checks = false
             # Only loop over methods which have the right number of arguments:
-            for fm in methods(gf, NTuple{length(tm.sig),Any}) 
-                if isfitting(tm, fm, verbose=verbose)
+            for fm in methods(gf, NTuple{length(tm.sig),Any})
+                if isfitting(tmm, fm, verbose=verbose)
                     checks = true
                     break
                 end
@@ -182,18 +183,11 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
     if flag_check_return_types
         for (gf,_gf) in tr.methods
             println_verb("*** Checking return types of function $gf")
-            for tm in methods(_gf) # loop over all methods defined for each function in traitdef
-                println_verb("** Checking return types of method $tm")
-                tret_typ = Base.return_types(_gf, tm.sig) # trait-defined return type
-                if length(tret_typ)==0
-                    continue # this means the signature contains None which is not compatible with return types
-                    # TODO: introduce a special type signaling that no return type was given.
-                elseif length(tret_typ)>1
-                    if !allequal(tret_typ) # Ok if all return types are the same.
-                        throw(TraitException("Querying the return type of the trait-method $tm did not return exactly one return type: $tret_typ"))
-                    end
-                end
-                tret_typ = tret_typ[1]
+            for tmm in methods(_gf) # loop over all methods defined for each function in traitdef
+                tm = FakeMethod(tmm, ret=true)
+                tm = replace_concrete_tvars(tm)
+                println_verb("** Checking return types of method $tmm")
+                tret_typ = tm.ret
                 fret_typ = Base.return_types(gf, tm.sig)
                 # at least one of the return types need to be a subtype of tret_typ
                 checks = false
@@ -225,10 +219,27 @@ function istrait{T<:Tuple}(Trs::Type{T}; verbose=false)
 end
 
 ## Helpers for istrait
+
+# FakeMethod is a datatype similar to Method.
 immutable FakeMethod
     sig::Type
     tvars::SimpleVector
     va::Bool
+    ret::Union{Type,TypeVar} # return type
+    FakeMethod(sig,tv,va) = new(sig,tv,va)
+    FakeMethod(sig,tv,va,ret) = new(sig,tv,va,ret)
+end
+function FakeMethod(m::Method; ret=false)
+    # make sure the tvars are always in a SimpleVec
+    tvs = isa(m.tvars, SimpleVector) ? m.tvars : Base.svec(m.tvars)
+    if ret
+        # last
+        sig = Tuple{m.sig.parameters[2:end]...}
+        ret = m.sig.parameters[1]
+        return FakeMethod(sig, tvs, m.va, ret)
+    else
+        return FakeMethod(m.sig, tvs, m.va)
+    end
 end
 @doc """isfitting checks whether the signature of a method `tm`
      specified in the trait definition is fulfilled by one method `fm`
@@ -259,12 +270,8 @@ end
      """ ->
 function isfitting(tmm::Method, fmm::Method; verbose=false) # tm=trait-method, fm=function-method
     println_verb = verbose ? println : x->x # TODO maybe move this function out
-
-    # Make a "copy" of tmm & fmm as it may get updated:
-    ttvs = isa(tmm.tvars, SimpleVector) ? tmm.tvars : Base.svec(tmm.tvars)
-    ftvs = isa(fmm.tvars, SimpleVector) ? fmm.tvars : Base.svec(fmm.tvars)
-    tm = FakeMethod(tmm.sig, ttvs, tmm.va)
-    fm = FakeMethod(fmm.sig, ftvs, fmm.va)
+    tm = FakeMethod(tmm, ret=true)
+    fm = FakeMethod(fmm)
 
     # Replace type parameters which are constraint by a concrete type
     # (because Vector{TypeVar(:V, Int)}<:Vector{Int}==false but we need ==true)
@@ -297,6 +304,7 @@ function isfitting(tmm::Method, fmm::Method; verbose=false) # tm=trait-method, f
         #     error("This is not possible")
         # end
     end
+
     ## Check condition A:
     # If there are no function parameters then just compare the
     # signatures.
@@ -356,8 +364,9 @@ function isfitting(tmm::Method, fmm::Method; verbose=false) # tm=trait-method, f
                 end
             end
         end
+
         println_verb("""Reason pass: All occurrences of the parametric-constraint in $fmm correspond to the
-                     same type in trait-method $tmm.""")
+                        same type in trait-method $tmm.""")
         return true
     end
 
@@ -439,21 +448,36 @@ subs_tvar(tv::TypeVar, arg, TestT::DataType) = arg # for anything else
 
 function replace_concrete_tvars(m::FakeMethod)
     # Example:
-    # FakeMethod(Tuple{T<:Int64,Array{T<:Int64,1},Integer},svec(T<:Int64,),false)
+    # FakeMethod(Tuple{T<:Int64,Array{T<:Int64,1},Integer},svec(T<:Int64,),false, T<:Int64)
     # ->
-    # FakeMethod(Tuple{Int64,   Array{Int64,1},   Integer},svec()         ,false)
+    # FakeMethod(Tuple{Int64,   Array{Int64,1},   Integer},svec()         ,false, Int64)
     newtv = []
     newsig = Any[m.sig.parameters...] # WTF: need the .parameters... here even though
                                       #      I added the start, next & done methods to Type{Tuple}
+    if isdefined(m, :ret)
+        ret_tuple = isa(m.ret, Tuple)
+        newret = ret_tuple ? Any[m.ret.parameters...] : Any[m.ret]
+    end
     for tv in m.tvars
         if !isleaftype(tv.ub)
             push!(newtv, tv)
         else
             replaced = true
             newsig = Any[subs_tvar(tv, arg, tv.ub) for arg in newsig]
+            if isdefined(m, :ret)
+                newret = Any[subs_tvar(tv, arg, tv.ub) for arg in newret]
+            end
         end
     end
-    FakeMethod(Tuple{newsig...}, Base.svec(newtv...), m.va)
+    if isdefined(m, :ret)
+        if ret_tuple 
+            return FakeMethod(Tuple{newsig...}, Base.svec(newtv...), m.va, Tuple{newret...})
+        else
+            return FakeMethod(Tuple{newsig...}, Base.svec(newtv...), m.va, newret[1])
+        end
+    else
+        return FakeMethod(Tuple{newsig...}, Base.svec(newtv...), m.va)
+    end
 end
 
 # Finds the types in tmsig which correspond to TypeVar ftv in fmsig
