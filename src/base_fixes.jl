@@ -2,7 +2,8 @@
 
 export indextype
 
-# This just redefines isbits as is, because of a strange bug, see commit  76ec7fba3a88e
+# This just redefines isbits as is, because of a strange bug:
+# https://github.com/JuliaLang/julia/issues/11840
 Base.isbits(t::TypeConstructor) = false
 
 # https://github.com/JuliaLang/julia/issues/10178#issuecomment-74136186
