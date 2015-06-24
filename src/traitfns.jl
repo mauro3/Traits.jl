@@ -244,7 +244,7 @@ end
 function traitdispatch(traittypes, fname)
     poss = Any[]
     for Tr in traittypes
-        if istrait(Tr)
+        if istrait(Trait{Tr})
             push!(poss, Tr)
         end
     end

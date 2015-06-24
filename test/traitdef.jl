@@ -153,9 +153,9 @@ end
    ==(X,Y) -> Bool
 end
 
-@test traitgetsuper(Tr20)==Tuple{}
-@test traitgetsuper(Tr21)==Tuple{Tr20}
-@test traitgetsuper(Tr13)==Tuple{Tr11, Tr20, Tr21}
+@test traitgetsuper(Tr20)==Trait{Tuple{}}
+@test traitgetsuper(Tr21)==Trait{Tuple{Tr20}}
+@test traitgetsuper(Tr13)==Trait{Tuple{Tr11, Tr20, Tr21}}
 
 @test issubtrait(Tr21, Tr20)
 @test issubtrait(Tr211, Tr20)
@@ -165,13 +165,13 @@ end
 @test issubtrait(Tr13, Tr21)
 @test issubtrait(Tr13, Tr20)
 
-@test issubtrait(Tuple{Tr21}, Tuple{Tr20})
-@test  issubtrait(Tuple{Tr21,Tr11}, Tuple{Tr20,Tr10})
-@test !issubtrait(Tuple{Tr21,Tr11}, Tuple{Tr10,Tr20}) # todo: this should be true, as order shouldn't matter
-@test issubtrait(Tuple{Tr11,Tr21}, Tuple{Tr10,Tr20})
+@test issubtrait(Trait{Tuple{Tr21}}, Trait{Tuple{Tr20}})
+@test  issubtrait(Trait{Tuple{Tr21,Tr11}}, Trait{Tuple{Tr20,Tr10}})
+@test !issubtrait(Trait{Tuple{Tr21,Tr11}}, Trait{Tuple{Tr10,Tr20}}) # todo: this should be true, as order shouldn't matter
+@test issubtrait(Trait{Tuple{Tr11,Tr21}}, Trait{Tuple{Tr10,Tr20}})
 
 @test !issubtrait(Tr21{Int}, Tr20{Float64})
-@test !issubtrait(Tuple{Tr21{Int}}, Tuple{Tr20{Float64}})
+@test !issubtrait(Trait{Tuple{Tr21{Int}}}, Trait{Tuple{Tr20{Float64}}})
 
 ####
 # Test functions parameterized on non-trait parameters.

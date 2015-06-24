@@ -3,7 +3,8 @@
 
 # All type belong to the empty trait, as it makes no restriction on
 # the types:
-@test istrait( Tuple{} )
+@test istrait( Trait{Tuple{}} )
+#@test !istrait( Not{Tuple{}} )
 
 immutable Tr1{X1} <: Traits.Trait{Tuple{}}
     methods::Traits.FDict
@@ -28,16 +29,21 @@ end
 @test istraittype(Tr1{A1})
 @test istraittype( Tuple{Tr1{A1},Tr2{A1,A2}} )
 
-@test traitgetpara(Tr1{A1})==Tuple{A1}
-@test traitgetsuper(Tr1{A1})==Tuple{}
-@test traitgetsuper(Tr2{A1,A2})==Tuple{}
-@test traitgetsuper(Tr3{A1,A2})==Tuple{Tr1{A1},Tr2{A1,A2}}
+@test traitgetpara(Tr1{A1})==Base.svec(A1)
+@test traitgetsuper(Tr1{A1})==Trait{Tuple{}}
+@test traitgetsuper(Tr2{A1,A2})==Trait{Tuple{}}
+@test traitgetsuper(Tr3{A1,A2})==Trait{Tuple{Tr1{A1},Tr2{A1,A2}}}
 
 # any type is part of a unconstrained trait:
 @test istrait(Tr1{Int}, verbose=verbose)
 @test istrait(Tr2{DataType,Int})
 @test istrait(Tr3{String,DataType})
 @test_throws TraitException istrait(Tr3{:a,7})  # maybe this should error?
+
+@test !istrait(Not{Tr1{Int}}, verbose=verbose)
+@test !istrait(Not{Tr2{DataType,Int}})
+@test !istrait(Not{Tr3{String,DataType}})
+
 
 immutable D1{X1} <: Traits.Trait{Tuple{}}
     methods::Traits.FDict
@@ -108,7 +114,7 @@ end
 @test istrait(D3{Dict{Int,Int}})
 @test !istrait(D3{Int})
 
-@test istrait(Tuple{D1{Int}, D2{Int, Int}} )
+@test istrait(Trait{Tuple{D1{Int}, D2{Int, Int}}} )
 
 @test istrait(D4{Int,FloatingPoint})
 

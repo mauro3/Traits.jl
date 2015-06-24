@@ -16,16 +16,16 @@ f2{X,Y<:FloatingPoint}(x::X, y::Y) = f2(x, y, f2(TraitType(), x,y) )
 # so that it doesn't occupy f2(x::Any, y::Any)
 
 # the logic is:
-@inline f2{X,Y<:Integer}(x::X, y::Y, ::Type{ Tuple{D1{Y}, D4{X,Y}} }) = x + sin(y)
-@inline f2{S,T<:Integer}(s::S, t::T, ::Type{ Tuple{D1{S}, D1{T}} }) = sin(s) - sin(t)
-@inline f2{X,Y<:FloatingPoint}(x::X, y::Y, ::Type{ Tuple{D1{X}, D1{Y}} }) = cos(x) - cos(y)
+@inline f2{X,Y<:Integer}(x::X, y::Y, ::Type{ Trait{Tuple{D1{Y}, D4{X,Y}}} }) = x + sin(y)
+@inline f2{S,T<:Integer}(s::S, t::T, ::Type{ Trait{Tuple{D1{S}, D1{T}}} }) = sin(s) - sin(t)
+@inline f2{X,Y<:FloatingPoint}(x::X, y::Y, ::Type{ Trait{Tuple{D1{X}, D1{Y}}} }) = cos(x) - cos(y)
 
 # the trait dispatch.  Here I rename all the arguments and type parameters.
 
 function f2{X1,X2<:FloatingPoint}(::TraitType, ::Type{X1}, ::Type{X2})
     # This method serves as a storage for the trait-types of a certain
     # normal-type signature.
-    [ Tuple{D1{X1}, D1{X2}} ], Any[:(Tuple{D1{X1}, D1{X2}})]
+    [ Trait{Tuple{D1{X1}, D1{X2}}} ], Any[:(Trait{Tuple{D1{X1}, D1{X2}}})]
 end
 @generated function f2{X1,X2<:FloatingPoint}(::TraitType, x1::X1, x2::X2)
     traittypes = f2(TraitType(), x1, x2)[1]
@@ -43,15 +43,15 @@ end
     end
     # construct function from poss[1]
     out = :(Tuple{})
-    for s in poss[1]
+    for s in poss[1].parameters[1]
         push!(out.args, :($s))
     end
-    return out
+    return :(Trait{$out})
 end
 
 
 function f2{X1,X2<:Integer}(::TraitType, ::Type{X1}, ::Type{X2})
-    [Tuple{D1{X2}, D4{X1,X2}}, Tuple{D1{X1}, D1{X2}} ], Any[:(Tuple{D1{X2}, D4{X1,X2}}), :(Tuple{D1{X1}, D1{X2}})]
+    [Trait{Tuple{D1{X2}, D4{X1,X2}}}, Trait{Tuple{D1{X1}, D1{X2}}} ], Any[:(Trait{Tuple{D1{X2}, D4{X1,X2}}}), :(Trait{Tuple{D1{X1}, D1{X2}}})]
 end
 @generated function f2{X1,X2<:Integer}(::TraitType, x1::X1, x2::X2)
     traittypes = f2(TraitType(), x1, x2)[1]
@@ -69,10 +69,10 @@ end
     end
 
     out = :(Tuple{})
-    for s in poss[1]
+    for s in poss[1].parameters[1]
         push!(out.args, :($s))
     end
-    return out
+    return :(Trait{$out})
 end
 
 # @traitfn f2{X,Y<:Integer; D1{Y}, D4{X,Y}}(x::X,y::Y) = sin(x) + y
@@ -121,16 +121,16 @@ f1{X,Y<:FloatingPoint}(x::X, y::Y) = _trait_f1(x, y, _trait_type_f1(x,y) )
 # so that it doesn't occupy f1(x::Any, y::Any)
 
 # the logic is:
-@inline _trait_f1{X,Y<:Integer}(x::X, y::Y, ::Type{ Tuple{D1{Y}, D4{X,Y}} }) = x + sin(y)
-@inline _trait_f1{S,T<:Integer}(s::S, t::T, ::Type{ Tuple{D1{S}, D1{T}} }) = sin(s) - sin(t)
-@inline _trait_f1{X,Y<:FloatingPoint}(x::X, y::Y, ::Type{ Tuple{D1{X}, D1{Y}} }) = cos(x) - cos(y)
+@inline _trait_f1{X,Y<:Integer}(x::X, y::Y, ::Type{ Trait{Tuple{D1{Y}, D4{X,Y}}} }) = x + sin(y)
+@inline _trait_f1{S,T<:Integer}(s::S, t::T, ::Type{ Trait{Tuple{D1{S}, D1{T}}} }) = sin(s) - sin(t)
+@inline _trait_f1{X,Y<:FloatingPoint}(x::X, y::Y, ::Type{ Trait{Tuple{D1{X}, D1{Y}}} }) = cos(x) - cos(y)
 
 # the trait dispatch.  Here I rename all the arguments and type parameters.
 
 function _trait_type_f1{X1,X2<:FloatingPoint}(::Type{X1}, ::Type{X2})
     # This method serves as a storage for the trait-types of a certain
     # normal-type signature.
-    [Tuple{D1{X1}, D1{X2}}], Any[:(Tuple{D1{X1}, D1{X2}})]
+    [Trait{Tuple{D1{X1}, D1{X2}}}], Any[:(Trait{Tuple{D1{X1}, D1{X2}}})]
 end
 @generated function _trait_type_f1{X1,X2<:FloatingPoint}(x1::X1, x2::X2)
     traittypes = _trait_type_f1(x1, x2)[1]
@@ -148,15 +148,15 @@ end
     end
     # construct function from poss[1]
     out = :(Tuple{})
-    for s in poss[1]
+    for s in poss[1].parameters[1]
         push!(out.args, :($s))
     end
-    return out
+    return :(Trait{$out})
 end
 
 
 function _trait_type_f1{X1,X2<:Integer}(::Type{X1}, ::Type{X2})
-    [Tuple{D1{X2}, D4{X1,X2}}, Tuple{D1{X1}, D1{X2}}], Any[:(Tuple{D1{X2}, D4{X1,X2}}), :(Tuple{D1{X1}, D1{X2}})]
+    [Trait{Tuple{D1{X2}, D4{X1,X2}}}, Trait{Tuple{D1{X1}, D1{X2}}}], Any[:(Trait{Tuple{D1{X2}, D4{X1,X2}}}), :(Trait{Tuple{D1{X1}, D1{X2}}})]
 end
 @generated function _trait_type_f1{X1,X2<:Integer}(x1::X1, x2::X2)
     traittypes = _trait_type_f1(x1, x2)[1]
@@ -174,10 +174,10 @@ end
     end
 
     out = :(Tuple{})
-    for s in poss[1]
+    for s in poss[1].parameters[1]
         push!(out.args, :($s))
     end
-    return out
+    return :(Trait{$out})
 end
 
 # @traitfn f1{X,Y<:Integer; D1{Y}, D4{X,Y}}(x::X,y::Y) = sin(x) + y

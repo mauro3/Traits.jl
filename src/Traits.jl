@@ -8,9 +8,13 @@ module Traits
      - they are structural types: i.e. they needn't be declared explicitly
         """ -> current_module()
 
+using SimpleTraits
+import SimpleTraits: istrait, Trait
+
 export istrait, istraittype, issubtrait, check_return_types,
        traitgetsuper, traitgetpara, traitmethods, 
-       @traitdef, @traitimpl, @traitfn, TraitException, All
+       @traitdef, @traitimpl, @traitfn, TraitException, Not,
+       Trait
 
 if !(VERSION>v"0.4-")
     error("Traits.jl needs Julia version 0.4.-")
@@ -44,11 +48,12 @@ end
 #######
 # Types
 #######
-@doc """`abstract Trait{SUPER}`
+@doc """
+`abstract Trait{SUPER}` from SimpleTraits
 
-     All traits are direct decedents of abstract type Trait.  The type parameter
-     SUPER of Trait is needed to specify super-traits (a tuple).""" ->
-abstract Trait{SUPER}
+All traits are direct decedents of abstract type Trait.  The type parameter
+SUPER of Trait is needed to specify super-traits (a tuple).""" -> Trait
+#abstract Trait{SUPER}
 
 # Type of methods field of concrete traits:
 typealias FDict Dict{Union(Function,DataType),Function}
@@ -65,23 +70,13 @@ typealias FDict Dict{Union(Function,DataType),Function}
 #
 # where methods field holds the function signatures, like so:
 # Dict{Function,Any} with 3 entries:
-#   start => _start(Int64) = Tuple{Vararg{Any}}
-#   next  => _next(Int64,Any) = Tuple{Vararg{Any}}
-#   done  => _done(Int64,Any) = Bool
+#   start => _start(ret-type, Int64) = nothing
+#   next  => _next(ret-type, Int64,Any) = nothing
+#   done  => _done(ret-type, Int64,Any) = nothing
 
 # used to dispatch to helper methods
 immutable _TraitDispatch end
 immutable _TraitStorage end
-
-# @doc """Type All is to denote that any type goes in type signatures in
-#      @traitdef.  This is a bit awkward:
-
-#      - method_exists(f, s) returns true if there is a method of f with
-#        signature sig such that s<:sig.  Thus All<->Union()
-#      - Base.return_types works the other way around, there All<->Any
-
-#      See also https://github.com/JuliaLang/julia/issues/8974"""->
-# abstract All
 
 # General trait exception
 type TraitException <: Exception 
@@ -109,21 +104,34 @@ function istraittype{T<:Tuple}(xs::Type{T})
     return true
 end
 
-@doc """Tests whether a set of types fulfill a trait.
-     A Trait Tr is defined for some parameters if:
+@doc """
+Tests whether a set of types fulfill a trait.
+A Trait Tr is defined for some parameters if:
 
-     - all the functions of a trait are defined for them
-     - all the trait constraints are fulfilled
+- all the functions of a trait are defined for them
+- all the trait constraints are fulfilled
 
-     Example:
+Example:
 
-     `istrait(Tr{Int, Float64})`
+`istrait(Tr{Int, Float64})`
 
-     or with a tuple of traits:
+or with a tuple of traits:
 
-     `istrait( (Tr1{Int, Float64}, Tr2{Int}) )`
-     """ ->
+`istrait( (Tr1{Int, Float64}, Tr2{Int}) )`
+""" ->
+function istrait{T<:Not}(Tr::Type{T}; verbose=false)
+    Tr = SimpleTraits.stripNot(Tr)
+    return Tr<:Not ? !(istrait(Tr.parameters[1]; verbose=false)) : istrait(Tr)
+end
 function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
+    # if it is Trait{Tuple{...}}:
+    if istraittuple(Tr)
+        for T in Tr.parameters[1].parameters
+            istrait(T; verbose=verbose) || return false
+        end
+        return true
+    end
+    # If it is just a single trait:
     if verbose
         println_verb(x) = println("**** Checking $(deparameterize_type(Tr)): " * x)
     else
@@ -207,13 +215,6 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
                 end
             end
         end
-    end
-    return true
-end
-# check a tuple of traits against a signature
-function istrait{T<:Tuple}(Trs::Type{T}; verbose=false)
-    for Tr in Trs
-        istrait(Tr; verbose=verbose) || return false
     end
     return true
 end
@@ -543,46 +544,55 @@ find_tvar(arg, tv) = Int[]
 # Sub and supertraits:
 ######################
 @doc """Returns the super traits""" ->
-traitgetsuper{T<:Trait}(t::Type{T}) =  t.super.parameters[1]
-traitgetpara{T<:Trait}(t::Type{T}) =  Tuple{t.parameters...}
+function traitgetsuper{T<:Trait}(t::Type{T})
+    if istraittuple(t)
+        t
+    else
+        t.super
+    end
+end
+traitgetpara{T<:Trait}(t::Type{T}) =  t.parameters
 
 @doc """Checks whether a trait, or a tuple of them, is a subtrait of
      the second argument.""" ->
-function issubtrait{T1<:Trait,T2<:Trait}(t1::Type{T1}, t2::Type{T2})
-    if t1==t2
-        return true
-    end
-    if t2 in traitgetsuper(t1)
-        return true
-    end
-    for t in traitgetsuper(t1)
-        issubtrait(t, t2) && return true
-    end
-    return false
-end
-
-# TODO: think about how to handle tuple traits and empty traits
-function issubtrait{T1<:Trait, Tu<:Tuple}(t1::Type{T1}, t2::Type{Tu})
-    if t2==()
-        # the empty trait is the super-trait of all traits
-        true
+function issubtrait{T1<:Trait, T2<:Trait}(t1::Type{T1}, t2::Type{T2})
+    if !istraittuple(t1) && istraittuple(t2)
+        if t2==Trait{Tuple{}}
+            # the empty trait is the super-trait of all traits
+            return true
+        else # TODO
+            throw(TraitException(""))
+        end
+    elseif istraittuple(t1) && istraittuple(t2)
+        # traits in a tuple have no order, really, this should reflected.
+        # Maybe use a set instead?  Subtrait if it is a subset?
+        if length(iter(t1))!=length(iter(t2))
+            return false
+        end
+        checks = true
+        for (p1,p2) in zip(iter(t1), iter(t2))
+            checks = checks && issubtrait(p1,p2)
+        end
+        return checks
     else
-        throw(TraitException(""))
-    end
-end
-
-# traits in a tuple have no order, really, this should reflected.
-# Maybe use a set instead?  Subtrait if it is a subset?
-function issubtrait{T1<:Tuple, T2<:Tuple}(t1::Type{T1}, t2::Type{T2})
-    if length(t1)!=length(t2)
+        if t1==t2
+            return true
+        end
+        if t2 in iter(traitgetsuper(t1))
+            return true
+        end
+        for t in iter(traitgetsuper(t1))
+            issubtrait(t, t2) && return true
+        end
         return false
     end
-    checks = true
-    for (p1,p2) in zip(t1, t2)
-        checks = checks && issubtrait(p1,p2)
-    end
-    return checks
 end
+
+# if it is Trait{Tuple{...}}
+istraittuple{T<:Trait}(tr::Type{T}) = deparameterize_type(tr)==Trait
+
+# to iterate over traitgetsuper
+iter{T<:Trait}(t::Type{T}) = t.parameters[1]
 
 ## Trait definition
 include("traitdef.jl")

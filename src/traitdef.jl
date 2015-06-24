@@ -88,12 +88,10 @@ function parsebody(body::Expr)
     # end
     #
     # into
-    #
-
-
-    
+    # :(f1 => _f1((X,Int), X, Y)=nothing, ...),
     # :(Bool[X==Y]),
     # :(...associated types...)
+    
     isassoc(ex::Expr) = ex.head==:(=) # associated types
     isconstraints(ex::Expr) = ex.head==:macrocall # constraints
     
