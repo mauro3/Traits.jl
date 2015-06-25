@@ -244,3 +244,33 @@ using Base.Test
 @test length(traitmethods(ff879))==1
 end
 @test length(traitmethods(ff879))==1
+
+
+###########
+# Not
+######
+@traitdef Pr333{X} begin
+    fn786{T<:X}(T,T)
+end
+fn786(b::Int, c::Int) = b
+@test istrait(Pr333{Int})
+@test !istrait(Pr333{Real})
+
+@traitfn ff875{T;     Pr333{T} }(x::T) = 2x
+@traitfn ff875{T; Not{Pr333{T}}}(x::T) = 2000x
+@traitfn ff875{T; !Pr333{T} }(x::T) = 2000x
+@test ff875(5)==10
+@test ff875(5.)==2000*5.
+
+
+@traitdef Pr334{X} begin
+    fn788{T<:X}(T,T)
+end
+fn788(b::Int, c::Int) = b
+@test istrait(Pr334{Int})
+@test !istrait(Pr334{Real})
+
+@traitfn ff876{T;     Pr333{T}, !Pr334{T} }(x::T) = 2x
+@traitfn ff876{T; !Pr333{T}, !Pr334{T} }(x::T) = 2000x
+@test_throws TraitException ff876(5)
+@test ff876(5.0)==2000*5.0

@@ -40,7 +40,10 @@ function parsetraitfn_head(head::Expr)
     name = nametyp.args[1]
     fun = Expr(:curly, deepcopy(nametyp.args[[1;3:end]])...)
     typs = fun.args[2:end]
-    traits = nametyp.args[2].args
+    traits = Any[]
+    for t in nametyp.args[2].args
+        push!(traits, SimpleTraits.isnegated(t) ? :(Not{$(t.args[2])}) : t)
+    end
     return ParsedFn(name, fun, typs, sig, traits, :())
 end
 
@@ -48,7 +51,7 @@ gettypesymbol(x::Expr) = x.args[1] # :(X1<:Int)
 gettypesymbol(x::Symbol) = x
 function translate_head(fn::ParsedFn)
     # Takes output from parsetraitfn_head and 
-    # renames sig and TypeVar:
+    # renames sig and TypeVar and translates !-> Not:
     # f1{X,Y; D1{X}, D2{X,Y}}(x::X,y::Y)
     # ->
     # f1{X1,X2; D1{X1}, D2{X1,X2}}(x::X1,y::X2)
@@ -109,7 +112,11 @@ function translate_head(fn::ParsedFn)
         end
     end
     for t in fnt.traits
-        t.args[2:end] = map(x->trans_Tvar[x], t.args[2:end])
+        if t.args[1]==:Not
+            t.args[2].args[2:end] = map(x->trans_Tvar[x], t.args[2].args[2:end])
+        else
+            t.args[2:end] = map(x->trans_Tvar[x], t.args[2:end])
+        end
     end
     
     return fnt
@@ -311,7 +318,7 @@ end
      - trait-methods and non-trait methods can be mixed.
      - for details on trait dispatch see doc of Traits.traitdispatch
      """ ->
-macro traitfn(fndef)
+function traitfn(fndef)
     fn, fnt = parsetraitfn(fndef)
     if length(unique(fnt.traits))!=length(fnt.traits)
         throw(TraitException(
@@ -411,7 +418,10 @@ macro traitfn(fndef)
         $trait_type_f
         $f
     end
-    return esc(out)
+    return out
+end
+macro traitfn(def)
+    esc(traitfn(def))
 end
 
 ##########
