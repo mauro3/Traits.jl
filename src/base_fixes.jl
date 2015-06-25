@@ -12,6 +12,9 @@ function Core.Inference.func_for_method(m::Method, tt, env)
     if !m.isstaged
         return m.func.code
     else
+        ## if !isleaftype(tt)
+        ##     error("Need leaf-type in staged function")
+        ## end
         f=ccall(:jl_instantiate_staged,Any,(Any,Any,Any),m,tt,env)
         return f.code
     end

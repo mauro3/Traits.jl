@@ -1,0 +1,270 @@
+#+CALL: julia-startup[:session :exports none]() :results silent
+#+Title: Traits.jl -- Interfaces for Julia
+#+Author: Mauro Werder
+#+Date:    JuliaCon 2015
+#+STARTUP: showall
+#+Options: toc:nil ^:nil
+
+    # (define-key map "j" 'scroll-up)
+    # (define-key map [down] 'scroll-up)
+    # (define-key map "k" 'scroll-down)
+    # (define-key map [up] 'scroll-down)
+    # ;; page movement
+    # (define-key map " " 'epresent-next-page)
+    # (define-key map "n" 'epresent-next-page)
+    # (define-key map "f" 'epresent-next-page)
+    # (define-key map [right] 'epresent-next-page)
+    # (define-key map "p" 'epresent-previous-page)
+    # (define-key map "b" 'epresent-previous-page)
+    # (define-key map [left] 'epresent-previous-page)
+    # (define-key map [backspace] 'epresent-previous-page)
+    # ;; within page functions
+    # (define-key map "c" 'epresent-next-src-block)
+    # (define-key map "C" 'epresent-previous-src-block)
+    # (define-key map "e" 'org-edit-src-code)
+    # (define-key map [f5] 'epresent-edit-text) ; Another [f5] exits edit mode.
+    # (define-key map "x" 'org-babel-execute-src-block)
+    # (define-key map "r" 'epresent-refresh)
+    # (define-key map "g" 'epresent-refresh)
+    # ;; global controls
+    # (define-key map "q" 'epresent-quit)
+    # (define-key map "1" 'epresent-top)
+    # (define-key map "s" 'epresent-toggle-hide-src-blocks)
+    # (define-key map "S" 'epresent-toggle-hide-src-block)
+    # (define-key map "t" 'epresent-top)
+
+# C-c C-x C-v
+# (org-toggle-inline-images)
+## TODO
+
+[[./github-traits.png]]
+
+
+
+
+
+
+
+
+
+
+
+
+* What should Traits be? 
+(aka interfaces, type-classes)
+
+** Traits *group types* outside of the type hierarchy
+  similar to but more flexible/extensible than
+  - ~Union~ type
+  - multiple inheritance
+
+
+** Traits are *contracts* on a type or type-tuple
+
+The contract can consist of:
+- required methods
+- any other assertions on types, e.g. ~isbits~
+
+# Unlike Unions which cannot be extended
+
+
+** Traits can be used for *dispatch*
+
+* A desired feature
+
+** [[https://github.com/JuliaLang/julia/issues/5][Issue #5]]: multiple inheritance
+ (the last open single-digit issue)
+
+  [[./i5.png]]
+
+** [[https://github.com/JuliaLang/julia/issues/6975][Issue #6975]]: interfaces
+(in the top 25 most discussed issues) 
+
+  [[./i6975.png]]
+
+# Crop up in many issue discussions, for example:
+# - arrays ([[https://github.com/JuliaParallel/DistributedArrays.jl/issues/4][1]], [[https://github.com/JuliaLang/julia/issues/10889][2]], [[https://github.com/JuliaLang/julia/pull/9170#issuecomment-64992179][3]], [[https://github.com/JuliaLang/julia/issues/987][4]])
+# - 
+# - and start featuring in [[https://github.com/JuliaLang/julia/search?utf8=%E2%9C%93&q=Traits][Julia Base]]
+
+* Use case
+
+Traits are probably most useful for libraries (or Base) to *not force
+types* onto their users.
+
+** Example of library code:
+A library provides a function ~f~ with two methods
+#+BEGIN_SRC julia
+  abstract T1
+  abstract T2
+  f(a::T1) = ...
+  f(a::T2) = ...
+#+END_SRC
+
+Now the user has to subtype either ~T1~ or ~T2~ to use ~f~.
+
+
+** It is *not possible* to use ~f~ with my own types!
+
+* Holy Trait!
+
+So, how can we *group types* into traits and *dispatch* on those groups?
+
+Tim Holy's trait [[https://github.com/JuliaLang/julia/issues/2345#issuecomment-54537633][trick]] (Sept. 2014):
+- uses methods for grouping
+#+BEGIN_SRC julia :results silent :session
+  # Traits are encoded by a type
+  type Trait1 end
+  type Trait2 end
+  traitfn(::Int, ::Int)     = Trait1
+  traitfn(::Int, ::Float64) = Trait2
+#+END_SRC
+
+- uses the method's result for dispatch
+#+BEGIN_SRC julia :results silent :session
+  # now define function f which should dispatch on those traits:
+  f(x,y) = _f(x,y, traitfn(x,y)) # wrapper
+  _f(x,y,::Type{Trait1}) = x+y   # logic for Trait1
+  _f(x,y,::Type{Trait2}) = x^y   # logic for Trait2
+#+END_SRC
+
+- as efficient as normal dispatch
+
+Holy-traits are starting to be used in Base: ~LinearFast~ for
+array-indexing
+
+[[https://github.com/mauro3/SimpleTraits.jl][SimpleTraits.jl]] provides macro-sugar to do Holy-traits
+
+
+# * Holy Trait!
+# So, how can we *group types* into traits and *dispatch* on those groups?
+
+# Tim Holy's trait [[https://github.com/JuliaLang/julia/issues/2345#issuecomment-54537633][trick]] (Sept. 2014):
+
+# ** Group types into traits using a method:
+# #+BEGIN_SRC julia :results silent :session
+#   # Traits are encoded by a type
+#   type Trait1 end
+#   type Trait2 end
+#   # Add types-tuples to either Trait1 or Trait2:
+#   traitfn(::Int, ::Int) = Trait1
+#   traitfn(::Int, ::FloatingPoint) = Trait2
+# #+END_SRC
+
+# ** Define functions which dispatch on traits:
+# #+BEGIN_SRC julia :results silent :session
+#   # now define function f which should dispatch on those traits:
+#   f(x,y) = _f(x,y, traitfn(x,y)) # wrapper
+#   _f(x,y,::Type{Trait1}) = x+y   # logic for Trait1
+#   _f(x,y,::Type{Trait2}) = x^y   # logic for Trait2
+# #+END_SRC
+
+# ** Use it:
+# # Do 
+# # f(3,4)
+# # f(3,4.0)
+# # f("dsf",3)
+# # traitfn(::String,::Int) = Trait2
+# # f("JuliaCon ",3)
+# # @code_native f(4,5)
+# #+BEGIN_SRC julia :results output :session
+# traitfn(::String, ::Int) = Trait2
+# f("JuliaCon ", 4)
+# #+END_SRC
+
+# #+RESULTS:
+# : traitfn (generic function with 3 methods)
+# : "JuliaCon JuliaCon JuliaCon JuliaCon "
+
+* Holy traits on steroids: Traits.jl
+
+Holy traits have two limitation:
+- grouping needs to be done manually
+- trait-functions use the trait-grouping methods, thus can only 
+  (realistically) dispatch on one trait
+
+
+** Traits.jl package removes these limitations
+
+* Brief Traits.jl demo
+
+#+BEGIN_SRC julia
+  using Traits
+  @traitdef Add{X,Y} begin
+      X+Y
+  end
+  @traitdef Exp{X,Y} begin
+      X^Y -> X
+  end
+
+  # check
+  istrait(Add{Int,Int}) # -> true
+  istrait(Add{String,Int}) # -> false
+
+  istrait(Exp{Int,Int}) # -> true
+  istrait(Exp{Int,Float64}) # -> false
+  istrait(Exp{String,Int}) # -> true
+
+  # trait functions
+  @traitfn f{X,Y; Add{X,Y}}(x::X, y::Y) = x+y
+  f(4,5) # -> 9
+  @traitfn f{X,Y; Exp{X,Y}}(x::X, y::Y) = x^y
+
+  # use
+  f("JuliaCon ", 2) # "JuliaCon JuliaCon "
+  f(4,5) # now errors because ambiguous
+#+END_SRC
+
+* Revisited: Use case
+
+Example of a library code which provides a function ~f~ with two
+methods
+
+** Without Traits.jl
+#+BEGIN_SRC julia
+  abstract T1
+  abstract T2
+  f(a::T1) = ...
+  f(a::T2) = ...
+#+END_SRC
+
+User has to subtype either ~T1~ or ~T2~!
+
+** With Traits.jl
+#+BEGIN_SRC julia
+  @traitdef Tr1{X} begin
+      fn(... X ...)
+      ...
+  end
+  @traitdef Tr2{X} begin ... end
+
+  @traitfn f{T; Tr1{T}}(a::T) = ...
+  @traitfn f{T; Tr2{T}}(a::T) = ...
+#+END_SRC
+
+User can use ~f~ with *any type* as long as the trait is fulfilled.
+
+
+# * Tension between Types and Traits
+
+# ** Could traits be used in Base?
+
+* Summary & Outlook
+
+- Traits.jl allows *grouping* of types outside the type hierarchy
+- the grouping is *extensible*
+- *dispatch* works with traits similar to how it works types
+- allows for more generic programming
+- *amazing* that this can be done in Julia without going under the
+  hood!
+
+Outlook:
+- get people to use it: will be registered in METADATA.jl soon
+- resolve/ease tension between types and traits
+- build up a library of Base-traits
+- incorporate ~SimpleTraits.jl~ into Base?
+
+Thanks to Tony Fong!
+
+Let me know if you pass through *Zurich* and
+want to talk in our Julia-Meetup group
