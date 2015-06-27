@@ -29,9 +29,19 @@ type ParsedFn  # (probably should adapt MetaTools.jl...)
 end
 
 # Parsing:
+addit!(traits, t) = push!(traits, SimpleTraits.isnegated(t) ? :(Not{$(t.args[2])}) : t)
+function istraittuple(t::Expr) 
+    tr = isa(t.args[1],Symbol) ? t.args[1] : t.args[1].args[2]
+    tr!=:Trait && return false
+    tu = t.args[2].args[1]
+    return tu==:Tuple ? true : false
+end
+itertraittuple(t::Expr) = t.args[2].args[2:end]
 function parsetraitfn_head(head::Expr)
     # Transforms
     # f1{X<:Int,Y; D1{X}, D2{X,Y}}(x::X,y::Y)
+    # 
+    # f1{X<:Int,Y; Trait{Tuple{D1{X}, D2{X,Y}}}}(x::X,y::Y)
     # 
     # into a ParsedFn
 
@@ -42,7 +52,13 @@ function parsetraitfn_head(head::Expr)
     typs = fun.args[2:end]
     traits = Any[]
     for t in nametyp.args[2].args
-        push!(traits, SimpleTraits.isnegated(t) ? :(Not{$(t.args[2])}) : t)
+        if istraittuple(t)
+            for tt in itertraittuple(t)
+                addit!(traits, tt)
+            end
+        else
+            addit!(traits, t)
+        end
     end
     return ParsedFn(name, fun, typs, sig, traits, :())
 end

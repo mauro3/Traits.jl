@@ -130,16 +130,16 @@ f948576() = 1
 @test istrait(FF{Int})
 
 @traitdef Tr20{X} begin
-    length(X) -> Bool
+    length(X) -> Int
 end
 @traitdef Tr21{X} <: Tr20{X} begin
-    size(X) -> Bool
+    size(X) -> Int
 end
 @traitdef Tr211{X} <: Tr21{X} begin
-    size(X) -> Bool
+    size(X) -> Int
 end
 @traitdef Tr2111{X} <: Tr211{X} begin
-    size(X) -> Bool
+    size(X) -> Int
 end
 
 @traitdef Tr10{X,Y}  begin
@@ -172,6 +172,10 @@ end
 
 @test !issubtrait(Tr21{Int}, Tr20{Float64})
 @test !issubtrait(Trait{Tuple{Tr21{Int}}}, Trait{Tuple{Tr20{Float64}}})
+
+# istrait
+@test istrait(Tr13{Int,Int})==istrait(Trait{Tuple{Tr13{Int,Int}}})
+@test istrait(Tr20{Int})==istrait(Trait{Tuple{Tr20{Int}}})
 
 ####
 # Test functions parameterized on non-trait parameters.

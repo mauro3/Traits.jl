@@ -566,11 +566,11 @@ function issubtrait{T1<:Trait, T2<:Trait}(t1::Type{T1}, t2::Type{T2})
     elseif istraittuple(t1) && istraittuple(t2)
         # traits in a tuple have no order, really, this should reflected.
         # Maybe use a set instead?  Subtrait if it is a subset?
-        if length(iter(t1))!=length(iter(t2))
+        if length(itertraittuple(t1))!=length(itertraittuple(t2))
             return false
         end
         checks = true
-        for (p1,p2) in zip(iter(t1), iter(t2))
+        for (p1,p2) in zip(itertraittuple(t1), itertraittuple(t2))
             checks = checks && issubtrait(p1,p2)
         end
         return checks
@@ -578,10 +578,10 @@ function issubtrait{T1<:Trait, T2<:Trait}(t1::Type{T1}, t2::Type{T2})
         if t1==t2
             return true
         end
-        if t2 in iter(traitgetsuper(t1))
+        if t2 in itertraittuple(traitgetsuper(t1))
             return true
         end
-        for t in iter(traitgetsuper(t1))
+        for t in itertraittuple(traitgetsuper(t1))
             issubtrait(t, t2) && return true
         end
         return false
@@ -589,10 +589,17 @@ function issubtrait{T1<:Trait, T2<:Trait}(t1::Type{T1}, t2::Type{T2})
 end
 
 # if it is Trait{Tuple{...}}
-istraittuple{T<:Trait}(tr::Type{T}) = deparameterize_type(tr)==Trait
+function istraittuple{T<:Trait}(tr::Type{T})
+    deparameterize_type(tr)!=Trait && return false
+    if length(tr.parameters)==1 && tr.parameters[1]<:Tuple
+        return true
+    else
+        return false
+    end
+end
 
 # to iterate over traitgetsuper
-iter{T<:Trait}(t::Type{T}) = t.parameters[1]
+itertraittuple{T<:Trait}(t::Type{T}) = t.parameters[1]
 
 ## Trait definition
 include("traitdef.jl")
