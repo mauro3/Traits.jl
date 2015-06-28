@@ -142,7 +142,6 @@ end
 @test tf7465(5,6)==5*6
 
 @traitdef TrTr22{X,Y} <: TrTr1{X}, TrTr1{Y} begin
-    # empty
 end
 
 @traitfn tf7465{X<:Integer,Y; TrTr22{X,Y}}(x::X,y::Y) = x*y*1000

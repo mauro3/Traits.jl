@@ -78,11 +78,6 @@ typealias FDict Dict{Union(Function,DataType),Function}
 immutable _TraitDispatch end
 immutable _TraitStorage end
 
-# General trait exception
-type TraitException <: Exception 
-    msg::String
-end
-
 # Helper dummy types used in istrait below
 abstract _TestType{T}
 immutable _TestTvar{T}<:_TestType{T} end # used for TypeVar testing

@@ -8,7 +8,7 @@ method_exists_bug1 = false # see https://github.com/JuliaLang/julia/issues/8959
 method_exists_bug2 = false # see https://github.com/JuliaLang/julia/issues/9043 and https://github.com/mauro3/Traits.jl/issues/2
 # these two are not relevant anymore as method_exists is not used anymore
 
-dispatch_bug1 = true # not filed yet
+dispatch_bug1 = true # not filed yet, maybe related https://github.com/JuliaLang/julia/issues/11803
 
 return_types_bug1 = true # see Pr0 in traitdef.jl
 
