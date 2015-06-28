@@ -67,7 +67,7 @@ foobar(a::A, b::A) = a.a==b.a
 @test ft111(4,5)==6
 @test ft111(A(5), A(6))==-999
 
-@test_throws TraitException ft111("asdf", 5)
+@test_throws TraitMethodError ft111("asdf", 5)
 foobar(a::String, b::Int) = length(a)==b
 @test ft111("asdf", 4)==-99
 
@@ -115,11 +115,11 @@ end
 import Base.sin
 @traitfn sin{X; MyTr7{X}}(x::X) = bobo(x)
 @test sin(MTyp71())=="Yeah"
-@test_throws TraitException sin(MTyp72())
+@test_throws TraitMethodError sin(MTyp72())
 
 @traitfn Base.cos{X; MyTr7{X}}(x::X) = bobo(x)
 @test cos(MTyp71())=="Yeah"
-@test_throws TraitException cos(MTyp72())
+@test_throws TraitMethodError cos(MTyp72())
 
 ######
 # Ambiguities
@@ -136,7 +136,7 @@ end
 end
 
 # now ambiguous:
-@test_throws Traits.TraitException tf7465(5,6)
+@test_throws Traits.TraitMethodError tf7465(5,6)
 # resolve
 @traitfn tf7465{X<:Integer,Y; TrTr1{X}, TrTr1{Y}}(x::X,y::Y) = x*y
 @test tf7465(5,6)==5*6
@@ -146,7 +146,7 @@ end
 
 @traitfn tf7465{X<:Integer,Y; TrTr22{X,Y}}(x::X,y::Y) = x*y*1000
 # errors again because ambigours again
-@test_throws Traits.TraitException tf7465(5,6)
+@test_throws Traits.TraitMethodError tf7465(5,6)
 
 ## single argument ambiguities
 ####
@@ -166,7 +166,7 @@ end
     len2(x::Float64) = 55
 end
 
-@test_throws Traits.TraitException tttf(5.)  # errors
+@test_throws Traits.TraitMethodError tttf(5.)  # errors
 
 @traitfn tttf{X; TrTr1{X}, TrTr2{X}}(x::X) = len2(x) # pick len2 over len1
 @test tttf(5.)==len2(5.)
@@ -214,7 +214,7 @@ end
 
 # This test in traitdispatch.jl should probably pass:
 if dispatch_bug1
-    @test_throws Traits.TraitException tttf238(5)=="this should win"
+    @test_throws Traits.TraitMethodError tttf238(5)=="this should win"
 else
     @test tttf238(5)=="this should win"
 end
@@ -256,4 +256,4 @@ end
 
 @traitfn tttf240{X; VV1{X}}(x::X) = "neither should win 1"
 @traitfn tttf240{X; VV2{X}}(x::X) = "neither should win 2"
-@test_throws Traits.TraitException tttf240(5)
+@test_throws Traits.TraitMethodError tttf240(5)

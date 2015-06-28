@@ -9,15 +9,20 @@ module Traits
         """ -> current_module()
 
 using SimpleTraits
-import SimpleTraits: istrait, Trait
+import SimpleTraits: istrait, trait, Trait
 
 export istrait, istraittype, issubtrait, check_return_types,
        traitgetsuper, traitgetpara, traitmethods, 
-       @traitdef, @traitimpl, @traitfn, TraitException, Not,
-       Trait
+       @trait, @traitdef, @traitimpl, @traitfn,  Not, Trait,
+       TraitException, TraitMethodError
 
 if !(VERSION>v"0.4-")
     error("Traits.jl needs Julia version 0.4.-")
+end
+
+# If no trait method matches
+type TraitMethodError <: Exception 
+    msg::String
 end
 
 ## patches for bugs in base
@@ -43,6 +48,15 @@ end
 function check_return_types(flg::Bool)
     global flag_check_return_types
     flag_check_return_types = flg
+end
+
+const verbose=false
+@doc """
+Turn on verbose error messages
+"""->
+function verbosity(val::Bool)
+    global verbose
+    verbose = val
 end
 
 #######
@@ -113,31 +127,44 @@ Example:
 or with a tuple of traits:
 
 `istrait( (Tr1{Int, Float64}, Tr2{Int}) )`
-""" ->
-function istrait{T<:Not}(Tr::Type{T}; verbose=false)
-    Tr = SimpleTraits.stripNot(Tr)
-    return Tr<:Not ? !(istrait(Tr.parameters[1]; verbose=false)) : istrait(Tr)
+""" -> istrait
+
+# for debug info
+function println_verb(x)
+    if verbose
+        println("**** Checking $(deparameterize_type(Tr)): " * x)
+    end
+    nothing
 end
-function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
+
+# function trait{T<:Not}(Tr::Type{T})
+#     Tr = SimpleTraits.stripNot(Tr)
+#     return Tr<:Not ? !(trait(Tr.parameters[1])) : trait(Tr)
+# end
+function trait{T<:Trait}(Tr::Type{T})
+    # To avoid nested Not's:
+    Tr = SimpleTraits.stripNot(Tr)
+    NotTr = SimpleTraits.stripNot(Not{Tr})
+
+    if traitgetsuper(Tr).parameters[1]==TypeVar(:S)
+        # this is a SimpleTrait and if it dispatches to here it is false
+        return NotTr
+    end
+    
     # if it is Trait{Tuple{...}}:
     if istraittuple(Tr)
         for T in Tr.parameters[1].parameters
-            istrait(T; verbose=verbose) || return false
+            istrait(T) || return false
         end
-        return true
+        return Tr
     end
     # If it is just a single trait:
-    if verbose
-        println_verb(x) = println("**** Checking $(deparameterize_type(Tr)): " * x)
-    else
-        println_verb = x->x
-    end
 
     if !hasparameters(Tr)
         throw(TraitException("Trait $Tr has no type parameters."))
     end
     # check supertraits
-    !istrait(traitgetsuper(Tr); verbose=verbose) && return false
+    !istrait(traitgetsuper(Tr)) && return NotTr
 
     # check instantiating
     tr = nothing
@@ -148,13 +175,13 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
                      This usually indicates that something is amiss with the @traitdef
                      or that one of the generic functions is not defined.
                      The error was: $err""")
-        return false
+        return NotTr
     end
 
     # check constraints
     if !all(tr.constraints)
         println_verb("Not all constraints are satisfied for $T")
-        return false
+        return NotTr
     end
 
     # Check call signature of all methods:
@@ -167,7 +194,7 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
             checks = false
             # Only loop over methods which have the right number of arguments:
             for fm in methods(gf, NTuple{length(tm.sig),Any})
-                if isfitting(tmm, fm, verbose=verbose)
+                if isfitting(tmm, fm)
                     checks = true
                     break
                 end
@@ -175,7 +202,7 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
             if !checks # if check==false no fitting method was found
                 println_verb("""No method of the generic function/call-overloaded `$gf` matched the 
                              trait specification: `$tm`""")
-                return false
+                return NotTr
             end
         end
     end
@@ -206,12 +233,12 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
                                  $fret_typ
                                  Returning false.
                                  """)
-                    return false
+                    return NotTr
                 end
             end
         end
     end
-    return true
+    return Tr
 end
 
 ## Helpers for istrait
@@ -264,8 +291,7 @@ end
      {T<:Integer}(T, T, Integer) <<: {T<:Integer}(T, T, T)
      -> false as parametric constraints are not equal
      """ ->
-function isfitting(tmm::Method, fmm::Method; verbose=false) # tm=trait-method, fm=function-method
-    println_verb = verbose ? println : x->x # TODO maybe move this function out
+function isfitting(tmm::Method, fmm::Method) # tm=trait-method, fm=function-method
     tm = FakeMethod(tmm, ret=true)
     fm = FakeMethod(fmm)
 
@@ -390,7 +416,7 @@ function isfitting(tmm::Method, fmm::Method; verbose=false) # tm=trait-method, f
             #     g01{T<:X}(T, T) -> T
             # end
             # g01(::Int, ::Int) = Int
-            # @assert istrait(Tr01{Int}, verbose=true)
+            # @assert istrait(Tr01{Int})
             if isleaftype(tv.ub) # note isleaftype can have some issues with inner constructors
                 # Check if the method definition of fm has the same
                 # leaftypes in the same location.
@@ -543,17 +569,19 @@ function traitgetsuper{T<:Trait}(t::Type{T})
     if istraittuple(t)
         t
     else
-        t.super
+        t.super==SimpleTraits.Trait ? SimpleTraits.Trait{Tuple{}} : t.super
     end
 end
 traitgetpara{T<:Trait}(t::Type{T}) =  t.parameters
 
-@doc """Checks whether a trait, or a tuple of them, is a subtrait of
-     the second argument.""" ->
+@doc """
+Checks whether a trait, or a tuple of them, is a subtrait of
+the second argument.""" ->
 function issubtrait{T1<:Trait, T2<:Trait}(t1::Type{T1}, t2::Type{T2})
     if !istraittuple(t1) && istraittuple(t2)
         if t2==Trait{Tuple{}}
             # the empty trait is the super-trait of all traits
+            # TODO maybe update that.
             return true
         else # TODO
             throw(TraitException(""))

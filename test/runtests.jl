@@ -19,7 +19,7 @@ dispatch_bug1 = true # in traitdispatch.jl
 # strange Julia issue, see 76ec7fba3a88e
 
 # how much output to print
-verbose=false
+Traits.verbosity(false)
 
 # src/Traits.jl tests
 type A1 end
@@ -50,6 +50,8 @@ other_T = f8576.env.defs.tvars
 @test Traits.find_correponding_type(Tuple{Array{Int,2}, Float64, Tuple{UInt8, UInt16}},
                                     Tuple{Array{I,2},   I,       Tuple{UInt8, I}}     , I) == Any[Int, Float64, UInt16]
 
+# SimpleTraits
+include("simpletraits-compat.jl")
 
 # # # manual implementations
 include("manual-traitdef.jl")

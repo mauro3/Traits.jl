@@ -51,7 +51,7 @@ b.body =:()
 
 @test Traits.makefncall(f1e_p.name, f1e_p.sig)==:(f1(x,y))
 
-@test Traits.get_concrete_type_symb(f1e_p.typs)==Any[:Int, :Any]
+@test Traits.get_concrete_type_symb(f1e_p.typs, 2)==Any[:Int, :Any]
 
 @test Traits.make_Type_sig([s.args[2] for s in f1e_p.sig])==Any[:(::Type{X}), :(::Type{TT})]
 
@@ -290,5 +290,5 @@ fn788(b::Int, c::Int) = b
 
 @traitfn ff876{T;     Pr333{T}, !Pr334{T} }(x::T) = 2x
 @traitfn ff876{T; !Pr333{T}, !Pr334{T} }(x::T) = 2000x
-@test_throws TraitException ff876(5)
+@test_throws TraitMethodError ff876(5)
 @test ff876(5.0)==2000*5.0

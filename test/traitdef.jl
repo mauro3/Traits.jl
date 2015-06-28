@@ -90,34 +90,34 @@ index = [Array{Int,2}, StepRange{Int,Int}]
 c=1
 for c in coll
 #    @show IsCollection{c}() # heisenbug protection
-    @test istrait(IsCollection{c}, verbose=verbose)
-    @test istrait(IsIterable{c}, verbose=verbose)
-    @test istrait(IsIterColl{c}, verbose=verbose)
+    @test istrait(IsCollection{c})
+    @test istrait(IsIterable{c})
+    @test istrait(IsIterColl{c})
 end
 @test !istrait(IsIndexable{Set})
 
 for c in iter
-    @test istrait(IsIterable{c}, verbose=verbose)
+    @test istrait(IsIterable{c})
 end
 
 for c in dicts
-    @test istrait(IsAssociative{c}, verbose=verbose)
+    @test istrait(IsAssociative{c})
 end
 #
 for c in index
-    @test istrait(IsIndexable{c}, verbose=verbose)
+    @test istrait(IsIndexable{c})
 end
 
-@test istrait(IsIterable{Array}, verbose=verbose)
-@test istrait(IsIterable{ASCIIString}, verbose=verbose)
-@test istrait(IsIterable{Int}, verbose=verbose)
+@test istrait(IsIterable{Array})
+@test istrait(IsIterable{ASCIIString})
+@test istrait(IsIterable{Int})
 @test !istrait(IsIterable{Nothing})
 
 arith = [Int, Float64, Rational{Int}]
 a1,a2 = 1,1
 for a1 in arith
     for a2 in arith
-        @test istrait(Arith{a1,a2}, verbose=verbose)
+        @test istrait(Arith{a1,a2})
     end
 end
 
@@ -459,9 +459,9 @@ end
 end
 @test !istrait(TT46{A4758})
 @test !istrait(TT46{Dict{Int,Int}})
-# @test istrait(TT46{Set{Int}}, verbose=verbose) this actually works, but not as expected and gives a deprecation warning
+# @test istrait(TT46{Set{Int}}) this actually works, but not as expected and gives a deprecation warning
 @test !istrait(TT46{Int})
-@test istrait(TT46{Array{Int,1}}, verbose=verbose)
+@test istrait(TT46{Array{Int,1}})
 
 # TODO: This does not pass currently because of:
 ## julia> f() = Array{Int}()
@@ -470,7 +470,7 @@ end
 ## julia> Base.return_types(f, ())
 ## 1-element Array{Any,1}:
 ##  Array{Int64,0}
-# @test istrait(TT46{Array{Int}}, verbose=verbose)
-@test istrait(TT46{Array}, verbose=verbose)
+# @test istrait(TT46{Array{Int}})
+@test istrait(TT46{Array})
 
 

@@ -63,7 +63,12 @@ function parsetraithead(def::Expr)
     else
         error("Interface specification error")
     end
+    if supertraits==:()
+        supertraits = :(TypeVar(:SUPER))
+    end
+    
     # check supertraits<:Traits
+    # TODO: move this check to runtime
     for i =2:length(supertraits.args)
         st = supertraits.args[i].args[1]
         eval_curmod(:(@assert istraittype($st)))

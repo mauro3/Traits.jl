@@ -35,12 +35,12 @@ end
 @test traitgetsuper(Tr3{A1,A2})==Trait{Tuple{Tr1{A1},Tr2{A1,A2}}}
 
 # any type is part of a unconstrained trait:
-@test istrait(Tr1{Int}, verbose=verbose)
+@test istrait(Tr1{Int})
 @test istrait(Tr2{DataType,Int})
 @test istrait(Tr3{String,DataType})
 @test_throws TraitException istrait(Tr3{:a,7})  # maybe this should error?
 
-@test !istrait(Not{Tr1{Int}}, verbose=verbose)
+@test !istrait(Not{Tr1{Int}})
 @test !istrait(Not{Tr2{DataType,Int}})
 @test !istrait(Not{Tr3{String,DataType}})
 
@@ -60,7 +60,7 @@ immutable D1{X1} <: Traits.Trait{Tuple{}}
     end
 end
 
-@test istrait(D1{Int}, verbose=verbose)
+@test istrait(D1{Int})
 @test !istrait(D1{String})
 
 immutable D2{X1,X2} <: Traits.Trait{Tuple{D1{X1}, D1{X2}}}
