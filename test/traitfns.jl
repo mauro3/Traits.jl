@@ -249,12 +249,20 @@ end
 #####
 # Tuples
 #####
-@traitdef Pr300{X} begin end
+@traitdef Pr300{X} begin
+    @constraints begin
+        false==true
+    end
+end
 Traits.istrait(::Type{Pr300{Int64}}) = true
 Traits.istrait(::Type{Pr300{Int32}}) = true
-@traitfn ff555{X,Y; Trait{Tuple{Pr300{X}, Pr300{Y}}}}(x::X,y::Y) = 1
-@test ff555(4,Int32(5))==1
-@test_throws TraitException ff555(4,5)
+if !dispatch_bug1
+    @test istrait(Trait{Tuple{Pr300{Int64}, Pr300{Int32}}})
+    @test istrait(Trait{Tuple{Pr300{Int64}, Pr300{Int64}}})
+    @traitfn ff555{X,Y; Trait{Tuple{Pr300{X}, Pr300{Y}}}}(x::X,y::Y) = 1
+    @test ff555(4,Int32(5))==1
+    @test_throws TraitException ff555(4,5.0)
+end
 
 ######
 # Not

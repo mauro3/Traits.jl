@@ -221,49 +221,64 @@ end
 # 3) piece it together
 ###
 
-@doc """The `@traitdef` macro is used to construct a trait.  Example:
-      
-     ```
-     @traitdef MyArith{X,Y} begin
-         # associated types
-         Z = promote_type(X,Y)
-         D = (X,Y)<:(Integer, Integer) ? Float64 : Z
-
-         # method signatures
-         +(X,Y) -> Z
+@doc """
+The `@traitdef` macro is used to construct a trait.  Example:
+    
+```
+@traitdef MyArith{X,Y} begin
+    # associated types
+    Z = promote_type(X,Y)
+    D = (X,Y)<:(Integer, Integer) ? Float64 : Z
+    
+    # method signatures
+    +(X,Y) -> Z
          -(X,Y) -> Z
-         *(X,Y) -> Z
-         /(X,Y) -> D
+    *(X,Y) -> Z
+    /(X,Y) -> D
+    
+    # constraints on X,Y
+    @constraints begin
+        X<:Number
+        Y<:Number
+    end
+end
+istrait(MyArith{Int, Int8}) # -> true
+```
 
-         # constraints on X,Y
-         @constraints begin
-             X<:Number
-             Y<:Number
-         end
-     end
-     istrait(MyArith{Int, Int8}) # -> true
-     ```
-     
-     - Assignments are for associated types, here `Z,D`.  These are
-       types which can be calculated from the input types `X,Y`
+- Assignments are for associated types, here `Z,D`.  These are
+  types which can be calculated from the input types `X,Y`
 
-     - Function signature definitions which are of the form `fn(X,Y,
-       Other-Types) -> Return-Types`.  The return types can be left away
+- Function signature definitions which are of the form `fn(X,Y,
+  Other-Types) -> Return-Types`.  The return types can be left away
 
-     - Constraints are marked in a block `@constaints`.  The are
-       constraints in terms of the input types `X,Y` and are evaluated
-       at trait checking.
+- Constraints are marked in a block `@constaints`.  The are
+  constraints in terms of the input types `X,Y` and are evaluated
+  at trait checking.
 
-     Traits can subtrait others:
+Traits can subtrait others:
 
-     ```
-     @traitdef MyInv{X}<:MyArith{X,X} begin
-         inv(X) -> X
-     end
-     istrait(MyInv{Int}) # -> false
-     istrait(MyInv{Float64}) # -> true
-     ```
-     """ ->
+```
+@traitdef MyInv{X}<:MyArith{X,X} begin
+    inv(X) -> X
+end
+istrait(MyInv{Int}) # -> false
+istrait(MyInv{Float64}) # -> true
+```
+
+Traits can be constructed compatible to SimpleTraits.jl without
+begin-end:
+```
+@traitdef MyInv{X}<:MyArith{X,X} 
+```
+which is equivalent to
+@traitdef MyInv{X}<:MyArith{X,X} begin
+    @constraints begin
+        false
+    end
+end
+```
+i.e. a trait which contains no types.
+""" ->
 macro traitdef(head, body)
     ## make Trait type
     traithead, name = parsetraithead(head)
