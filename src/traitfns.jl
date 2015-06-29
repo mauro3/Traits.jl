@@ -22,11 +22,15 @@ Base.done(::GenerateTypeVars, state) = false
 type ParsedFn  # (probably should adapt MetaTools.jl...)
     name::FName  # f1
     fun::Expr # :(f1{X<:Int,Y})
-    typs::Vector{Any} # [:(X<:Int),:Y]
+    typs::Vector{Any} # these are the type(var) which are method parameters [:(X<:Int),:Y]
+    typs2::Vector{Any} # these are the type(var)
     sig::Vector{Any} # [:(x::X), :(y::Y)] 
     traits::Vector{Any} # [D1{X}, D2{X,Y}]
     body::Expr # quote ... end
 end
+
+# translates a signature to types
+sig2typs(sig) = [isa(s,Symbol) ? :Any : s.args[2] for s in sig]
 
 # Parsing:
 addit!(traits, t) = push!(traits, SimpleTraits.isnegated(t) ? :(Not{$(t.args[2])}) : t)
@@ -50,6 +54,7 @@ function parsetraitfn_head(head::Expr)
     name = nametyp.args[1]
     fun = Expr(:curly, deepcopy(nametyp.args[[1;3:end]])...)
     typs = fun.args[2:end]
+    typs2 = sig2typs(sig)
     traits = Any[]
     for t in nametyp.args[2].args
         if istraittuple(t)
@@ -60,7 +65,7 @@ function parsetraitfn_head(head::Expr)
             addit!(traits, t)
         end
     end
-    return ParsedFn(name, fun, typs, sig, traits, :())
+    return ParsedFn(name, fun, typs, typs2, sig, traits, :())
 end
 
 gettypesymbol(x::Expr) = x.args[1] # :(X1<:Int)
@@ -191,34 +196,42 @@ function makefncall(fname, sig)
     # (i.e. strips the extraneous type-assertions)
     return :( $fname( $(strip_typeasserts(sig)...) ) )
 end
-function get_concrete_type_symb(typs, len) # surely there are
-                                                # never more that 10^5
-                                                # arguments
-
+function get_concrete_type_symb(typs, typs2, len)
     # Returns the most general type satisfying typs as a list of symbols:
     # [:(X<:Int), :Y] -> [:Int, :Any]
+    #
+    # if len>length(typs) then fill with any.
+    @show typs, typs2, len
     out = Any[]
+    trans = Dict()
     for t in typs
-        if isa(t, Symbol) 
-            push!(out, :Any)
-        elseif  t.head==:.
-            push!(out, t)
+        @show t
+        if isa(t, Symbol)
+            trans[t] = :Any
         else
-            push!(out, t.args[2])
+            @show t.args[1], t.args[2]
+            trans[t.args[1]] = t.args[2]
         end
     end
+    @show trans
+    for t in typs2
+        push!(out, get(trans, t, t))
+    end
+        @show out
     # pad with Any
     for i=1:(len-length(out))
         push!(out, :Any)
     end
+    @show out
     return out
 end
-function get_concrete_type_Typetuple(typs, len)
+function get_concrete_type_Typetuple(typs, typs2, len)
     # Returns the most general type satisfying typs as a tuple of
     # actual types:
     # [:(X<:Int), :Y] -> Tuple{Int, Any}
-    out = get_concrete_type_symb(typs, len)
+    out = get_concrete_type_symb(typs, typs2, len)
     for i in 1:length(out)
+        # TODO: can this eval be removed?
         out[i] = Type{eval_curmod(out[i])}
     end
     for i=1:(len-length(out))
@@ -244,22 +257,22 @@ function make_Type_sig(typs)
     end
     return out
 end
-function has_only_one_method(fname::Symbol, typs, len)
+function has_only_one_method(fname::Symbol, typs, typs2, len)
     # Checks whether fname has one and only one method for types in
     # typs.
     if isdefined(current_module(), fname)
         1 == length( methods(eval_curmod(fname),
-                             get_concrete_type_Typetuple(typs, len)) )
+                             get_concrete_type_Typetuple(typs, typs2, len)) )
     else
         false
     end
 end
-function has_only_one_method(fname::Expr, typs, len)
+function has_only_one_method(fname::Expr, typs, typs2, len)
     # Checks whether fname has one and only one method for types in
     # typs.
     if isdefined(eval_curmod(fname.args[1]), fname.args[2].args[1])
         1 == length( methods(eval_curmod(fname),
-                             get_concrete_type_Typetuple(typs, len)) )
+                             get_concrete_type_Typetuple(typs, typs2, len)) )
     else
         false
     end
@@ -398,11 +411,16 @@ function traitfn(fndef)
     ## 1) Get the existing traits out of the trait_type_f:
     #    These can be retrieved with the call:
     #    trait_type_f(Traits._TraitStorage, ::Type{X}, ::Type{Y}...) for suitable X, Y...
-    args1 = Any[:(Traits._TraitStorage), get_concrete_type_symb(fn.typs, length(fn.sig))...]
-    trait_type_f_store_call = makefncall(fn.name, args1)
+    @show fn.sig
+    @show fn.typs
+    @show fn.typs2
+
+@show    args1 = Any[:(Traits._TraitStorage), get_concrete_type_symb(fn.typs, fn.typs2, length(fn.sig))...]
+@show    trait_type_f_store_call = makefncall(fn.name, args1)
     
     args2 = Any[:(Traits._TraitStorage), fn.typs...]
-    if has_only_one_method(fn.name, args2, length(fn.sig))
+@show    args2_ = Any[:(Traits._TraitStorage), fn.typs2...]
+    if has_only_one_method(fn.name, args2, args2_, length(fn.sig))
         # TODO/NOTE I don't think eval can be moved to runtime
         traittypes = eval_curmod(trait_type_f_store_call)[2] 
     else
@@ -417,7 +435,6 @@ function traitfn(fndef)
     
     ## 3) make new trait-type storage function
     #     tf(::Type{Traits._TraitStorage}, ::Type{X}, ::Type{Y}...)
-    sig2typs(sig) = [isa(s,Symbol) ? :Any : s.args[2] for s in fnt.sig]
     sig = make_Type_sig([:(Traits._TraitStorage), sig2typs(fnt.sig)...])
     trait_type_f_store_head = makefnhead(fn.name,
                                           fnt.typs, sig)
