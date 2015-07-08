@@ -386,6 +386,13 @@ See the Julia-issue
 [#6975](https://github.com/JuliaLang/julia/issues/6975) for a
 discussion about interfaces/traits.
 
+@Rory-Finnegan's
+[Interfaces.jl](https://github.com/Rory-Finnegan/Interfaces.jl)
+
+- does dispatch on traits
+- only single parameter traits
+- uses a new type of mutable `Union` coded in C
+
 Jason Morton's package
 [Typeclass.jl](https://github.com/jasonmorton/Typeclass.jl)
 
