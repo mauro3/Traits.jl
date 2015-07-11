@@ -8,7 +8,7 @@
 # @traitfn f1{S,T<:Integer; D1{S}, D1{T}  }(s::S,t::T) = sin(s) - sin(t)
 # @traitfn f1{X,Y<:FloatingPoint; D1{X}, D1{Y}  }(x::X,y::Y) = cos(x) - cos(y)
 
-typealias FName Union(Symbol,Expr)
+typealias FName Union{Symbol,Expr}
 
 # generates: X1, X2,... or x1, x2.... (just symbols not actual TypeVar)
 type GenerateTypeVars{CASE}
@@ -26,6 +26,16 @@ type ParsedFn  # (probably should adapt MetaTools.jl...)
     sig::Vector{Any} # [:(x::X), :(y::Y)] 
     traits::Vector{Any} # [D1{X}, D2{X,Y}]
     body::Expr # quote ... end
+end
+function ==(p::ParsedFn, q::ParsedFn)
+    out = true
+    for n in fieldnames(p)
+        out = out && getfield(p,n)==getfield(q,n)
+        if !out
+            @show n, getfield(p,n), getfield(q,n)
+        end
+    end
+    out
 end
 
 # Parsing:

@@ -41,7 +41,7 @@ for ln in enumerate(body.args)
     end
 end
 
-implfs = Traits.parse_body(body)
+implfs = Traits.parse_impl_body(:Tr100, Union{Symbol,Expr}[ :A100, :B100 ], body)
 #@test Traits.check_macro_body(body.args, implfs, trait)
 
 # check @traitimpl
