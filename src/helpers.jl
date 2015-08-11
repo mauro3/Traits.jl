@@ -40,7 +40,7 @@ function Base.done(lns::Lines, nr)
 end
 
 @doc "Checks all elements of a collection are equal" ->
-allequal(x) = all([x[1]==xx for xx in x])
+allequal(x) = reduce(&, [x[1]==xx for xx in x])
 
 ## Parsing
 ####
@@ -91,7 +91,7 @@ isparameterized(t::DataType) = length(t.parameters)==0 ? false : true
 
 function hasparameters(t::DataType)
     if isparameterized(t)
-        if all([map(typeof,t.parameters)...].==DataType)
+        if reduce(&, [map(typeof,t.parameters)...].==DataType)
             return true  # i.e. return true for Dict{Int,Int}
         else
             return false # but not for Dict{Int}

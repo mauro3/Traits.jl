@@ -1,6 +1,8 @@
 ## Testing using traits for dispatch, hand-coded
 ################################################
 
+import Base: +,-
+
 ## the definitions:
 # @traitfn f2{X,Y<:Integer; D1{Y}, D4{X,Y}}(x::X,y::Y) = x + sin(y)
 # @traitfn f2{S,T<:Integer; D1{S}, D1{T}  }(s::S,t::T) = sin(s) - sin(t)

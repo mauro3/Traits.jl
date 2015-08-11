@@ -149,7 +149,7 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
     end
 
     # check constraints
-    if !all(tr.constraints)
+    if !reduce(&, tr.constraints)
         println_verb("Not all constraints are satisfied for $T")
         return false
     end
@@ -352,7 +352,7 @@ function isfitting(tmm::Method, fmm::Method; verbose=false) # tm=trait-method, f
             elseif length(typs)==1 # Necessarily the same
                 continue
             else # length(typs)>1
-                if !all(map(isleaftype, typs)) # note isleaftype can have some issues with inner constructors
+                if !reduce(&, map(isleaftype, typs)) # note isleaftype can have some issues with inner constructors
                     println_verb("Reason fail: not all parametric-constraints in function-method $fmm are on leaftypes in traitmethod $tmm.")
                     return false
                 else

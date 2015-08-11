@@ -1,5 +1,7 @@
 # tests parsing in src/traitfns.jl
 
+import Base: ==
+
 f1e  = :(f1{X<:Int,TT; D1{X}, D2{X,TT}}(x::X,y::TT))
 f1e_b= :(f1{X<:Int,TT; D1{X}, D2{X,TT}}(x::X,y::TT) = ())
 
