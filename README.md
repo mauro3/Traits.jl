@@ -36,6 +36,12 @@ traits.  See also the Julia-issue
 [#6975](https://github.com/JuliaLang/julia/issues/6975) concerning
 interfaces/traits.
 
+My [*JuliaCon 2015*](https://youtu.be/j9w8oHfG1Ic) talk gives a 10
+minute introduction to Traits.jl.  Also, Jeff mentioned Traits.jl
+during Q&A in his
+[JuliaCon talk](https://youtu.be/xUP3cSKb8sI?t=45m51s), suggesting
+that trait functionality may well be added to Julia-Base.
+
 Example `examples/ex1.jl`:
 ```julia
 using Traits
