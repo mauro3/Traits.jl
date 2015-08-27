@@ -81,11 +81,7 @@ end
 #coll = [Vector, Vector{Int}, Dict{Int}, Dict{Int,Int}, Set{Int}]
 coll = [Vector{Int}, Dict{Int,Int}, Set{Int}]
 iter = [Traits.GenerateTypeVars{:upcase},  Int] #todo: add String,
-if method_exists_bug1
-    dicts = [] #todo add again: Dict{Int,Int}] # , ObjectIdDict]
-else
-    dicts = [Dict{Int,Int}] # Dict and Dict{Int} does not work, ObjectIdDict does not fulfill the trait
-end
+dicts = [Dict{Int,Int}] # Dict and Dict{Int} does not work, ObjectIdDict does not fulfill the trait
 index = [Array{Int,2}, StepRange{Int,Int}]
 c=1
 for c in coll
@@ -195,8 +191,10 @@ end
     fn76{I<:Integer}(X, Vector{I}) -> I
 end
 fn76{I<:Integer}(x::Uint8, v::Vector{I}) = v[x]
-if method_exists_bug2
-    @test !istrait(Pr1{UInt8})
+if jl_issue_12826
+    check_return_types(false)
+    @test istrait(Pr1{UInt8})
+    check_return_types(true)
 else
     @test istrait(Pr1{UInt8})
 end

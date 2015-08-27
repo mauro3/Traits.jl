@@ -2,10 +2,6 @@
 
 export indextype
 
-# This just redefines isbits as is, because of a strange bug:
-# https://github.com/JuliaLang/julia/issues/11840
-Base.isbits(t::TypeConstructor) = false
-
 # https://github.com/JuliaLang/julia/issues/10178#issuecomment-74136186
 println("  This warning is ok:")
 function Core.Inference.func_for_method(m::Method, tt, env)
@@ -32,7 +28,7 @@ indextype(t::DataType) = eltype(super(t))
 
 indextype(::Any) = Int # fall back...
 
-println("  endof ok-warning.")
+println("  endof ok-warnings.")
 
 
 # iterate over Tuple. Remove after merge of https://github.com/JuliaLang/julia/pull/11547

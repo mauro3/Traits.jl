@@ -139,14 +139,12 @@ a = yt1(5,6)
 @traitfn xt1{X<:Int,Y<:FloatingPoint; Arith{X,Y}}(x::X,y::Y) = x-y
 @test_throws MethodError xt1(5,6)
 
-if !(method_exists_bug1)
-    od = ObjectIdDict(); od[5]=8
-    @traitfn yt1{X,Y; IsAssociative{X}}(x::X,y::Y) = x==y
-    @test yt1(Dict(5=>7), Dict(5=>8))==false
-    @traitfn xt1{X<:Dict,Y<:ObjectIdDict; IsAssociative{X}}(x::X,y::Y) = x==y
-    @test xt1(Dict(5=>7), od)==false
-    @test_throws MethodError xt1(od, od)
-end
+od = ObjectIdDict(); od[5]=8
+@traitfn yt1{X,Y; IsAssociative{X}}(x::X,y::Y) = x==y
+@test yt1(Dict(5=>7), Dict(5=>8))==false
+@traitfn xt1{X<:Dict,Y<:ObjectIdDict; IsAssociative{X}}(x::X,y::Y) = x==y
+@test xt1(Dict(5=>7), od)==false
+@test_throws MethodError xt1(od, od)
 
 # mixing with normal methods:
 xt1(x::Int, y::Int) = 77

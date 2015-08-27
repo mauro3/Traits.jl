@@ -4,9 +4,9 @@ using Traits
 check_return_types(true) # should test both true & false
 ## BUG flags: set to false once fixed to activate tests
 # Julia issues:
-method_exists_bug1 = false # see https://github.com/JuliaLang/julia/issues/8959
-method_exists_bug2 = false # see https://github.com/JuliaLang/julia/issues/9043 and https://github.com/mauro3/Traits.jl/issues/2
-# these two are not relevant anymore as method_exists is not used anymore
+
+jl_issue_12826 = true # https://github.com/JuliaLang/julia/issues/12826 return_types regression
+
 
 return_types_bug1 = true # see Pr0 in traitdef.jl
 
