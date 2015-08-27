@@ -1,6 +1,5 @@
 # Documentation: http://docs.travis-ci.com/user/languages/julia/
 language: julia
-sudo: false
 os:
   - linux
   - osx
@@ -8,24 +7,3 @@ julia:
   - nightly
 notifications:
   email: false
-# uncomment the following lines to override the default test script
-#script:
-#  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
-#  - julia -e 'Pkg.clone(pwd()); Pkg.build("Tmp"); Pkg.test("Tmp"; coverage=true)'
-
-# language: cpp
-# compiler:
-#   - clang
-# notifications:
-#   email: false
-# env:
-#   matrix:
-#     - JULIAVERSION="julianightlies"
-# before_install:
-#   - sudo add-apt-repository ppa:staticfloat/julia-deps -y
-#   - sudo add-apt-repository ppa:staticfloat/${JULIAVERSION} -y
-#   - sudo apt-get update -qq -y
-#   - sudo apt-get install libpcre3-dev julia -y
-#   - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
-# script:
-#   - julia -e 'versioninfo(); Pkg.init(); Pkg.clone(pwd()); Pkg.test("Traits")'
