@@ -5,9 +5,6 @@ check_return_types(true) # should test both true & false
 ## BUG flags: set to false once fixed to activate tests
 # Julia issues:
 
-jl_issue_12826 = true # https://github.com/JuliaLang/julia/issues/12826 return_types regression
-
-
 return_types_bug1 = true # see Pr0 in traitdef.jl
 
 function_types_bug1 = true # set to false if function types get implemented in Julia

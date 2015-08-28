@@ -191,13 +191,7 @@ end
     fn76{I<:Integer}(X, Vector{I}) -> I
 end
 fn76{I<:Integer}(x::Uint8, v::Vector{I}) = v[x]
-if jl_issue_12826
-    check_return_types(false)
-    @test istrait(Pr1{UInt8})
-    check_return_types(true)
-else
-    @test istrait(Pr1{UInt8})
-end
+@test istrait(Pr1{UInt8})
 
 @traitdef Pr2{X} begin
     fn77{Y<:Number}(X,Y,Y) -> Number
