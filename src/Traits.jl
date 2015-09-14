@@ -25,20 +25,31 @@ include("helpers.jl")
 #######
 # Flags
 #######
+type Flags
+    # A type to hold flags
+    check_return_types::Bool
+end
+getflag(f::Flags, n::Symbol) = getfield(f, n)
+setflag!(f::Flags, n::Symbol, val) = setfield!(f, n, val)
+
+"""
+Flags for various Traits behavior:
+ 
+- first arg: check return types?
+"""
+const flags = Flags(true)
+
 # By setting them in Main before using, they can be turned on or off.
 # TODO: update to use functions.
 if isdefined(Main, :Traits_check_return_types)
     println("Traits.jl: not using return types of @traitdef functions")
-    const flag_check_return_types = Main.Traits_check_return_types
-else
-    const flag_check_return_types = true
+    setflag!(flags, :check_return_types, Main.Traits_check_return_types)
 end
-@doc "Flag to select whether return types in @traitdef's are checked" flag_check_return_types
 
 @doc "Toggles return type checking.  Will issue warning because of const declaration, ignore:"->
 function check_return_types(flg::Bool)
-    global flag_check_return_types
-    flag_check_return_types = flg
+    setflag!(flags, :check_return_types, flg)
+    nothing
 end
 
 #######
@@ -180,7 +191,7 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
     # check return-type.  Specifed return type tret and return-type of
     # the methods frets should fret<:tret.  This is backwards to
     # argument types checking above.
-    if flag_check_return_types
+    if flags.check_return_types
         for (gf,_gf) in tr.methods
             println_verb("*** Checking return types of function $gf")
             for tmm in methods(_gf) # loop over all methods defined for each function in traitdef
