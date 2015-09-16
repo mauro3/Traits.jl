@@ -120,7 +120,14 @@ end
      - the type annotations are mandatory.  No parameterized methods
        are allowed (for now).
      """ ->
-macro traitimpl(head, body)
+macro traitimpl(args...)
+    if length(args)==1
+        return esc(SimpleTraits.traitimpl(args[1]))
+    elseif length(args)==2
+        head, body = args
+    else
+        error("Wrong number of agruments to @traitimpl")
+    end
     ## Parse macro header
     name, paras, trait_expr = parsecurly(head)
 

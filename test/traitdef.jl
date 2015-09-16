@@ -86,34 +86,34 @@ index = [Array{Int,2}, StepRange{Int,Int}]
 c=1
 for c in coll
 #    @show IsCollection{c}() # heisenbug protection
-    @test istrait(IsCollection{c}, verbose=verbose)
-    @test istrait(IsIterable{c}, verbose=verbose)
-    @test istrait(IsIterColl{c}, verbose=verbose)
+    @test istrait(IsCollection{c})
+    @test istrait(IsIterable{c})
+    @test istrait(IsIterColl{c})
 end
 @test !istrait(IsIndexable{Set})
 
 for c in iter
-    @test istrait(IsIterable{c}, verbose=verbose)
+    @test istrait(IsIterable{c})
 end
 
 for c in dicts
-    @test istrait(IsAssociative{c}, verbose=verbose)
+    @test istrait(IsAssociative{c})
 end
 #
 for c in index
-    @test istrait(IsIndexable{c}, verbose=verbose)
+    @test istrait(IsIndexable{c})
 end
 
-@test istrait(IsIterable{Array}, verbose=verbose)
-@test istrait(IsIterable{ASCIIString}, verbose=verbose)
-@test istrait(IsIterable{Int}, verbose=verbose)
+@test istrait(IsIterable{Array})
+@test istrait(IsIterable{ASCIIString})
+@test istrait(IsIterable{Int})
 @test !istrait(IsIterable{Nothing})
 
 arith = [Int, Float64, Rational{Int}]
 a1,a2 = 1,1
 for a1 in arith
     for a2 in arith
-        @test istrait(Arith{a1,a2}, verbose=verbose)
+        @test istrait(Arith{a1,a2})
     end
 end
 
@@ -126,16 +126,16 @@ f948576() = 1
 @test istrait(FF{Int})
 
 @traitdef Tr20{X} begin
-    length(X) -> Bool
+    length(X) -> Int
 end
 @traitdef Tr21{X} <: Tr20{X} begin
-    size(X) -> Bool
+    size(X) -> Int
 end
 @traitdef Tr211{X} <: Tr21{X} begin
-    size(X) -> Bool
+    size(X) -> Int
 end
 @traitdef Tr2111{X} <: Tr211{X} begin
-    size(X) -> Bool
+    size(X) -> Int
 end
 
 @traitdef Tr10{X,Y}  begin
@@ -149,9 +149,9 @@ end
    ==(X,Y) -> Bool
 end
 
-@test traitgetsuper(Tr20)==Tuple{}
-@test traitgetsuper(Tr21)==Tuple{Tr20}
-@test traitgetsuper(Tr13)==Tuple{Tr11, Tr20, Tr21}
+@test traitgetsuper(Tr20)==Trait{Tuple{}}
+@test traitgetsuper(Tr21)==Trait{Tuple{Tr20}}
+@test traitgetsuper(Tr13)==Trait{Tuple{Tr11, Tr20, Tr21}}
 
 @test issubtrait(Tr21, Tr20)
 @test issubtrait(Tr211, Tr20)
@@ -161,13 +161,17 @@ end
 @test issubtrait(Tr13, Tr21)
 @test issubtrait(Tr13, Tr20)
 
-@test issubtrait(Tuple{Tr21}, Tuple{Tr20})
-@test  issubtrait(Tuple{Tr21,Tr11}, Tuple{Tr20,Tr10})
-@test !issubtrait(Tuple{Tr21,Tr11}, Tuple{Tr10,Tr20}) # todo: this should be true, as order shouldn't matter
-@test issubtrait(Tuple{Tr11,Tr21}, Tuple{Tr10,Tr20})
+@test issubtrait(Trait{Tuple{Tr21}}, Trait{Tuple{Tr20}})
+@test  issubtrait(Trait{Tuple{Tr21,Tr11}}, Trait{Tuple{Tr20,Tr10}})
+@test !issubtrait(Trait{Tuple{Tr21,Tr11}}, Trait{Tuple{Tr10,Tr20}}) # todo: this should be true, as order shouldn't matter
+@test issubtrait(Trait{Tuple{Tr11,Tr21}}, Trait{Tuple{Tr10,Tr20}})
 
 @test !issubtrait(Tr21{Int}, Tr20{Float64})
-@test !issubtrait(Tuple{Tr21{Int}}, Tuple{Tr20{Float64}})
+@test !issubtrait(Trait{Tuple{Tr21{Int}}}, Trait{Tuple{Tr20{Float64}}})
+
+# istrait
+@test istrait(Tr13{Int,Int})==istrait(Trait{Tuple{Tr13{Int,Int}}})
+@test istrait(Tr20{Int})==istrait(Trait{Tuple{Tr20{Int}}})
 
 ####
 # Test functions parameterized on non-trait parameters.
@@ -447,9 +451,9 @@ end
 end
 @test !istrait(TT46{A4758})
 @test !istrait(TT46{Dict{Int,Int}})
-# @test istrait(TT46{Set{Int}}, verbose=verbose) this actually works, but not as expected and gives a deprecation warning
+# @test istrait(TT46{Set{Int}}) this actually works, but not as expected and gives a deprecation warning
 @test !istrait(TT46{Int})
-@test istrait(TT46{Array{Int,1}}, verbose=verbose)
+@test istrait(TT46{Array{Int,1}})
 
 # TODO: This does not pass currently because of:
 ## julia> f() = Array{Int}()
@@ -458,7 +462,7 @@ end
 ## julia> Base.return_types(f, ())
 ## 1-element Array{Any,1}:
 ##  Array{Int64,0}
-# @test istrait(TT46{Array{Int}}, verbose=verbose)
-@test istrait(TT46{Array}, verbose=verbose)
+# @test istrait(TT46{Array{Int}})
+@test istrait(TT46{Array})
 
 

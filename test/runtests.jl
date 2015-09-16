@@ -5,6 +5,8 @@ check_return_types(true) # should test both true & false
 ## BUG flags: set to false once fixed to activate tests
 # Julia issues:
 
+dispatch_bug1 = true # not filed yet, maybe related https://github.com/JuliaLang/julia/issues/11803
+
 return_types_bug1 = true # see Pr0 in traitdef.jl
 
 function_types_bug1 = true # set to false if function types get implemented in Julia
@@ -14,7 +16,7 @@ dispatch_bug1 = true # in traitdispatch.jl
 # strange Julia issue, see 76ec7fba3a88e
 
 # how much output to print
-verbose=false
+Traits.verbosity(false)
 
 # src/Traits.jl tests
 type A1 end
@@ -45,6 +47,8 @@ other_T = f8576.env.defs.tvars
 @test Traits.find_correponding_type(Tuple{Array{Int,2}, Float64, Tuple{UInt8, UInt16}},
                                     Tuple{Array{I,2},   I,       Tuple{UInt8, I}}     , I) == Any[Int, Float64, UInt16]
 
+# SimpleTraits
+include("simpletraits-compat.jl")
 
 # # # manual implementations
 include("manual-traitdef.jl")

@@ -12,7 +12,8 @@ f1e_function = :(function f1{X<:Int,TT; D1{X}, D2{X,TT}}(x::X,y::TT)
 f1e_p = Traits.ParsedFn(
                   :f1, 
                   :(f1{X<:Int,TT}), 
-                  Any[Expr(:<:, :X, :Int),:TT], 
+                  Any[Expr(:<:, :X, :Int),:TT],
+                  Any[:X,:TT], 
                   Any[:(x::X), :(y::TT)], 
                   Any[:(D1{X}), :(D2{X,TT})],
                   :(()))
@@ -20,6 +21,7 @@ f1e_pt = Traits.ParsedFn(
                  :f1, 
                  :(f1{X1<:Int,X2}), 
                  Any[Expr(:<:, :X1, :Int),:X2],
+                 Any[:X1,:X2],                         
                  Any[:(x1::X1), :(x2::X2)], 
                  Any[:(D1{X1}), :(D2{X1,X2})],
                  :(()))
@@ -53,7 +55,7 @@ b.body =:()
 
 @test Traits.makefncall(f1e_p.name, f1e_p.sig)==:(f1(x,y))
 
-@test Traits.get_concrete_type_symb(f1e_p.typs)==Any[:Int, :Any]
+@test Traits.get_concrete_type_symb(f1e_p.typs, 2)==Any[:Int, :Any]
 
 @test Traits.make_Type_sig([s.args[2] for s in f1e_p.sig])==Any[:(::Type{X}), :(::Type{TT})]
 
@@ -63,6 +65,7 @@ f1e2_pt = Traits.ParsedFn(
                  :f1, 
                  :(f1{X1<:Int}), 
                  Any[Expr(:<:, :X1, :Int)],
+                 Any[:X, :X],                          
                  Any[:(x1::X1), :(x2::X1)], 
                  Any[:(D1{X1}), :(D2{X1,X1})],
                  :(()))
@@ -73,7 +76,8 @@ f1ee = :(tfd{K, V; D2{K,V}}(x::Vector{K}, y::V) = ())
 f1ee_p = Traits.ParsedFn(
                   :tfd, 
                   :(tfd{K,V}), 
-                  Any[:K,:V], 
+                  Any[:K,:V],
+                  Any[:Vector{K},:V],
                   Any[:(x::Vector{K}), :(y::V)], 
                   Any[:(D2{K,V})],
                   :(()))
@@ -205,21 +209,12 @@ end
 end
 
 import Mod1.tf1
-# @show tf1(Traits._TraitStorage, MTyp1, Int)
-# @show tf1(Traits._TraitStorage,Any,Int)
-# typs = Any[:(Traits._TraitStorage),:X, Expr(:<:, :X1, :Int)]
-# methods(eval(:tf1), Traits. get_concrete_type_Typetuple(typs))
 println("  These warnings are ok:")  # Well, I'm not sure whether they are ok.  But at least normal...
 @traitfn tf1{X, Y<:Int;  M1Tr100{X}}(a::X, b::Y) = foofoo(a)^b
 println("  endof ok-warnings.")
-#methods(eval(:tf1), Traits. get_concrete_type_Typetuple(typs))
-#@show tf1(Traits._TraitStorage, Any, Int)
 
 @test tf1(MTyp1(7), 5)=="MTyp1, barbar"^5
 @test tf1(MTyp00(9), 5)== "MTyp00 foofoo"^5
-
-# @show tf1(Traits._TraitStorage, MTyp1, Int)
-# @show tf1(Traits._TraitStorage, Any, Int)
 
 # # error:
 @test tf1(MTyp99(9), 5)=="MTyp99, barbar"^5
@@ -244,3 +239,64 @@ using Base.Test
 @test length(traitmethods(ff879))==1
 end
 @test length(traitmethods(ff879))==1
+
+
+#####
+# Tuples
+#####
+@traitdef Pr300{X} begin
+    @constraints begin
+        false==true
+    end
+end
+Traits.istrait(::Type{Pr300{Int64}}) = true
+Traits.istrait(::Type{Pr300{Int32}}) = true
+if !dispatch_bug1
+    @test istrait(Trait{Tuple{Pr300{Int64}, Pr300{Int32}}})
+    @test istrait(Trait{Tuple{Pr300{Int64}, Pr300{Int64}}})
+    @traitfn ff555{X,Y; Trait{Tuple{Pr300{X}, Pr300{Y}}}}(x::X,y::Y) = 1
+    @test ff555(4,Int32(5))==1
+    @test_throws TraitException ff555(4,5.0)
+end
+
+######
+# Not
+######
+@traitdef Pr333{X} begin
+    fn786{T<:X}(T,T)
+end
+fn786(b::Int, c::Int) = b
+@test istrait(Pr333{Int})
+@test !istrait(Pr333{Real})
+
+@traitfn ff875{T;     Pr333{T} }(x::T) = 2x
+@traitfn ff875{T; Not{Pr333{T}}}(x::T) = 2000x
+@traitfn ff875{T; !Pr333{T} }(x::T) = 2000x
+@test ff875(5)==10
+@test ff875(5.)==2000*5.
+
+
+@traitdef Pr334{X} begin
+    fn788{T<:X}(T,T)
+end
+fn788(b::Int, c::Int) = b
+@test istrait(Pr334{Int})
+@test !istrait(Pr334{Real})
+
+@traitfn ff876{T;     Pr333{T}, !Pr334{T} }(x::T) = 2x
+@traitfn ff876{T; !Pr333{T}, !Pr334{T} }(x::T) = 2000x
+@test_throws TraitMethodError ff876(5)
+@test ff876(5.0)==2000*5.0
+
+###
+# un-parameterized args
+###
+@traitfn ff877{T;  Pr333{T}, !Pr334{T} }(x::T, y) = 2x
+@traitfn ff877{T; !Pr333{T}, !Pr334{T} }(x::T, y) = "a"
+@traitfn ff877{T; !Pr333{T}, !Pr334{T} }(x::T, y::Int) = -x
+@traitfn ff877{T; !Pr333{T}, !Pr334{T} }(x::T, y::Int, z) = -2x
+@test_throws TraitMethodError ff877(5, 6)
+@test ff877(5.0, "a")=="a"
+@test ff877(5.0, 5)==-5.0
+@test ff877(5.0, 5, "a")==-10.0
+
