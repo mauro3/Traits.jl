@@ -96,7 +96,7 @@ immutable _TraitStorage end
 
 # General trait exception
 type TraitException <: Exception 
-    msg::String
+    msg::AbstractString
 end
 
 # Helper dummy types used in istrait below
