@@ -8,7 +8,7 @@
 # @traitfn f1{S,T<:Integer; D1{S}, D1{T}  }(s::S,t::T) = sin(s) - sin(t)
 # @traitfn f1{X,Y<:FloatingPoint; D1{X}, D1{Y}  }(x::X,y::Y) = cos(x) - cos(y)
 
-typealias FName Union(Symbol,Expr)
+typealias FName Union{Symbol,Expr}
 
 # generates: X1, X2,... or x1, x2.... (just symbols not actual TypeVar)
 type GenerateTypeVars{CASE}
