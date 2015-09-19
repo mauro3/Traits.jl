@@ -62,7 +62,7 @@ end
 abstract Trait{SUPER}
 
 # Type of methods field of concrete traits:
-typealias FDict Dict{Union(Function,DataType),Function}
+typealias FDict Dict{Union{Function,DataType},Function}
 
 # A concrete trait type has the form 
 ## Tr{X,Y,Z} <: Trait{ Tuple{ST1{X,Y},ST2{Z}} }
@@ -88,7 +88,7 @@ immutable _TraitStorage end
 #      @traitdef.  This is a bit awkward:
 
 #      - method_exists(f, s) returns true if there is a method of f with
-#        signature sig such that s<:sig.  Thus All<->Union()
+#        signature sig such that s<:sig.  Thus All<->Union{}
 #      - Base.return_types works the other way around, there All<->Any
 
 #      See also https://github.com/JuliaLang/julia/issues/8974"""->
