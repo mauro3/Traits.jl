@@ -16,9 +16,9 @@ It's based on what I think traits should be:
     required methods but also other assertions.  (Assertions could be
     that certain fields are present or that it has some storage
     structure, etc.)
-   
+
 2.  they needn't be declared explicitly, but can be.
-   
+
 3.  they allow *dispatch* to work with them
 
 Julia's generic functions are very good to set up contracts as
@@ -52,7 +52,7 @@ using Traits
 # make a new trait and add a type to it:
 @traitdef MyTr{X,Y} begin
     foobar(X,Y) -> Bool # All type-tuples for which there is a method foo
-                        # with that signature belong to MyTr 
+                        # with that signature belong to MyTr
 end
 type A
     a::Int
@@ -191,7 +191,7 @@ Trait functions & dispatch (for details see [traitfns.md](docs/traitfns.md)):
 # julia> @traitfn ttt1{X, Y, Z; Tr1{X}, Tr1{Y}}(a::X, b::Y, c::Z) = fun1(a) + fun1(b) + c
 # ttt1 (generic function with 6 methods)
 
- 
+
 # tf1 now dispatches on traits
 @assert tf1(5.,6.)==77. # -> 77 ; dispatches to I because istrait(Tr1{Float64})
                         #         but not istrait(Tr2{Float64,Float64})
@@ -278,7 +278,7 @@ _f(x,y,::Type{Trait1}) = x+y
 _f(x,y,::Type{Trait2}) = x-y
 _f(x,y,::Type{Trait3}) = x*y
 # Association of types with traits through method definitions:
-# Throw error as default 
+# Throw error as default
 traitfn{T,S}(x::T,y::S) = error("Function f not implemented for type ($T,$S)")
 # Add types-tuples to Trait1, Trait2 or Trait3
 traitfn(::Int, ::Int) = Trait1
@@ -300,7 +300,7 @@ type.  Instead all that is needed is to add it to the `traitfn`, and
 choosing the exact behavior of `f` by the type `traitfn` returns:
 ```julia
 traitfn(::A, ::Int) = Trait1()
-traitfn(::Int, ::A) = Trait1() 
+traitfn(::Int, ::A) = Trait1()
 ```
 
 Therefore `traitfn` is in effect a function that groups type-tuples
@@ -362,14 +362,15 @@ f1{X,Y<:FloatingPoint}(x::X, y::Y) = f1(f1(_TraitDispatch,x, y), x, y)
 
 # Trait dispatch happens in these generated functions
 @generated function f1{X1,X2<:Integer}(::Type{_TraitDispatch}, x1::X1, x2::X2)
-    # Figure out which traits match (note this list is updated as more
-    # trait-dispatched methods are added to f1)
+    # Figure out which trait matches.  Note below list is updated as more
+    # trait-dispatched methods are added to f1.
     traittypes = [(D1{X2}, D4{X1,X2}), (D1{X1}, D1{X2})]
 
+    # errors if not a single match is found:
     traittyp = Traits.traitdispatch(traittypes, $(fn.name))
 
     out = :(())
-    for s in poss[1]
+    for s in traittyp
         push!(out.args, :($s))
     end
     return out
@@ -441,4 +442,3 @@ https://github.com/JuliaLang/julia/issues/2345#issuecomment-54537633
 - does limited dispatch: a function returns a true/false type
   depending on the input types
 - Jeff suggested some additions to it.
-
