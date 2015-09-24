@@ -41,7 +41,7 @@ other_T = f8576.env.defs.tvars
 
 @test Traits.find_correponding_type(Array{Int,2}, Array{I,2}, I)==Any[Int]
 @test Traits.find_correponding_type(Tuple{Array{Int,2}, Float64, Tuple{UInt8, UInt16}},
-                                    Tuple{Array{I,2},   I,       Tuple{String, I}}    , I) == Any[Int, Float64, Traits._TestType{:no_match}, UInt16]
+                                    Tuple{Array{I,2},   I,       Tuple{AbstractString, I}}    , I) == Any[Int, Float64, Traits._TestType{:no_match}, UInt16]
 @test Traits.find_correponding_type(Tuple{Array{Int,2}, Float64, Tuple{UInt8, UInt16}},
                                     Tuple{Array{I,2},   I,       Tuple{UInt8, I}}     , I) == Any[Int, Float64, UInt16]
 

@@ -16,7 +16,7 @@ a,b,c = Traits.parsebody(td.args[end])
 
 td0 = :(@traitdef Cr20{X} begin
     length(X)
-    
+
     @constraints begin
         string(X.name)[1]=='I'
     end
@@ -26,7 +26,7 @@ a,b = Traits.parsebody(td0.args[end])
 
 td1 = :(@traitdef Cr20{X} begin
     length(X) -> Int
-    
+
     @constraints begin
         string(X.name)[1]=='I'
     end
@@ -38,7 +38,7 @@ td2 = :(@traitdef Cr20{X,Y} begin
     X + Y -> Int,Float64
     -(X,Y) -> Int
     (/)(X,Y) -> Int
-    
+
     @constraints begin
         string(X.name)[1]=='I'
     end
@@ -54,12 +54,12 @@ a,b,c = Traits.parsebody(td3.args[end])
 
 # td4 = :(@traitdef Cr20{X} begin
 #     fn{Y<:II}(X,Y) -> Type{X}
-#     fn76{K<:FloatingPoint, I<:Integer}(X, Vector{I}, Vector{K}) -> I
+#     fn76{K<:AbstractFloat, I<:Integer}(X, Vector{I}, Vector{K}) -> I
 # end)
 # a,b,c = Traits.parsebody(td4.args[end])
 # v = :(TypeVar(symbol("Y"),II))
 # t = :(TypeVar(symbol("I"),Integer))
-# k = :(TypeVar(symbol("K"),FloatingPoint))
+# k = :(TypeVar(symbol("K"),AbstractFloat))
 
 # @test a==Expr(:dict, :(fn=>((X,$v),Type{X})),
 #                      :(fn76=>((X,Vector{$t},Vector{$k}),$t))
@@ -75,12 +75,12 @@ end
 ## Testing trait definitions in commontraits.jl
 @test istrait(Cmp{Int,Int})
 @test istrait(Cmp{Int,Float64})
-@test !istrait(Cmp{Int,String})
+@test !istrait(Cmp{Int,AbstractString})
 
 
 #coll = [Vector, Vector{Int}, Dict{Int}, Dict{Int,Int}, Set{Int}]
 coll = [Vector{Int}, Dict{Int,Int}, Set{Int}]
-iter = [Traits.GenerateTypeVars{:upcase},  Int] #todo: add String,
+iter = [Traits.GenerateTypeVars{:upcase},  Int] #todo: add AbstractString,
 dicts = [Dict{Int,Int}] # Dict and Dict{Int} does not work, ObjectIdDict does not fulfill the trait
 index = [Array{Int,2}, StepRange{Int,Int}]
 c=1
@@ -107,7 +107,7 @@ end
 @test istrait(IsIterable{Array}, verbose=verbose)
 @test istrait(IsIterable{ASCIIString}, verbose=verbose)
 @test istrait(IsIterable{Int}, verbose=verbose)
-@test !istrait(IsIterable{Nothing})
+@test !istrait(IsIterable{Void})
 
 arith = [Int, Float64, Rational{Int}]
 a1,a2 = 1,1
@@ -190,7 +190,7 @@ end
 @traitdef Pr1{X}  begin
     fn76{I<:Integer}(X, Vector{I}) -> I
 end
-fn76{I<:Integer}(x::Uint8, v::Vector{I}) = v[x]
+fn76{I<:Integer}(x::UInt8, v::Vector{I}) = v[x]
 @test istrait(Pr1{UInt8})
 
 @traitdef Pr2{X} begin
@@ -234,20 +234,20 @@ fnpr04{I<:Integer}(b::Int, c::Int, ::I, ::I) = b
 @traitdef Pr05{X} begin
     fnpr05{T<:X, S<:Integer}(Dict{T,T}, Dict{S,T})
 end
-fnpr05{T<:FloatingPoint, S<:Integer}(::Dict{T,T}, ::Dict{S,T}) = 1
+fnpr05{T<:AbstractFloat, S<:Integer}(::Dict{T,T}, ::Dict{S,T}) = 1
 @test istrait(Pr05{Float64})
 
 @traitdef Pr06{X} begin
     fnpr06{T<:X, S<:Integer}(Dict{T,S}, Dict{S,T})
 end
-fnpr06{T<:FloatingPoint, S<:Integer}(::Dict{T,S}, ::Dict{S,T}) = 1
+fnpr06{T<:AbstractFloat, S<:Integer}(::Dict{T,S}, ::Dict{S,T}) = 1
 @test istrait(Pr06{Float64})
 
 
 @traitdef Pr07{X} begin
     fnpr07(X, X, Integer)
 end
-fnpr07{T<:Integer}(::T, ::T, ::Integer) = 1  
+fnpr07{T<:Integer}(::T, ::T, ::Integer) = 1
 @test !istrait(Pr07{Integer}) # not trait because fnpr07(Int8, UInt8, ...) is not callable
 @test istrait(Pr07{Int})
 
@@ -286,7 +286,7 @@ fnpr12{T<:Integer}(::T, ::Vector{T}, ::Integer) = 1
 ####
 @traitdef Cr20{X} begin
     length(X) -> Any
-    
+
     @constraints begin
         string(X.name)[1]=='I'
     end
@@ -349,7 +349,7 @@ check_return_types(true)
     # type-functions based on return_type:
     State = Base.return_types(start, (X,))[1]  # this is circular but that is ok, as trait needs to be implemented.
     Item =  Base.return_types(next, (X,State))[1][1]
-    
+
     # interface functions
     start(X) -> State
     next(X, State) -> Item, State
@@ -380,27 +380,27 @@ AssocIsBits{T3484675{Int,4.5,:a}}()
 @traitdef TT31{X} begin
     foo31(X, Int...)
 end
-foo31(::String, x::UInt...) = 1
-@test !istrait(TT31{String})
-foo31(::String) = 2 # to avoid ambiguity warnings
-foo31(::String, x::Int...) = 2
-@test istrait(TT31{String})
+foo31(::AbstractString, x::UInt...) = 1
+@test !istrait(TT31{AbstractString})
+foo31(::AbstractString) = 2 # to avoid ambiguity warnings
+foo31(::AbstractString, x::Int...) = 2
+@test istrait(TT31{AbstractString})
 
 @traitdef TT32{X} begin
     foo32(X...)
 end
-foo32(::String) = 1
-@test !istrait(TT32{String})
-foo32(a::String...) = 2 # to avoid ambiguity warnings
-@test istrait(TT32{String})
+foo32(::AbstractString) = 1
+@test !istrait(TT32{AbstractString})
+foo32(a::AbstractString...) = 2 # to avoid ambiguity warnings
+@test istrait(TT32{AbstractString})
 
 @traitdef TT33{X} begin
     foo33{Y<:X}(X, Y...)
 end
-foo33(::String) = 1
-@test !istrait(TT33{String})
-foo33{T<:String}(::String, a::T...) = 2
-@test istrait(TT33{String})
+foo33(::AbstractString) = 1
+@test !istrait(TT33{AbstractString})
+foo33{T<:AbstractString}(::AbstractString, a::T...) = 2
+@test istrait(TT33{AbstractString})
 
 ####
 # DataType constructors
@@ -438,7 +438,7 @@ end
 @traitdef TT46{Ar} begin
     T = Type{eltype(Ar)}
     Arnp = deparameterize_type(Ar)  # Array stripped of type parameters
-    
+
     Arnp(T, Int64) -> Ar
     Arnp(T, Int...) -> Ar
     @constraints begin
@@ -460,5 +460,3 @@ end
 ##  Array{Int64,0}
 # @test istrait(TT46{Array{Int}}, verbose=verbose)
 @test istrait(TT46{Array}, verbose=verbose)
-
-

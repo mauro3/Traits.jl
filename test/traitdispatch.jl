@@ -3,7 +3,7 @@
 
 # @traitfn ttf2{X,Y<:Integer; D1{Y}, D4{X,Y}}(x::X,y::Y) = x + sin(y)
 # @traitfn ttf2{S,T<:Integer; D1{S}, D1{T}  }(s::S,t::T) = sin(s) - sin(t)
-# @traitfn ttf2{X,Y<:FloatingPoint; D1{X}, D1{Y}  }(x::X,y::Y) = cos(x) - cos(y)
+# @traitfn ttf2{X,Y<:AbstractFloat; D1{X}, D1{Y}  }(x::X,y::Y) = cos(x) - cos(y)
 
 # @test ttf2(4,5)==(4 + sin(5))
 # @test ttf2(4,5.) == cos(4)-cos(5.)
@@ -24,21 +24,21 @@ ff1(x,y) = x==y
 @test ff1(4,5)==ft1(4,5)
 
 #################
-@traitfn function ft2{X,Y; Arith{X,Y}}(x::X,y::Y) 
+@traitfn function ft2{X,Y; Arith{X,Y}}(x::X,y::Y)
     out = zero(promote(x,y)[1])
     for xe in 1:round(Int,x)
         out += xe + y
     end
     out
 end
-function ff2{X,Y}(x::X,y::Y) 
+function ff2{X,Y}(x::X,y::Y)
     out = zero(promote(x,y)[1])
     for xe in 1:round(Int,x)
         out += xe + y
     end
     out
 end
-        
+
 @test ff2(7.3,5.)==ft2(7.3,5.)
 
 ##################
@@ -68,7 +68,7 @@ foobar(a::A, b::A) = a.a==b.a
 @test ft111(A(5), A(6))==-999
 
 @test_throws TraitException ft111("asdf", 5)
-foobar(a::String, b::Int) = length(a)==b
+foobar(a::AbstractString, b::Int) = length(a)==b
 @test ft111("asdf", 4)==-99
 
 ## dispatch using subtraits
@@ -93,13 +93,13 @@ bar(a::B2, b::B2) = a.a==b.a
 @test istrait(MyTr2{B2,B2})
 
 @test gt1(B1(1), B1(1))=="MyTr"
-@test gt1(B2(1), B2(1))=="MyTr2" 
+@test gt1(B2(1), B2(1))=="MyTr2"
 
 
 ##########
 ## adding trait methods to existing functions:
 @traitdef MyTr7{X} begin
-    bobo(X) -> String
+    bobo(X) -> AbstractString
 end
 
 abstract AMTyp7
@@ -125,7 +125,7 @@ import Base.sin
 # Ambiguities
 ######
 @traitdef TrTr1{X} begin
-    len1(X) 
+    len1(X)
 end
 
 @traitfn tf7465{X<:Integer,Y; TrTr1{X}}(x::X,y::Y) = x-y
@@ -152,7 +152,7 @@ end
 ## single argument ambiguities
 ####
 @traitdef TrTr2{X} begin
-    len2(X) 
+    len2(X)
 end
 
 @traitfn tttf{X; TrTr1{X}}(x::X) = len1(x)
@@ -211,7 +211,7 @@ end
 end
 
 @traitfn tttf238{X; UU1{X}}(x::X) = "this should loose"
-@traitfn tttf238{X; UU2{X}}(x::X) = "this should win"  
+@traitfn tttf238{X; UU2{X}}(x::X) = "this should win"
 
 # This test in traitdispatch.jl should probably pass:
 if dispatch_bug1

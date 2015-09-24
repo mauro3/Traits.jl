@@ -36,7 +36,7 @@ end
 # any type is part of a unconstrained trait:
 @test istrait(Tr1{Int}, verbose=verbose)
 @test istrait(Tr2{DataType,Int})
-@test istrait(Tr3{String,DataType})
+@test istrait(Tr3{AbstractString,DataType})
 @test_throws TraitException istrait(Tr3{:a,7})  # maybe this should error?
 
 immutable D1{X1} <: Traits.Trait{Tuple{}}
@@ -55,7 +55,7 @@ immutable D1{X1} <: Traits.Trait{Tuple{}}
 end
 
 @test istrait(D1{Int}, verbose=verbose)
-@test !istrait(D1{String})
+@test !istrait(D1{AbstractString})
 
 immutable D2{X1,X2} <: Traits.Trait{Tuple{D1{X1}, D1{X2}}}
     methods::Traits.FDict
@@ -73,7 +73,7 @@ immutable D2{X1,X2} <: Traits.Trait{Tuple{D1{X1}, D1{X2}}}
 end
 
 @test istrait(D2{Int, Int})
-@test !istrait(D2{Int, String})
+@test !istrait(D2{Int, AbstractString})
 
 immutable D3{X1} <: Traits.Trait{Tuple{}}
     methods::Traits.FDict
@@ -110,7 +110,7 @@ end
 
 @test istrait(Tuple{D1{Int}, D2{Int, Int}} )
 
-@test istrait(D4{Int,FloatingPoint})
+@test istrait(D4{Int,AbstractFloat})
 
 ### adding other constraints
 
@@ -156,7 +156,7 @@ end
 @test istrait(CTrAs{Int32, Int})
 # @test istrait(CTrAs{Integer, Integer}) # doesn't work because return type of /(Integer, Integer)==Any
 @test istrait(CTrAs{Int, Int})
-@test !istrait(CTrAs{Int, String})
+@test !istrait(CTrAs{Int, AbstractString})
 
 # parametric methods
 ####################
@@ -250,7 +250,7 @@ g03{I<:Integer}(::I, ::Vector{I}) = 1
 #     function Tr04()
 #         A1 = getassoc(X)
 #         new(Traits.FDict(
-#                          g04 => (_g04{T<:X}( ::T, ::T, ::Vector{T}, ::A1) = nothing) 
+#                          g04 => (_g04{T<:X}( ::T, ::T, ::Vector{T}, ::A1) = nothing)
 #                          ),
 #             Bool[],
 #             [A1]

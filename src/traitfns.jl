@@ -6,7 +6,7 @@
 #
 # @traitfn f1{X,Y<:Integer; D1{Y}, D4{X,Y}}(x::X,y::Y) = x + sin(y)
 # @traitfn f1{S,T<:Integer; D1{S}, D1{T}  }(s::S,t::T) = sin(s) - sin(t)
-# @traitfn f1{X,Y<:FloatingPoint; D1{X}, D1{Y}  }(x::X,y::Y) = cos(x) - cos(y)
+# @traitfn f1{X,Y<:AbstractFloat; D1{X}, D1{Y}  }(x::X,y::Y) = cos(x) - cos(y)
 
 typealias FName Union{Symbol,Expr}
 
@@ -23,7 +23,7 @@ type ParsedFn  # (probably should adapt MetaTools.jl...)
     name::FName  # f1
     fun::Expr # :(f1{X<:Int,Y})
     typs::Vector{Any} # [:(X<:Int),:Y]
-    sig::Vector{Any} # [:(x::X), :(y::Y)] 
+    sig::Vector{Any} # [:(x::X), :(y::Y)]
     traits::Vector{Any} # [D1{X}, D2{X,Y}]
     body::Expr # quote ... end
 end
@@ -32,7 +32,7 @@ end
 function parsetraitfn_head(head::Expr)
     # Transforms
     # f1{X<:Int,Y; D1{X}, D2{X,Y}}(x::X,y::Y)
-    # 
+    #
     # into a ParsedFn
 
     nametyp = head.args[1]
@@ -47,16 +47,16 @@ end
 gettypesymbol(x::Expr) = x.args[1] # :(X1<:Int)
 gettypesymbol(x::Symbol) = x
 function translate_head(fn::ParsedFn)
-    # Takes output from parsetraitfn_head and 
+    # Takes output from parsetraitfn_head and
     # renames sig and TypeVar:
     # f1{X,Y; D1{X}, D2{X,Y}}(x::X,y::Y)
     # ->
     # f1{X1,X2; D1{X1}, D2{X1,X2}}(x::X1,y::X2)
     #
     # Returns translated ParsedFn
-    
+
     function make_trans(sig, typs)
-        # makes two dictionaries with keys the old typevars, and 
+        # makes two dictionaries with keys the old typevars, and
         # values the lowercase and uppercase variables
 
         # make variable-symbol translation map:
@@ -75,7 +75,7 @@ function translate_head(fn::ParsedFn)
         return trans_var, trans_Tvar
     end
     trans_var, trans_Tvar = make_trans(fn.sig, fn.typs)
-    
+
     # do the translations:
     fnt = deepcopy(fn)
     for i in 2:length(fnt.fun.args)
@@ -111,7 +111,7 @@ function translate_head(fn::ParsedFn)
     for t in fnt.traits
         t.args[2:end] = map(x->trans_Tvar[x], t.args[2:end])
     end
-    
+
     return fnt
 end
 
@@ -167,7 +167,7 @@ function get_concrete_type_symb(typs)
     # [:(X<:Int), :Y] -> [:Int, :Any]
     out = Any[]
     for t in typs
-        if isa(t, Symbol) 
+        if isa(t, Symbol)
             push!(out, :Any)
         elseif  t.head==:.
             push!(out, t)
@@ -224,20 +224,20 @@ end
 
 
 @doc """The heart, the trait-dispatch function.
-     
+
      Trait-function (TF) dispatch works like:
 
      - first dispatch on the normal types
-     
+
      Then dispatch on traits using the following rules, terminating
      when only one or zero possibilities are left
 
      - find all matching traits
      - discriminate using subtraits, i.e. a subtrait will win over its supertrait
      - score all traits according to:
-       1 point for all single parameter traits,  
+       1 point for all single parameter traits,
        2 points for all two parameter traits,
-       etc.  
+       etc.
        Now pick the highest scoring method.
      - if still ambiguous throw an error
      """->
@@ -317,12 +317,12 @@ macro traitfn(fndef)
         throw(TraitException(
           "There are repeated traits in the trait signature of $(fndef.args[1])"))
     end
-              
+
     ## make primary function: f
     #### tf(x, y)
     # (Just overwrite definitions of f if they exists already,
     # generates warnings though...)
-    
+
     # definition head: fn{X,Y}(x::X,y::Y)
     f = makefnhead(fn.name, fn.typs, fn.sig)
     # definition body: _trait_fn(_trait_type_f1(x,y) ), x, y)
@@ -330,10 +330,10 @@ macro traitfn(fndef)
     args2 = Any[makefncall(fn.name, args1), fn.sig...]
     body = makefncall(fn.name, args2)
     f = :($f = $body)
-    
+
     ## make function containing the logic: trait_f
     #### tf(::Type{Tuple{Traits...}}, x, y)
-    # 1) make the traits-type 
+    # 1) make the traits-type
     trait_typ = :(Tuple{})
     append!(trait_typ.args, fn.traits)
     trait_typ = :(::Type{$trait_typ})
@@ -351,26 +351,26 @@ macro traitfn(fndef)
     # julia> yt1(Traits._TraitStorage, Int, Int)
     # (Any[ Tuple{Traits.Arith{Int64,Int64}} ], Any[:( Tuple{Arith{X1,X2}} )], Any[:X1,:X2])
 
-    
+
     ## 1) Get the existing traits out of the trait_type_f:
     #    These can be retrieved with the call:
     #    trait_type_f(Traits._TraitStorage, ::Type{X}, ::Type{Y}...) for suitable X, Y...
     args1 = Any[:(Traits._TraitStorage), get_concrete_type_symb(fn.typs)...]
     trait_type_f_store_call = makefncall(fn.name, args1)
-    
+
     args2 = Any[:(Traits._TraitStorage), fn.typs...]
     if has_only_one_method(fn.name, args2)
-        traittypes = eval_curmod(trait_type_f_store_call)[2] 
+        traittypes = eval_curmod(trait_type_f_store_call)[2]
     else
         traittypes = Any[]
     end
-    
+
     ## 2) update old_traittypes with the new ones
     newtrait = :( Tuple{$(fnt.traits...)} )
     if !(newtrait in traittypes)
         push!(traittypes, newtrait)
     end
-    
+
     ## 3) make new trait-type storage function
     #     tf(::Type{Traits._TraitStorage}, ::Type{X}, ::Type{Y}...)
     sig2typs(sig) = [s.args[2] for s in fnt.sig]
@@ -402,7 +402,7 @@ macro traitfn(fndef)
         return out
     end
     push!(trait_type_f.args, body)
-    
+
     ## now put all together
     ####
     out = quote
