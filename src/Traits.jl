@@ -1,7 +1,7 @@
 module Traits
-@doc """This package provides an implementation of traits, aka interfaces or type-classes.  
+@doc """This package provides an implementation of traits, aka interfaces or type-classes.
      It is based on the premises that traits are:
-     
+
      - contracts on one type or between several types.  The contract can
         contain required methods but also other assertions and just
         belonging to a group (i.e. the trait).
@@ -9,7 +9,7 @@ module Traits
         """ -> current_module()
 
 export istrait, istraittype, issubtrait, check_return_types,
-       traitgetsuper, traitgetpara, traitmethods, 
+       traitgetsuper, traitgetpara, traitmethods,
        @traitdef, @traitimpl, @traitfn, TraitException, All
 
 if !(VERSION>v"0.4-")
@@ -34,7 +34,7 @@ setflag!(f::Flags, n::Symbol, val) = setfield!(f, n, val)
 
 """
 Flags for various Traits behavior:
- 
+
 - first arg: check return types?
 """
 const flags = Flags(true)
@@ -59,14 +59,14 @@ end
 
      All traits are direct decedents of abstract type Trait.  The type parameter
      SUPER of Trait is needed to specify super-traits (a tuple).""" ->
-abstract Trait{SUPER}
+abstract Trait{SUPER<:Tuple}
 
 # Type of methods field of concrete traits:
 typealias FDict Dict{Union{Function,DataType},Function}
 
-# A concrete trait type has the form 
+# A concrete trait type has the form
 ## Tr{X,Y,Z} <: Trait{ Tuple{ST1{X,Y},ST2{Z}} }
-# 
+#
 # immutable Tr1{X1} <: Traits.Trait{ Tuple{} }
 #     methods::FDict
 #     constraints::Vector{Bool}
@@ -95,7 +95,7 @@ immutable _TraitStorage end
 # abstract All
 
 # General trait exception
-type TraitException <: Exception 
+type TraitException <: Exception
     msg::AbstractString
 end
 
@@ -152,7 +152,7 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
     try
         tr = Tr()
     catch err
-        println_verb("""Could not instantiate instance for type encoding the trait $Tr.  
+        println_verb("""Could not instantiate instance for type encoding the trait $Tr.
                      This usually indicates that something is amiss with the @traitdef
                      or that one of the generic functions is not defined.
                      The error was: $err""")
@@ -181,7 +181,7 @@ function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
                 end
             end
             if !checks # if check==false no fitting method was found
-                println_verb("""No method of the generic function/call-overloaded `$gf` matched the 
+                println_verb("""No method of the generic function/call-overloaded `$gf` matched the
                              trait specification: `$tm`""")
                 return false
             end
@@ -387,10 +387,10 @@ function isfitting(tmm::Method, fmm::Method; verbose=false) # tm=trait-method, f
         # find all occurrences in the signature
         locs = find_tvar(tm.sig, tv)
         if length(locs)==0
-            throw(TraitException("""The parametric-constraint of trait-method $tmm has to feature 
+            throw(TraitException("""The parametric-constraint of trait-method $tmm has to feature
                                  in at least one argument of the signature."""))
         end
-        # Find the tvar in fm which corresponds to tv. 
+        # Find the tvar in fm which corresponds to tv.
         ftvs = Any[]
         for ftv in fm.tvars
             flocs = find_tvar(fm.sig, ftv)
@@ -417,7 +417,7 @@ function isfitting(tmm::Method, fmm::Method; verbose=false) # tm=trait-method, f
             println_verb("Reason fail: parametric constraints on function method not as severe as on trait-method.")
             return false
         end
-        
+
         # Check that they constrain the same thing in each argument.
         # E.g. this should fail: {K,V}(::Dict{K,V}, T) <<: {T}(::Dict{V,K}, T).
         # Do this by substituting a concrete type into the respective
@@ -481,7 +481,7 @@ function replace_concrete_tvars(m::FakeMethod)
         end
     end
     if isdefined(m, :ret)
-        if ret_tuple 
+        if ret_tuple
             return FakeMethod(Tuple{newsig...}, Base.svec(newtv...), m.va, Tuple{newret...})
         else
             return FakeMethod(Tuple{newsig...}, Base.svec(newtv...), m.va, newret[1])
