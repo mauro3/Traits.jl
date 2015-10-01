@@ -27,6 +27,16 @@ type ParsedFn  # (probably should adapt MetaTools.jl...)
     traits::Vector{Any} # [D1{X}, D2{X,Y}]
     body::Expr # quote ... end
 end
+function ==(p::ParsedFn, q::ParsedFn)
+    out = true
+    for n in fieldnames(p)
+        out = out && getfield(p,n)==getfield(q,n)
+        if !out
+            @show n, getfield(p,n), getfield(q,n)
+        end
+    end
+    out
+end
 
 # Parsing:
 function parsetraitfn_head(head::Expr)

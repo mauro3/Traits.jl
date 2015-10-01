@@ -22,6 +22,8 @@ include("base_fixes.jl")
 ## common helper functions
 include("helpers.jl")
 
+const VERBOSE=true
+
 #######
 # Flags
 #######
@@ -134,7 +136,7 @@ end
 
      `istrait( (Tr1{Int, Float64}, Tr2{Int}) )`
      """ ->
-function istrait{T<:Trait}(Tr::Type{T}; verbose=false)
+function istrait{T<:Trait}(Tr::Type{T}; verbose=VERBOSE)
     if verbose
         println_verb(x) = println("**** Checking $(deparameterize_type(Tr)): " * x)
     else
