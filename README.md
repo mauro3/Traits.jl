@@ -82,6 +82,10 @@ This is a fairly experimental package and I will not try to keep
 backwards compatibility as I move on.  Please try it out and give me
 feedback, issues or pull requests!
 
+Update April 2016: I will not have much time to work on this in the
+near-ish future and it will be a low priority for me to update
+Traits.jl once Julia 0.5 is out.
+
 # Syntax
 The source of below examples is in `examples/ex2.jl`.  Most of the
 important functions are documented and will respond to `?` in the REPL.

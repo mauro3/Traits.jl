@@ -34,13 +34,13 @@ function get_fname_only(ex)
     isa(ex,Symbol) ? ex : ex.args[1]
 end
 
-function get_fsig(ex::Expr) 
+function get_fsig(ex::Expr)
     ex.args[1].args[2:end]
 end
 
 function check_macro_body(bodyargs, implfs, trait)
     # TODO: this check is broken
-    
+
     # check that there are no double defs
     length(trait().methods)==length(implfs) || error("Duplicate method definition(s)")
     # check right number of defs
@@ -48,7 +48,7 @@ function check_macro_body(bodyargs, implfs, trait)
     # check that the signature of implfs agrees with trait().methods
     for (f,sig) in trait().methods
         # for now just check length.
-        if length(sig[1])!=length(get_fsig(implfs[f])) 
+        if length(sig[1])!=length(get_fsig(implfs[f]))
             error("""Method definition:
                      $f  $sig
                      does not match implementation:
@@ -81,9 +81,9 @@ function prefix_module!(ex::Expr, modname::Symbol)
     elseif ex.head!= :function
         error("Not a function definition:\n$ex")
     end
-    
+
     fnname = get_fname(ex)
-    fnname_only = get_fname_only(ex)    
+    fnname_only = get_fname_only(ex)
     if isa(fnname, Symbol)
         ex.args[1].args[1] = :($modname.$fnname)
     elseif fnname.head==:curly
@@ -104,7 +104,7 @@ end
      Example continuing from the documentation of `@traitdef`, implementing the
      `MyArith` trait:
 
-     ``` 
+     ```
      type A; a end; type AB; b end
      @traitimpl MyArith{A,AB} begin
          +(x::A,y::AB) = A(x.a+y.b)
@@ -124,7 +124,7 @@ macro traitimpl(head, body)
     ## Parse macro header
     name, paras, trait_expr = parsecurly(head)
 
-    ## Parse macro body 
+    ## Parse macro body
     implfs = parse_body(body)
     #check_macro_body(body.args, implfs, trait) # doesn't work with associated types
 
@@ -142,7 +142,7 @@ macro traitimpl(head, body)
         prefix_module!(fndef, modname)
         push!(out.args,fndef)
     end
-    
+
     ## Assert that the implementation went smoothly
     push!(out.args, :(istrait($trait_expr) ? nothing :  @assert istrait($trait_expr, verbose=true)))
     return esc(out)
