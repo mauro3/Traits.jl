@@ -40,7 +40,16 @@ My [*JuliaCon 2015*](https://youtu.be/j9w8oHfG1Ic) talk gives a 10
 minute introduction to Traits.jl.  Also, Jeff mentioned Traits.jl
 during Q&A in his
 [JuliaCon talk](https://youtu.be/xUP3cSKb8sI?t=45m51s), suggesting
-that trait functionality may well be added to Julia-Base.
+that trait functionality may well be added to Julia-Base (but
+different to Traits.jl).
+
+Note that there is also the
+[SimpleTraits.jl](https://github.com/mauro3/SimpleTraits.jl) package
+which is a lot simpler than Traits.jl, essentially just macro-sugar
+for Holy-traits.  Thus SimpleTraits.jl does not contain the
+possibility to define traits by specifying required methods.  Instead
+types need to be added to a trait manually; the rest is almost
+identical to Traits.jl.
 
 Example `examples/ex1.jl`:
 ```julia
@@ -82,7 +91,7 @@ This is a fairly experimental package and I will not try to keep
 backwards compatibility as I move on.  Please try it out and give me
 feedback, issues or pull requests!
 
-Update April 2016: I will not have much time to work on this in the
+**Update April 2016**: I will not have much time to work on this in the
 near-ish future and it will be a low priority for me to update
 Traits.jl once Julia 0.5 is out.
 
@@ -396,6 +405,13 @@ as traits do not have a strict hierarchy like types.
 See the Julia-issue
 [#6975](https://github.com/JuliaLang/julia/issues/6975) for a
 discussion about interfaces/traits.
+
+My simpler traits implementation:
+[SimpleTraits.jl](https://github.com/mauro3/SimpleTraits.jl)
+Similar to Traits.jl but:
+
+- types are added to traits manually
+- some restrictions on `@traitfn`
 
 @Rory-Finnegan's
 [Interfaces.jl](https://github.com/Rory-Finnegan/Interfaces.jl)
