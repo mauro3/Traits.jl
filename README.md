@@ -1,5 +1,12 @@
 # Traits.jl
 
+This package is currently abandoned, although with the new type system
+in Julia 0.6 it should become viable to make this package
+maintainable.
+[SimpleTraits.jl](https://github.com/mauro3/SimpleTraits.jl) package
+provides traits, although without the interface specification present
+in this package.
+
 [![Build Status](https://travis-ci.org/mauro3/Traits.jl.svg?branch=master)](https://travis-ci.org/mauro3/Traits.jl)
 
 `Traits.jl` allows to:
