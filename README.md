@@ -1,8 +1,9 @@
 # Traits.jl
 
-This package is currently abandoned, although with the new type system
+This package is **currently abandoned**, although with the new type system
 in Julia 0.6 it should become viable to make this package
-maintainable.
+maintainable; also
+[#23117](https://github.com/JuliaLang/julia/pull/23117) should help.
 [SimpleTraits.jl](https://github.com/mauro3/SimpleTraits.jl) package
 provides traits, although without the interface specification present
 in this package.
